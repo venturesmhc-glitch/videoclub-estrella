@@ -314,7 +314,7 @@ end
 parte("MostradorZocalo", V3(M_LARGO, 0.35, 0.12), V3(M_CENTRO, 0.2, Z_MOSTRADOR + 1.05), C3(30, 24, 20), Enum.Material.Wood, mostrador, DECO)
 
 -- Tele CRT: pantalla hacia el lado del empleado (hacia -Z).
-local TV_X = -15.8
+local TV_X = -14.2 -- un poco hacia el lado de atención (x -4.2), pero sin llegar a donde se deja la cinta (x -7.8)
 local tv = Instance.new("Model")
 tv.Name = "TV_Mostrador"
 tv.Parent = mostrador
@@ -333,7 +333,7 @@ luzTV.Shadows = true
 luzTV.Parent = pantalla
 
 -- Videocasetera al lado de la tele (estación de rebobinado).
-local VCR_X = -11
+local VCR_X = -10.5 -- su borde derecho (x -9.1) queda a medio stud de la cinta devuelta (x -7.8 ± 0.7) y lejos del punto de atención
 local vcr = parte("Videocasetera", V3(2.8, 0.5, 1.8), V3(VCR_X, 3.95, Z_MOSTRADOR), C3(22, 22, 24), Enum.Material.Plastic, mostrador)
 parte("VCR_Ranura", V3(1.8, 0.12, 0.05), V3(VCR_X, 3.98, Z_MOSTRADOR - 0.92), C3(8, 8, 8), Enum.Material.SmoothPlastic, mostrador)
 parte("VCR_Display", V3(0.5, 0.12, 0.05), V3(VCR_X + 0.9, 4.1, Z_MOSTRADOR - 0.92), C3(60, 255, 120), Enum.Material.Neon, mostrador)
@@ -359,7 +359,8 @@ CollectionService:AddTag(puntoMostrador, "PuntoMostrador")
 
 -- Caja donde se separan las cintas dañadas: contra el lateral del mostrador, al lado de la videocasetera
 -- (el recorrido de rebobinar -> separar queda corto) y fuera del camino entre las góndolas y el mostrador.
-local CD_X, CD_Z = LATERAL_X + 1.9, Z_MOSTRADOR - 4
+-- Contra el lateral pero pasada la radio (z 11.4): así se camina hasta la radio sin chocar y sigue a un paso de la videocasetera.
+local CD_X, CD_Z = LATERAL_X + 2, Z_MOSTRADOR - 2.2
 local cajaDanadas = parte("CajaDanadas", V3(1.3, 1.5, 1.3), V3(CD_X, 0.75, CD_Z), C3(150, 40, 36), Enum.Material.Plastic, mostrador)
 CollectionService:AddTag(cajaDanadas, "CajaDanadas")
 parte("CajaDanadasTapa", V3(1.5, 0.15, 1.5), V3(CD_X, 1.58, CD_Z), C3(110, 28, 26), Enum.Material.Plastic, mostrador, DECO)
@@ -372,7 +373,7 @@ end
 -- Sobre el lateral del mostrador, del lado de los empleados, con el parlante hacia +X. La usa Radio.lua (E cambia de
 -- estación, R mantenido la apaga). Tiene una lucecita en el dial para encontrarla en la oscuridad.
 do
-	local RX, RY, RZ = LATERAL_X + 0.1, 3.8 + 0.5, 12.6
+	local RX, RY, RZ = LATERAL_X + 0.1, 3.8 + 0.5, 11.4
 	local radio = parte("Radio", V3(0.9, 1.0, 1.9), V3(RX, RY, RZ), C3(70, 44, 30), Enum.Material.Wood, mostrador)
 	CollectionService:AddTag(radio, "Radio")
 	parte("RadioParlante", V3(0.05, 0.75, 0.85), V3(RX + 0.47, RY - 0.05, RZ - 0.4), C3(26, 26, 28), Enum.Material.Fabric, mostrador, DECO)

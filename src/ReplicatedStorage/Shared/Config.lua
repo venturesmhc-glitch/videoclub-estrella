@@ -91,7 +91,7 @@ Config.Salas = {
 	Mapa = "SalasVideoclub",
 	VencimientoSeg = 45, -- una sala de espera que nadie renueva desaparece a los 45 s
 	LatidoSeg = 15, -- cada cuánto se renueva el registro de una sala mientras alguien la mira
-	SondeoSeg = 2, -- cada cuánto un servidor de entrada lee el registro de las salas en las que tiene jugadores
+	SondeoSeg = 1, -- cada cuánto un servidor de entrada lee el registro de las salas en las que tiene jugadores
 	CierreSalaSeg = 25, -- tras iniciar, el registro se borra a los 25 s (tiempo para que todos los servidores vean el cambio)
 	EsperaEquipoSeg = 20, -- el servidor de juego espera tanto al equipo completo antes de empezar igual
 	MaxListadas = 40,
@@ -341,16 +341,13 @@ Config.Tienda = {
 	EnfriamientoAsustarSeg = 45, -- entre un "asustar a todos" y otro (para todo el servidor)
 }
 
--- Radio del local (Radio.lua / AudioManager): estación 0 = apagada.
+-- Radio del local (Radio.lua / AudioManager): solo prende o apaga la música de fondo de siempre (la capa "Radio" de
+-- Config.Audio, que es la distorsionada). Estación 0 = apagada.
 Config.Radio = {
 	Inicial = 1,
 	Volumen = 0.2,
 	Estaciones = {
-		{ Nombre = "Radio AM", Id = "rbxassetid://75201584395115" },
-		{ Nombre = "Synthwave 80s", Id = "rbxassetid://70551940079407" },
-		{ Nombre = "Jazz de bar", Id = "rbxassetid://119374889049308" },
-		{ Nombre = "Cumbia", Id = "rbxassetid://119767062464596" },
-		{ Nombre = "Tango", Id = "rbxassetid://89374837604819" },
+		{ Nombre = "Radio", Id = "rbxassetid://75201584395115" },
 	},
 }
 

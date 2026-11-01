@@ -1,10 +1,9 @@
 --!nonstrict
 --[[
-	Radio (servidor): la radio del local, sobre el mostrador (parte con el tag "Radio").
-	  E            cambia a la estación siguiente (cada una es un tipo de música: Config.Radio.Estaciones)
-	  R (mantener) apaga la radio o la vuelve a prender en la última estación
-	El estado vive en el atributo "RadioEstacion" de Workspace (0 = apagada): el cliente lo lee y AudioManager suena
-	la música de fondo que corresponde.
+	Radio (servidor): la radio del local, sobre el mostrador (parte con el tag "Radio"). Solo apaga o prende la música de
+	fondo (la distorsionada de siempre): E la apaga y vuelve a prenderla.
+	El estado vive en el atributo "RadioEstacion" de Workspace (0 = apagada, 1 = suena): el cliente lo lee y AudioManager
+	sube o baja la capa de música.
 ]]
 
 local CollectionService = game:GetService("CollectionService")
@@ -28,7 +27,7 @@ local function poner(n: number, quien: Player?)
 	if n > 0 then
 		ultima = n
 	end
-	local texto = n == 0 and "Radio apagada." or ("Radio: " .. cfg.Estaciones[n].Nombre .. ".")
+	local texto = n == 0 and "Radio apagada." or "Radio prendida."
 	if quien then
 		Net.avisoATodos(quien.DisplayName .. " — " .. texto)
 	end
@@ -40,23 +39,9 @@ function Radio.init()
 		if parte:IsA("BasePart") then
 			Prompts.crear(parte, {
 				clave = "radio",
-				accion = "Cambiar de estación",
-				objeto = "Radio",
-				distancia = 6,
-				alActivar = function(jugador)
-					local actual = estacion()
-					-- Apagada: E la prende en la última estación; si no, pasa a la siguiente (y después de la última, a la primera).
-					poner(actual == 0 and ultima or (actual % #cfg.Estaciones) + 1, jugador)
-				end,
-			})
-			Prompts.crear(parte, {
-				clave = "radioApagar",
 				accion = "Apagar / prender",
 				objeto = "Radio",
-				hold = 0.5,
 				distancia = 6,
-				tecla = Enum.KeyCode.R,
-				offset = Vector2.new(0, -100),
 				alActivar = function(jugador)
 					poner(estacion() == 0 and ultima or 0, jugador)
 				end,

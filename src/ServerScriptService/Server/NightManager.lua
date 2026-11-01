@@ -188,14 +188,15 @@ function NightManager.init()
 	-- El turno no arranca solo: lo dispara Partida (menú de inicio) con NightManager.iniciarPartida().
 end
 
---- Arranca el primer turno (el de la noche guardada, o la primera) después de una breve espera.
-function NightManager.iniciarPartida()
+--- Arranca el primer turno después de una breve espera: el de la noche indicada, o si no, el de la noche guardada del
+--- primer jugador (o la primera). Una partida multijugador pasa la noche 1 para empezar de cero.
+function NightManager.iniciarPartida(nocheForzada: number?)
 	if estado.fase ~= "espera" then
 		return
 	end
 	task.spawn(function()
 		task.wait(Config.Noche.RetardoInicioSeg)
-		local guardada = if proveedorNocheInicial then proveedorNocheInicial() else nil
+		local guardada = if nocheForzada then nocheForzada elseif proveedorNocheInicial then proveedorNocheInicial() else nil
 		NightManager.iniciarNoche(guardada or Config.Noche.NocheInicial)
 	end)
 end

@@ -124,7 +124,9 @@ local function empezar(modo: string)
 	estado.fase = "jugando"
 	estado.modo = modo
 	difundir()
-	NightManager.iniciarPartida()
+	-- En multijugador se empieza siempre desde la noche 1 (la noche guardada es la del primer jugador y sería injusto
+	-- para el resto del equipo); en solitario se sigue desde donde se quedó.
+	NightManager.iniciarPartida(modo == "multi" and Config.Noche.NocheInicial or nil)
 end
 
 function Partida.estado()
@@ -310,7 +312,7 @@ local function unirseASala(jugador: Player, datos)
 				return
 			end
 			miSala[jugador], cache[codigo], firmas[codigo] = codigo, registro, firmaDe(registro)
-			difundir(jugador)
+			difundir() -- el anfitrión (si está en este servidor) y los demás de la sala ven al nuevo jugador enseguida
 		end)
 		return
 	end
@@ -428,7 +430,10 @@ function Partida.init()
 				desdeSondeo += 1
 				if desdeSondeo >= Config.Salas.SondeoSeg then
 					desdeSondeo = 0
-					sondearSalas()
+					local ok, err = pcall(sondearSalas) -- un error no puede frenar la lectura de las salas para siempre
+					if not ok then
+						warn("[Partida] Falló la lectura de las salas: " .. tostring(err))
+					end
 				end
 			elseif estado.fase == "lobby" then
 				if not estado.anfitrion or estado.anfitrion.Parent ~= Players then
