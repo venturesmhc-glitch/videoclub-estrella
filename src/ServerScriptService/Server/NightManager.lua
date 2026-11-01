@@ -22,6 +22,8 @@ local Net = require(ReplicatedStorage.Shared.Net)
 local NightManager = {}
 
 local estado = { noche = 1, minuto = 0, fase = "espera" }
+-- Minutos de juego por segundo real: cada noche puede durar distinto (NightData.duracionSeg).
+local escalaActual = Config.Noche.DuracionMinutosJuego / Config.Noche.DuracionRealSegundos
 local datosNocheActual: NightData.Noche? = nil -- la noche en curso, con las tareas extra según la cantidad de jugadores
 local suscriptores: { [string]: { (any) -> () } } = {}
 local eventos: { NightData.Evento } = {}
@@ -48,6 +50,7 @@ local function sincronizar(jugador: Player?)
 		minuto = estado.minuto,
 		fase = estado.fase,
 		titulo = noche and noche.titulo or nil,
+		escala = escalaActual,
 		resumen = resumenActual,
 	}
 	local remoto = Net.obtener("NightState")
@@ -118,6 +121,11 @@ function NightManager.datosNoche()
 	return datosNocheActual or NightData[estado.noche]
 end
 
+--- Minutos de juego por segundo real de la noche en curso.
+function NightManager.escala(): number
+	return escalaActual
+end
+
 function NightManager.obtenerEstado()
 	return table.clone(estado)
 end
@@ -131,6 +139,7 @@ function NightManager.iniciarNoche(noche: number)
 
 	local datos = NightData.paraJugadores(noche, #Players:GetPlayers())
 	datosNocheActual = datos
+	escalaActual = Config.Noche.DuracionMinutosJuego / ((datos and datos.duracionSeg) or Config.Noche.DuracionRealSegundos)
 	eventos = datos and table.clone(datos.eventos) or {}
 	table.sort(eventos, function(a, b)
 		return a.minuto < b.minuto
@@ -157,14 +166,13 @@ function NightManager.init()
 	NightManager.suscribir("AVISO", function(datos)
 		Net.avisoATodos(datos.texto)
 	end)
-	local escala = Config.Noche.DuracionMinutosJuego / Config.Noche.DuracionRealSegundos
 	local acumulado = 0
 
 	RunService.Heartbeat:Connect(function(dt)
 		if estado.fase ~= "turno" then
 			return
 		end
-		estado.minuto += dt * escala
+		estado.minuto += dt * escalaActual
 		while eventos[siguienteEvento] and eventos[siguienteEvento].minuto <= estado.minuto do
 			local evento = eventos[siguienteEvento]
 			siguienteEvento += 1

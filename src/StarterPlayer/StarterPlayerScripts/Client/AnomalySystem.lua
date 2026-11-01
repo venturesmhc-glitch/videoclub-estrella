@@ -40,7 +40,7 @@ local function minutoActual(): number
 	if sincro.fase ~= "turno" then
 		return sincro.minuto
 	end
-	return sincro.minuto + (os.clock() - sincro.t) * escala
+	return sincro.minuto + (os.clock() - sincro.t) * (sincro.escala or escala)
 end
 
 -- ===== Cada tipo de anomalía: aplica el cambio y devuelve la función que lo deshace =====
@@ -204,7 +204,7 @@ function AnomalySystem.init()
 
 	Net.obtener("NightState").OnClientEvent:Connect(function(datos)
 		if typeof(datos) == "table" then
-			sincro = { minuto = datos.minuto or 0, t = os.clock(), fase = datos.fase }
+			sincro = { minuto = datos.minuto or 0, t = os.clock(), fase = datos.fase, escala = datos.escala }
 			if datos.fase ~= "turno" and next(activas) then
 				restaurarTodo() -- entre turnos el local vuelve a la normalidad
 			end

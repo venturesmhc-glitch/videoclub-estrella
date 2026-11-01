@@ -131,7 +131,6 @@ end
 
 function AnomalyJudge.init()
 	escena = AnomalyCatalog.escena()
-	local escala = Config.Noche.DuracionMinutosJuego / Config.Noche.DuracionRealSegundos
 
 	NightManager.suscribir("NOCHE_INICIA", function(datos)
 		table.clear(porJugador)
@@ -159,7 +158,7 @@ function AnomalyJudge.init()
 				for _, datos in porJugador do
 					for _, anomalia in datos.lista do
 						if not datos.resueltas[anomalia.id] and not datos.penalizadas[anomalia.id]
-							and estado.minuto >= anomalia.minuto + 60 * escala then
+							and estado.minuto >= anomalia.minuto + 60 * NightManager.escala() then
 							datos.penalizadas[anomalia.id] = true
 							SocioEntity.agregarProgreso(Config.Socio.PorAnomaliaNoDetectada)
 						end

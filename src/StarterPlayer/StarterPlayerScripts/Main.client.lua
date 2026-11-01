@@ -26,6 +26,7 @@ local ORDEN = {
 	"Screamers",
 	"Espectador",
 	"TiendaUI",
+	"Raton",
 }
 
 local carpeta = script.Parent:WaitForChild("Client")

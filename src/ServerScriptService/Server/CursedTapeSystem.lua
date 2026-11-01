@@ -47,7 +47,7 @@ local function elegirPrediccion()
 	end)
 	local punto = puntos[rng:NextInteger(1, #puntos)]
 	local estado = NightManager.obtenerEstado()
-	local escala = Config.Noche.DuracionMinutosJuego / Config.Noche.DuracionRealSegundos
+	local escala = NightManager.escala()
 	return {
 		figuraId = punto:GetAttribute("FiguraId"),
 		zona = punto:GetAttribute("Zona"),

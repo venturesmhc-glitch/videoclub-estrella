@@ -29,6 +29,7 @@ local Config = require(script.Parent.Config)
 export type Evento = { minuto: number, id: string, datos: any? }
 export type Objetivo = { id: string, texto: string, meta: number }
 export type Noche = {
+	duracionSeg: number?, -- minutos reales que dura la noche (si no, Config.Noche.DuracionRealSegundos)
 	titulo: string,
 	objetivo: string,
 	clientesModo: string, -- "normal" | "repetir" (repiten la misma frase) | "mismo" (todos iguales, con número de socio)
@@ -253,25 +254,16 @@ end
 
 -- Las dos primeras noches tenían mucho tiempo muerto: más clientes y cintas, basura, manchas y las pequeñas tareas
 -- del local (regar la planta, ordenar las fichas, enderezar el cartel, limpiar el vidrio, contar la caja).
+-- La noche 1 dura la mitad (5 minutos reales): es la que tiene que enganchar, así que va más al hilo y con menos relleno.
+NightData[1].duracionSeg = 300
 ampliar(NightData[1], {
-	evento(22, "AVISO", { texto = "El local también necesita cuidados: regá la planta, ordená las fichas, contá la caja... (se marcan con un contorno)." }),
-	evento(24, "TAREA_MENOR", { ids = { "PLANTA" } }),
-	evento(55, "BASURA", { zonas = { "MOSTRADOR" } }),
-	evento(75, "TAREA_MENOR", { ids = { "FICHAS" } }),
-	evento(90, "DERRAME", { zonas = { "LOCAL" } }),
-	buzon(105, "INFANTIL"),
+	evento(48, "AVISO", { texto = "El local también necesita cuidados: regá la planta, ordená las fichas, contá la caja... (se marcan con un contorno)." }),
+	evento(50, "TAREA_MENOR", { ids = { "PLANTA" } }),
+	evento(70, "BASURA", { zonas = { "MOSTRADOR" } }),
 	cliente(120, "alquiler", "ACCION"),
-	evento(112, "TAREA_MENOR", { ids = { "CARTEL" } }),
-	cliente(175, "devolucion", "COMEDIA"),
-	evento(165, "TAREA_MENOR", { ids = { "VIDRIO" } }),
-	evento(185, "BASURA", { zonas = { "BANO" } }),
-	buzon(205, "DRAMA"),
-	evento(212, "TAREA_MENOR", { ids = { "CAJA" } }),
-	cliente(220, "alquiler", "DRAMA"),
-	evento(225, "DERRAME", { zonas = { "MOSTRADOR" } }),
-	buzon(255, "COMEDIA"),
-	evento(262, "TAREA_MENOR", { ids = { "PLANTA" } }),
-	cliente(272, "devolucion", "INFANTIL"),
+	evento(125, "TAREA_MENOR", { ids = { "FICHAS" } }),
+	evento(200, "DERRAME", { zonas = { "MOSTRADOR" } }),
+	evento(210, "TAREA_MENOR", { ids = { "CAJA" } }),
 })
 
 ampliar(NightData[2], {
@@ -334,6 +326,7 @@ function NightData.paraJugadores(numero: number, cantidad: number): Noche?
 		table.insert(eventos, evento(180 + corrimiento, "TAREA_MENOR", { ids = { TAREAS_MENORES[(numero + p) % #TAREAS_MENORES + 1] } }))
 	end
 	local noche: Noche = {
+		duracionSeg = base.duracionSeg,
 		titulo = base.titulo,
 		objetivo = base.objetivo,
 		clientesModo = base.clientesModo,

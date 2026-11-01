@@ -359,8 +359,9 @@ CollectionService:AddTag(puntoMostrador, "PuntoMostrador")
 
 -- Caja donde se separan las cintas dañadas: contra el lateral del mostrador, al lado de la videocasetera
 -- (el recorrido de rebobinar -> separar queda corto) y fuera del camino entre las góndolas y el mostrador.
--- Contra el lateral pero pasada la radio (z 11.4): así se camina hasta la radio sin chocar y sigue a un paso de la videocasetera.
-local CD_X, CD_Z = LATERAL_X + 2, Z_MOSTRADOR - 2.2
+-- Contra el lateral, bien al sur de la radio (z 11.4) y de la tele y la videocasetera (que se usan parados frente al
+-- mostrador, z ~14.5): no estorba el camino a ninguna de las tres, y queda lejos de la pasada hacia las góndolas (z 3 a 7).
+local CD_X, CD_Z = LATERAL_X + 2.2, 8.8
 local cajaDanadas = parte("CajaDanadas", V3(1.3, 1.5, 1.3), V3(CD_X, 0.75, CD_Z), C3(150, 40, 36), Enum.Material.Plastic, mostrador)
 CollectionService:AddTag(cajaDanadas, "CajaDanadas")
 parte("CajaDanadasTapa", V3(1.5, 0.15, 1.5), V3(CD_X, 1.58, CD_Z), C3(110, 28, 26), Enum.Material.Plastic, mostrador, DECO)
@@ -611,6 +612,7 @@ do
 	tecla("Q", "Marcar una anomalía")
 	tecla("F", "Linterna (si se corta la luz)")
 	tecla("TAB", "Ocultar la ficha")
+	tecla("SHIFT", "Soltar el mouse (botones)")
 	linea("EL TURNO", 28, Enum.Font.Arcade, AMARILLO, 24)
 	linea("1. Atendé al cliente en el mostrador", 32, Enum.Font.SourceSansBold, CREMA, 25)
 	linea("2. Rebobiná las cintas devueltas", 32, Enum.Font.SourceSansBold, CREMA, 25)

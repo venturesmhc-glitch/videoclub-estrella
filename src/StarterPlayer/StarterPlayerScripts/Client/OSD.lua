@@ -102,11 +102,11 @@ function OSD.setEstado(modo: string)
 	estado.modo = modo
 end
 
-function OSD.setHora(noche: number, minuto: number, fase: string?)
+function OSD.setHora(noche: number, minuto: number, fase: string?, escala: number?)
 	estado.demo = false
 	estado.noche = noche
 	estado.minuto = minuto
-	estado.sincro = { minuto = minuto, t = os.clock(), fase = fase or "turno" }
+	estado.sincro = { minuto = minuto, t = os.clock(), fase = fase or "turno", escala = escala }
 end
 
 function OSD.init()
@@ -136,7 +136,7 @@ function OSD.init()
 		if typeof(datos) ~= "table" then
 			return
 		end
-		OSD.setHora(datos.noche or 1, datos.minuto or 0, datos.fase)
+		OSD.setHora(datos.noche or 1, datos.minuto or 0, datos.fase, datos.escala)
 		if datos.fase == "turno" then
 			OSD.setEstado("PLAY")
 		else
@@ -154,7 +154,7 @@ function OSD.init()
 		if estado.demo then
 			estado.minuto = (estado.minuto + dt * escala) % Config.Noche.DuracionMinutosJuego
 		elseif estado.sincro and estado.sincro.fase == "turno" then
-			local transcurrido = (os.clock() - estado.sincro.t) * escala
+			local transcurrido = (os.clock() - estado.sincro.t) * (estado.sincro.escala or escala)
 			estado.minuto = math.min(estado.sincro.minuto + transcurrido, Config.Noche.DuracionMinutosJuego)
 		end
 		acumulado += dt
