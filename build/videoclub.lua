@@ -1055,17 +1055,37 @@ local parrilla = parte("Parrilla", V3(4, 0.3, 1.6), V3(30, 2.9, PARRILLA_Z), C3(
 parte("ParrillaCuerpo", V3(4, 2.6, 1.6), V3(30, 1.3, PARRILLA_Z), C3(96, 52, 40), Enum.Material.Brick, patio)
 parte("ParrillaChimenea", V3(1.2, 5, 1.2), V3(30, 5.1, PZ1 - 0.6), C3(90, 50, 38), Enum.Material.Brick, patio)
 
--- Farol sobre la puerta del patio y farol del fondo (única luz de afuera).
-for _, pos in { V3(27, 9, -9.75), V3(46, 9, -10) } do
-	local farol = parte("Farol", V3(1, 0.8, 1), pos, C3(255, 230, 160), Enum.Material.Neon, patio, DECO)
-	local luz = Instance.new("PointLight")
-	luz.Range = 22
-	luz.Brightness = 0.9
-	luz.Color = C3(255, 214, 140)
-	luz.Shadows = false
-	luz.Parent = farol
+-- Faroles del patio (única luz de afuera): uno de pared sobre la puerta, con soporte y brazo atornillados al
+-- muro, y otro en un poste en el fondo. Los dos son una lámpara con jaula metálica, tapa y base.
+do
+	local METAL = C3(36, 36, 38)
+	local function lampara(x, y, z)
+		local foco = parte("Farol", V3(0.8, 0.8, 0.8), V3(x, y, z), C3(255, 230, 160), Enum.Material.Neon, patio, DECO)
+		foco.Shape = Enum.PartType.Ball
+		local luz = Instance.new("PointLight")
+		luz.Range = 22
+		luz.Brightness = 0.9
+		luz.Color = C3(255, 214, 140)
+		luz.Shadows = false
+		luz.Parent = foco
+		parte("FarolBase", V3(1, 0.14, 1), V3(x, y - 0.55, z), METAL, Enum.Material.Metal, patio, DECO)
+		parte("FarolTapa", V3(1.2, 0.14, 1.2), V3(x, y + 0.55, z), METAL, Enum.Material.Metal, patio, DECO)
+		parte("FarolRemate", V3(0.5, 0.14, 0.5), V3(x, y + 0.68, z), METAL, Enum.Material.Metal, patio, DECO)
+		for _, dx in { -0.45, 0.45 } do
+			for _, dz in { -0.45, 0.45 } do
+				parte("FarolJaula", V3(0.06, 1.0, 0.06), V3(x + dx, y, z + dz), METAL, Enum.Material.Metal, patio, DECO)
+			end
+		end
+	end
+	-- De pared: placa y brazo contra la cara del muro del patio (x = 25), sobre la puerta (que termina en y 8.5).
+	local YP, ZP = 9.9, -9.75
+	parte("FarolPlaca", V3(0.15, 1.4, 1), V3(25.075, YP - 0.2, ZP), METAL, Enum.Material.Metal, patio, DECO)
+	parte("FarolBrazo", V3(1.1, 0.18, 0.18), V3(25.6, YP - 0.55, ZP), METAL, Enum.Material.Metal, patio, DECO)
+	lampara(26.15, YP, ZP)
+	-- De poste: apoyada arriba del poste (que llega a y 8.6).
+	parte("FarolPoste", V3(0.3, 8.6, 0.3), V3(46, 4.3, -10), METAL, Enum.Material.Metal, patio)
+	lampara(46, 9.15, -10)
 end
-parte("FarolPoste", V3(0.3, 8.6, 0.3), V3(46, 4.3, -10), C3(40, 40, 40), Enum.Material.Metal, patio)
 
 -- ===== Lugares de las tareas extra: basura, manchas y el contenedor (ChoreSystem los usa) =====
 
