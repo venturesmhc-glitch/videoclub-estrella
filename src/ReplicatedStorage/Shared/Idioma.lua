@@ -1,0 +1,419 @@
+--!nonstrict
+--[[
+	Idioma (compartido): español o inglés según el idioma que el jugador eligió en la configuración de Roblox
+	(Player.LocaleId: "es-es", "es-mx", "en-us", etc.). Si empieza con "es" se juega en español; con cualquier otro, en inglés.
+
+	El juego está escrito en español (los textos viajan así del servidor al cliente), y el cliente traduce lo que va a
+	mostrar con Idioma.t(texto): primero busca el texto exacto en EN, y si no está, prueba los PATRONES (textos con números
+	o nombres adentro, como "Anomalía registrada (2/5)."). Lo que no tiene traducción se muestra tal cual.
+	  Idioma.actual() -> "es" | "en"
+	  Idioma.t(texto) -> texto traducido (o el mismo si no hace falta o no se conoce)
+	  Idioma.enIngles() -> boolean
+	  Idioma.sinTraducir() -> { [texto] = veces }   -- para depurar: textos en español que se mostraron sin traducción
+	Config.Idioma.Forzar = "en" | "es" fuerza un idioma (pruebas).
+]]
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(script.Parent.Config)
+
+local Idioma = {}
+
+local sinTraducir = {}
+shared.IdiomaSinTraducir = sinTraducir -- (depuración: se puede leer desde cualquier script del cliente)
+
+function Idioma.actual(): string
+	local forzado = Config.Idioma and Config.Idioma.Forzar
+	if forzado then
+		return forzado
+	end
+	if RunService:IsClient() then
+		local jugador = Players.LocalPlayer
+		local locale = jugador and jugador.LocaleId or "es-es"
+		return string.lower(string.sub(locale, 1, 2)) == "es" and "es" or "en"
+	end
+	return "es"
+end
+
+function Idioma.enIngles(): boolean
+	return Idioma.actual() == "en"
+end
+
+-- ===== Textos exactos =====
+local EN = {
+	-- Géneros y pasillos
+	["ACCIÓN"] = "ACTION", ["ACCION"] = "ACTION", ["TERROR"] = "HORROR", ["COMEDIA"] = "COMEDY", ["DRAMA"] = "DRAMA", ["INFANTIL"] = "KIDS",
+	-- Títulos de las películas
+	["Puño de Acero III"] = "Fist of Steel III", ["Operación Cóndor Negro"] = "Operation Black Condor",
+	["El Último Marine"] = "The Last Marine", ["Dinamita en Retiro"] = "Dynamite at Retiro",
+	["La Casa del Lago Seco"] = "The House by the Dry Lake", ["Noche de Muñecos"] = "Night of the Dolls",
+	["El Sótano de Don Aldo"] = "Don Aldo's Basement", ["Pesadilla en Villa Ballester"] = "Nightmare in Villa Ballester",
+	["Los Vecinos del 4°B"] = "The Neighbors of 4B", ["Mi Suegra es Marciana"] = "My Mother-in-Law Is a Martian",
+	["Tango y Cachetadas"] = "Tango and Slaps", ["Cuidado con el Gerente"] = "Beware of the Manager",
+	["Cartas desde Rosario"] = "Letters from Rosario", ["Lluvia en Mataderos"] = "Rain in Mataderos",
+	["El Silencio de Marta"] = "Marta's Silence", ["Un Verano Sin Vos"] = "A Summer Without You",
+	["Los Aventureros del Delta"] = "The Delta Adventurers", ["Pipo y la Luna"] = "Pipo and the Moon",
+	["El Dragón de Papel"] = "The Paper Dragon", ["Mini Detectives"] = "Mini Detectives",
+	-- Títulos extraños (anomalías)
+	["NO MIRES ATRÁS"] = "DON'T LOOK BACK", ["SOCIO 0000"] = "MEMBER 0000", ["VOLVÉ"] = "COME BACK", ["MIRAME"] = "LOOK AT ME",
+	["ESTÁS EN LA CINTA"] = "YOU'RE ON THE TAPE", ["NO REBOBINES"] = "DON'T REWIND", ["ÉL YA ESTÁ ADENTRO"] = "HE'S ALREADY INSIDE",
+	-- Clientes
+	["Cliente"] = "Customer",
+	["Vengo a devolver esto. Perdón por la demora."] = "I'm here to return this. Sorry for the delay.",
+	["Te traigo esto de vuelta, ya la vimos."] = "Bringing this back, we've already seen it.",
+	["Se trabó un poco... creo que quedó arrugada."] = "It got stuck a little... I think it's crinkled.",
+	["Ojo que esta se comió la cinta. Perdoná."] = "Careful, this one ate the tape. Sorry.",
+	["Gracias, che. Hasta mañana."] = "Thanks, man. See you tomorrow.",
+	["Buenísimo. ¡Que andes bien!"] = "Great. Take care!",
+	["Qué lento... mejor me voy."] = "So slow... I'd better go.",
+	["Uf, vuelvo otro día."] = "Ugh, I'll come back another day.",
+	["Vengo por mi cinta. La del socio cero."] = "I'm here for my tape. Member zero's.",
+	["No hay nadie en el mostrador."] = "There's nobody at the counter.",
+	["Espera algo: la cinta sin etiqueta. Tenés que tenerla en la mano."] = "He's waiting for something: the unlabeled tape. You need to be holding it.",
+	["Este no se va a ir así nomás."] = "This one won't just leave.",
+	["Ya veo. Nos vemos pronto."] = "I see. See you soon.",
+	["El cliente se fue sin decir nada más."] = "The customer left without another word.",
+	["¿Cómo que no? Qué mala atención."] = "What do you mean no? Terrible service.",
+	["Rechazaste a un cliente normal."] = "You turned away a normal customer.",
+	-- Notas de Darío
+	["No repongas ninguna cinta cuyo título no pegue con el género. Ninguna."] = "Don't restock any tape whose title doesn't fit the genre. None.",
+	["Pasadas las 2:00, el teléfono del depósito NO se atiende. No importa quién llame."] = "After 2:00, DON'T answer the storeroom phone. It doesn't matter who calls.",
+	["A las 3:00 apagá la tele del mostrador. Le hace mal a la cinta."] = "At 3:00, turn off the counter TV. It's bad for the tape.",
+	["Ningún socio tiene cuatro ceros. Si alguien lo dice, no lo atiendas."] = "No member has four zeros. If someone says so, don't serve them.",
+	["Atendé SIEMPRE a todos los clientes. Sin excepciones. Don Ernesto lo pide."] = "ALWAYS serve every customer. No exceptions. Don Ernesto's orders.",
+	["La cinta se va de dos maneras: se devuelve o se le graba encima. (R en la videocasetera)"] = "The tape leaves in two ways: you return it or you record over it. (R at the VCR)",
+	["Mirá la cinta hasta el final. No pasa nada, te lo juro."] = "Watch the tape to the end. Nothing happens, I swear.",
+	-- Teléfono
+	["Don Ernesto (por teléfono)"] = "Don Ernesto (on the phone)",
+	["¿Hola? ¿Ya llegaste? Soy Don Ernesto, el dueño. Te llamo rápido porque esta noche no puedo ir."] = "Hello? Have you arrived? It's Don Ernesto, the owner. I'm calling quickly because I can't come tonight.",
+	["Esto es lo que tenés que hacer. Cuando entre un cliente, andá al mostrador y apretá E para atenderlo."] = "Here's what you have to do. When a customer comes in, go to the counter and press E to serve them.",
+	["Si quiere alquilar, te dice qué género busca. Andá a esa góndola, apretá E para sacar un casete y llevásselo al mostrador."] = "If they want to rent, they'll tell you which genre. Go to that shelf, press E to take a tape and bring it to the counter.",
+	["Si viene a devolver, deja la cinta en el mostrador. Agarrala con E, rebobinala en la videocasetera (mantené E) y ponela en su góndola."] = "If they're returning one, they leave the tape on the counter. Grab it with E, rewind it in the VCR (hold E) and put it on its shelf.",
+	["Si una cinta está arrugada, no se rebobina: va a la caja de dañadas. Lo mismo con las que caen por el buzón."] = "If a tape is crinkled, don't rewind it: it goes in the damaged box. Same for the ones that drop through the mail slot.",
+	["Cuando no haya clientes, hay laburo de limpieza. Las bolsas de basura van al contenedor del patio: puerta del fondo, a la derecha."] = "When there are no customers, there's cleaning to do. Trash bags go to the dumpster in the yard: back door, on the right.",
+	["Y si ves una mancha en el piso, mantené E encima hasta que desaparezca. Lo que no hagas vos, que lo haga tu compañero."] = "And if you see a stain on the floor, hold E on it until it's gone. What you don't do, your teammate will.",
+	["Tu ficha de socio está a la izquierda: ahí figura todo lo que falta. Con Tab la mostrás o la ocultás. Y con G soltás lo que tengas en la mano."] = "Your member card is on the left: everything left to do is listed there. Tab shows or hides it. And G drops whatever you're holding.",
+	["Si alguna vez la luz se corta, F es la linterna. Y si ves algo fuera de lugar, apuntale y apretá Q. Después hablamos de eso."] = "If the lights ever go out, F is the flashlight. And if you see something out of place, aim at it and press Q. We'll talk about that later.",
+	["Hasta las cuatro de la mañana. No me llamen, yo los llamo. Suerte, che."] = "Until four in the morning. Don't call me, I'll call you. Good luck, man.",
+	["Soy Ernesto otra vez. Escuchame bien: desde anoche pasan cosas raras en el local."] = "It's Ernesto again. Listen carefully: strange things have been happening in the store since last night.",
+	["A veces algo aparece cambiado: un título que no existe, una carátula rara, un objeto fuera de lugar, o una sombra parada al fondo de un pasillo."] = "Sometimes something shows up changed: a title that doesn't exist, a weird cover, an object out of place, or a shadow standing at the end of an aisle.",
+	["Eso son anomalías. Cuando veas una, apuntale y apretá Q. Si acertás, queda registrada y el Socio se calma un poco. Si las dejás, se enoja."] = "Those are anomalies. When you see one, aim at it and press Q. If you're right, it gets logged and the Member calms down a little. If you leave them, he gets angry.",
+	["En tu ficha, abajo de todo, figura cuántas encontraste. Cada uno ve las suyas, así que no se las puede copiar al compañero."] = "At the bottom of your card it shows how many you found. Everyone sees their own, so you can't copy your teammate's.",
+	["Ojo: la sombra quieta es una anomalía, no es él. El Socio es otra cosa: solo se mueve cuando nadie lo mira. A ese no se le apunta con la Q: se lo mira y no se le saca la vista de encima."] = "Careful: the still shadow is an anomaly, it's not him. The Member is something else: he only moves when nobody is looking. You don't aim at that one with Q: you look at him and never take your eyes off him.",
+	["CONTESTADOR - Don Ernesto"] = "ANSWERING MACHINE - Don Ernesto",
+	["Habla Don Ernesto. Las llaves están en el cajón. No me llamen: yo los llamo."] = "This is Don Ernesto. The keys are in the drawer. Don't call me: I'll call you.",
+	["Es un turno tranquilo. Rebobinen, repongan y atiendan a los socios."] = "It's a quiet shift. Rewind, restock and serve the members.",
+	["Ernesto otra vez. Si llama Darío, no le atiendan. Renunció, ya está."] = "Ernesto again. If Darío calls, don't pick up. He quit, that's it.",
+	["Y no toquen nada de lo que dejó pegado en las paredes... bueno, léanlo, nomás."] = "And don't touch anything he left stuck on the walls... well, just read it.",
+	["(estática)"] = "(static)",
+	["...bienvenido al Videoclub Estrella... turno noche..."] = "...welcome to Videoclub Estrella... night shift...",
+	["...ya estás en la cinta..."] = "...you're already on the tape...",
+	["No mires hacia atrás."] = "Don't look behind you.",
+	["Ya te vi trabajar esta noche. Dejá la cinta donde está."] = "I saw you work tonight. Leave the tape where it is.",
+	["Darío"] = "Darío",
+	["teléfono del mostrador"] = "counter phone", ["teléfono del depósito"] = "storeroom phone",
+	["No está sonando."] = "It isn't ringing.",
+	["Atender teléfono"] = "Answer phone",
+	["TELÉFONO SONANDO\n[E] atender"] = "PHONE RINGING\n[E] answer",
+	-- Finales
+	["FINAL 1/3: REBOBINAR"] = "ENDING 1/3: REWIND",
+	["Le grabás encima. La imagen se llena de estática y, después, de nada."] = "You record over it. The picture fills with static and then with nothing.",
+	["El Socio N° 0000 no vuelve a aparecer."] = "Member No. 0000 never appears again.",
+	["A las 22:00 el local abre otra vez. En la ficha del mostrador falta un nombre."] = "At 22:00 the store opens again. A name is missing from the counter file.",
+	["Alguien empieza un turno que ya empezó."] = "Someone starts a shift that already started.",
+	["FINAL 2/3: DEVOLVER (final verdadero)"] = "ENDING 2/3: RETURN (true ending)",
+	["Le devolvés la cinta. El Socio N° 0000 la mira un momento y asiente."] = "You give him back the tape. Member No. 0000 looks at it for a moment and nods.",
+	["Cerrás su cuenta. En la ficha aparece, por fin, el nombre que faltaba: DARÍO."] = "You close his account. At last the missing name appears on the card: DARÍO.",
+	["Darío fue el primero en encontrar la cinta. No renunció: lo grabaron. Su último turno seguía repitiéndose adentro."] = "Darío was the first to find the tape. He didn't quit: they recorded him. His last shift kept repeating inside.",
+	["Ahora el socio cero puede irse. Y Darío con él."] = "Now member zero can leave. And Darío with him.",
+	["En el contestador, Don Ernesto: «Gracias por cerrar la cuenta. Dejen las llaves en el cajón.»"] = "On the answering machine, Don Ernesto: \"Thanks for closing the account. Leave the keys in the drawer.\"",
+	["FINAL 3/3: MIRAR HASTA EL FINAL"] = "ENDING 3/3: WATCH TO THE END",
+	["Mirás hasta el final. La tele se vuelve el local, y en el local estás vos, de espaldas, mirando la tele."] = "You watch to the end. The TV becomes the store, and in the store there you are, with your back turned, watching the TV.",
+	["El turno noche sigue grabado."] = "The night shift is still recorded.",
+	["Mañana empieza alguien nuevo."] = "Tomorrow someone new starts.",
+	["Todavía no. Esta cinta no se deja grabar tan fácil."] = "Not yet. This tape isn't so easy to record over.",
+	["Hace falta la cinta sin etiqueta en la mano."] = "You need to hold the unlabeled tape.",
+	["Grabar encima"] = "Record over", ["Videocasetera"] = "VCR",
+	-- Noches
+	["Primer turno"] = "First shift", ["Anomalías"] = "Anomalies", ["Las reglas de Darío"] = "Darío's rules", ["Sin luz"] = "No power", ["En vivo"] = "Live",
+	["Atender clientes"] = "Serve customers", ["Rebobinar casetes"] = "Rewind tapes", ["Reponer por género"] = "Restock by genre",
+	["Separar cintas dañadas"] = "Sort damaged tapes", ["Tirar la basura (patio)"] = "Take out the trash (yard)",
+	["Limpiar manchas"] = "Clean stains", ["Cuidar el local"] = "Look after the store",
+	["Cuando llegue un cliente, atendelo en el mostrador (E)."] = "When a customer arrives, serve them at the counter (E).",
+	["Los casetes devueltos se rebobinan en la videocasetera (mantené E) y se reponen en su góndola."] = "Returned tapes are rewound in the VCR (hold E) and restocked on their shelf.",
+	["Una cinta arrugada no se rebobina: va a la caja de dañadas."] = "A crinkled tape isn't rewound: it goes in the damaged box.",
+	["Algo fuera de lugar: apuntale y apretá Q. Tu ficha cuenta las que encontraste."] = "Something out of place: aim at it and press Q. Your card counts the ones you found.",
+	["El local también necesita cuidados: regá la planta, ordená las fichas, contá la caja... (se marcan con un contorno)."] = "The store needs looking after too: water the plant, sort the cards, count the register... (they're outlined).",
+	["TE GRABARON."] = "YOU GOT RECORDED.", ["El turno se repite desde las 22:00."] = "The shift starts over from 22:00.",
+	["Hay una nota nueva pegada en el local."] = "There's a new note stuck up in the store.",
+	["Una cinta quedó sin recoger en el mostrador y se retiró."] = "A tape was left on the counter and was taken away.",
+	-- Tareas y avisos del servidor
+	["Contaminación"] = "Contamination", ["No hay nada raro ahí."] = "There's nothing strange there.",
+	["Ya llevás una bolsa."] = "You're already carrying a bag.", ["Tenés un casete en la mano. Dejalo primero."] = "You have a tape in your hand. Drop it first.",
+	["Llevá la bolsa al contenedor del patio."] = "Take the bag to the dumpster in the yard.", ["Levantar bolsa"] = "Pick up bag",
+	["Bolsa de basura"] = "Trash bag", ["No llevás ninguna bolsa."] = "You aren't carrying a bag.", ["Bolsa tirada."] = "Bag thrown away.",
+	["Tenés las manos ocupadas con la bolsa."] = "Your hands are full with the bag.", ["Tirar bolsa"] = "Throw away bag",
+	["Contenedor"] = "Dumpster", ["Limpiar"] = "Clean", ["Mancha"] = "Stain", ["Limpiado."] = "Cleaned.", ["Listo."] = "Done.",
+	["Rechazar cliente"] = "Turn away customer", ["Atender"] = "Serve", ["Mostrador"] = "Counter",
+	["Apagar tele"] = "Turn off TV", ["Cambiar canal"] = "Change channel", ["Tele del mostrador"] = "Counter TV",
+	["Apagaste la tele."] = "You turned off the TV.", ["Prendiste la tele."] = "You turned on the TV.",
+	["Apagar / prender"] = "Turn off / on", ["Radio"] = "Radio", ["Radio apagada."] = "Radio off.", ["Radio prendida."] = "Radio on.",
+	["Asustar a todos"] = "Scare everyone", ["ASUSTAR A TODOS"] = "SCARE EVERYONE",
+	["Solo se puede asustar durante el turno."] = "You can only scare during a shift.",
+	["Los espectadores no pueden asustar."] = "Spectators can't scare.",
+	["Solo podés revivir si quedaste fuera de la noche."] = "You can only revive if you're out of the night.",
+	["Producto desconocido."] = "Unknown product.", ["Esta compra todavía no está disponible."] = "This purchase isn't available yet.",
+	["No se pudo abrir la compra. Probá de nuevo."] = "The purchase couldn't be opened. Try again.",
+	["Sin título"] = "Untitled", ["Casete sin etiqueta"] = "Unlabeled tape", ["Tomar"] = "Take",
+	["Ya tenés un casete en la mano."] = "You already have a tape in your hand.",
+	["Casete sin etiqueta: se reproduce en la videocasetera (mantené E). Con G lo soltás."] = "Unlabeled tape: it plays in the VCR (hold E). Drop it with G.",
+	["No tenés ningún casete en la mano."] = "You don't have a tape in your hand.", ["Soltaste el casete."] = "You dropped the tape.",
+	["Cayó un casete en el buzón de devoluciones."] = "A tape dropped into the return slot.",
+	["Algo cayó en el buzón. Es un casete sin caja ni etiqueta."] = "Something dropped into the slot. It's a tape with no case or label.",
+	["Regar la planta"] = "Water the plant", ["Planta"] = "Plant", ["Ordenar las fichas"] = "Sort the cards", ["Fichas de socios"] = "Member cards",
+	["Enderezar el cartel"] = "Straighten the sign", ["Cartel de oferta"] = "Sale sign", ["Limpiar el vidrio"] = "Clean the glass", ["Ventana"] = "Window",
+	["Contar la caja"] = "Count the register", ["Caja registradora"] = "Cash register",
+	["Ficha completa. Aguantá hasta las 04:00."] = "Card complete. Hold out until 04:00.",
+	["Quedó un casete sin etiqueta en el local."] = "An unlabeled tape was left in the store.",
+	["No sabés en qué góndola va esta cinta."] = "You don't know which shelf this tape goes on.",
+	["Esa cinta está arrugada: va en la caja de dañadas."] = "That tape is crinkled: it goes in the damaged box.",
+	["Primero hay que rebobinarla."] = "It has to be rewound first.",
+	["Ya sacaste el casete que pidió el cliente."] = "You already took the tape the customer asked for.",
+	["No tenés nada para reponer y nadie te pidió nada de este género."] = "You have nothing to restock and nobody asked for this genre.",
+	["La cinta no responde."] = "The tape doesn't respond.",
+	["La cinta está arrugada: no se puede rebobinar. A la caja de dañadas."] = "The tape is crinkled: it can't be rewound. Put it in the damaged box.",
+	["Ya está rebobinado."] = "It's already rewound.", ["Esa cinta está bien: no va en la caja de dañadas."] = "That tape is fine: it doesn't go in the damaged box.",
+	["Usar góndola"] = "Use shelf", ["Rebobinar"] = "Rewind", ["Videocasetera (rebobinar / reproducir)"] = "VCR (rewind / play)",
+	["Separar cinta"] = "Sort tape", ["Caja de dañadas"] = "Damaged box",
+	["Mirar"] = "Watch",
+	["Quedaste atrapado en la cinta. Mirá a tus compañeros desde afuera: ellos ven tu estatua en el motel."] = "You're trapped in the tape. Watch your teammates from outside: they can see your statue at the motel.",
+	-- Multijugador
+	["Un jugador"] = "Single player",
+	["No se pudo entrar al servidor de juego. Probá de nuevo."] = "Couldn't join the game server. Try again.",
+	["La sala se cerró."] = "The room was closed.", ["Creando la sala..."] = "Creating the room...", ["No se pudo crear la sala."] = "Couldn't create the room.",
+	["Buscando la sala..."] = "Looking for the room...", ["No se pudo entrar a la sala."] = "Couldn't join the room.", ["La sala está llena."] = "The room is full.",
+	["No existe ninguna sala con ese código (o ya empezó)."] = "No room exists with that code (or it already started).",
+	["Preparando el servidor de juego..."] = "Preparing the game server...", ["No se pudo iniciar la partida."] = "Couldn't start the game.",
+	["Preparando tu partida..."] = "Preparing your game...", ["No se pudo preparar la partida."] = "Couldn't prepare the game.",
+	["No se pudo conectar con los servidores. Probá de nuevo en un momento."] = "Couldn't connect to the servers. Try again in a moment.",
+	["No se pudo crear la sala. Probá de nuevo."] = "Couldn't create the room. Try again.", ["La sala ya empezó."] = "The room already started.",
+	["No se pudo preparar el servidor de juego. Probá de nuevo."] = "Couldn't prepare the game server. Try again.",
+	["La sala ya no existe."] = "The room no longer exists.", ["Solo el anfitrión puede iniciar la partida."] = "Only the host can start the game.",
+	["No se pudo preparar la partida. Probá de nuevo."] = "Couldn't prepare the game. Try again.",
+	["Entrando a la sala..."] = "Joining the room...",
+	-- Interfaz del menú
+	["VIDEOCLUB ESTRELLA"] = "VIDEOCLUB ESTRELLA", ["TURNO NOCHE · NOVIEMBRE DE 1997"] = "NIGHT SHIFT · NOVEMBER 1997",
+	["UN JUGADOR"] = "SINGLE PLAYER", ["MULTIJUGADOR"] = "MULTIPLAYER", ["AJUSTES"] = "SETTINGS", ["CÓMO JUGAR"] = "HOW TO PLAY",
+	["VOLVER"] = "BACK", ["CARGANDO..."] = "LOADING...", ["REUNIENDO AL EQUIPO..."] = "GATHERING THE TEAM...",
+	["SALA DE ESPERA"] = "WAITING ROOM", ["Sos el anfitrión. Cuando estén todos, empezá el turno."] = "You're the host. When everyone is here, start the shift.",
+	["INICIAR"] = "START", ["Iniciando la partida... entrando al servidor de juego."] = "Starting the game... joining the game server.",
+	["Salas públicas"] = "Public rooms", ["No hay salas públicas por ahora.\nCreá una o unite con un código."] = "There are no public rooms right now.\nCreate one or join with a code.",
+	["CREAR"] = "CREATE", ["UNIRSE POR CÓDIGO"] = "JOIN BY CODE", ["CREAR SALA"] = "CREATE ROOM", ["Visibilidad de la sala"] = "Room visibility",
+	["PÚBLICA"] = "PUBLIC", ["PRIVADA"] = "PRIVATE", ["CÓDIGO"] = "CODE", ["UNIRSE"] = "JOIN",
+	["SALIR DE LA SALA"] = "LEAVE ROOM", ["SALIR AL MENÚ PRINCIPAL"] = "EXIT TO MAIN MENU",
+	["Música"] = "Music", ["Sonido ambiente"] = "Ambient sound", ["Estática del filtro VHS"] = "VHS filter static",
+	["Idioma: Español (más idiomas pronto)"] = "Language: English (follows your Roblox language)",
+	["WASD  moverte"] = "WASD  move", ["E  interactuar  (mantené E donde lo pida)"] = "E  interact  (hold E where asked)",
+	["R (mantener)  segunda acción: rechazar, grabar encima"] = "R (hold)  second action: turn away, record over",
+	["Tab  mostrar u ocultar tu ficha de socio      G  soltar lo que llevás en la mano"] = "Tab  show or hide your member card      G  drop what you're holding",
+	["Q  marcar algo fuera de lugar (apuntale)"] = "Q  mark something out of place (aim at it)",
+	["F  linterna      M  ajustes"] = "F  flashlight      M  settings",
+	["Shift  soltar o atrapar el mouse (para tocar botones, como comprar)"] = "Shift  free or lock the mouse (to click buttons, like buying)",
+	["Aguantá el turno noche hasta las 04:00."] = "Survive the night shift until 04:00.",
+	["Atendé clientes, rebobiná y reponé casetes, tirá la basura en el patio y limpiá las manchas."] = "Serve customers, rewind and restock tapes, take the trash out to the yard and clean the stains.",
+	["El Socio N° 0000 solo se mueve cuando nadie lo mira."] = "Member No. 0000 only moves when nobody is looking.",
+	["el anfitrión"] = "the host",
+	-- Espectador, ratón y tienda
+	["No queda nadie en pie"] = "Nobody is left standing", ["ESTÁS FUERA DE LA NOCHE"] = "YOU'RE OUT OF THE NIGHT",
+	["Tus compañeros siguen jugando. Ellos ven tu estatua en el motel."] = "Your teammates are still playing. They can see your statue at the motel.",
+	["Desbloquear mouse: Shift mayús"] = "Unlock mouse: Shift",
+	["MOUSE LIBRE · Shift para volver a jugar"] = "MOUSE FREE · Shift to go back to playing",
+	-- Interfaz en juego
+	["EN MANO: nada"] = "IN HAND: nothing", ["EN MANO: casete sin etiqueta (G: soltar)"] = "IN HAND: unlabeled tape (G: drop)",
+	["EL SOCIO ESPERA SU CINTA"] = "THE MEMBER IS WAITING FOR HIS TAPE",
+	["CLIENTE DEVUELVE UN CASETE (atendelo en el mostrador)"] = "CUSTOMER IS RETURNING A TAPE (serve them at the counter)",
+	["TURNO NOCHE - Tab: ocultar"] = "NIGHT SHIFT - Tab: hide",
+	["Ese no va acá"] = "That doesn't go here", ["Rebobinado: ..."] = "Rewound: ...",
+	["04:00 - FIN DEL TURNO"] = "04:00 - END OF SHIFT",
+	["WASD moverte · E interactuar · Tab ficha"] = "WASD move · E interact · Tab card",
+	["Atendé el teléfono del mostrador."] = "Answer the counter phone.",
+	["REBOBINADA"] = "REWOUND", ["REBOBINAR"] = "REWIND", ["ARRUGADA"] = "CRINKLED",
+	["Ese no es un recuerdo de la cinta: es el Socio. Con la Q no se lo marca: hay que mirarlo, porque solo se mueve cuando nadie lo ve."] = "That's not a memory from the tape: it's the Member. You don't mark him with Q: you have to look at him, because he only moves when nobody sees him.",
+	-- Tele
+	["SIN SEÑAL"] = "NO SIGNAL", ["CARTA DE AJUSTE"] = "TEST PATTERN",
+	["VIDEOCLUB ESTRELLA\n2x1 LOS MARTES\nREBOBINE ANTES DE DEVOLVER"] = "VIDEOCLUB ESTRELLA\n2x1 ON TUESDAYS\nREWIND BEFORE RETURNING",
+	["NOTICIERO 23 HS\nSIGUE SIN APARECER DARÍO F.,\nEMPLEADO DE UN VIDEOCLUB"] = "11 PM NEWS\nDARÍO F., VIDEO STORE EMPLOYEE,\nSTILL MISSING",
+	["CANAL 9\n- - - - - - - -\nTRANSMISIÓN SUSPENDIDA"] = "CHANNEL 9\n- - - - - - - -\nBROADCAST SUSPENDED",
+	["SOCIO N° 0000\nESPERA SU CINTA"] = "MEMBER NO. 0000\nWAITING FOR HIS TAPE", ["▶ REPRODUCIENDO"] = "▶ PLAYING",
+	-- Mundo (carteles del local)
+	["DAÑADAS"] = "DAMAGED", ["HAGASE SOCIO"] = "BECOME A MEMBER", ["HAGASE  SOCIO"] = "BECOME A MEMBER", ["2x1 LOS MARTES"] = "2x1 ON TUESDAYS",
+	["REBOBINE ANTES DE DEVOLVER"] = "REWIND BEFORE RETURNING", ["ESTRENOS"] = "NEW RELEASES", ["DEVOLUCIONES"] = "RETURNS",
+	["CÓMO SE TRABAJA"] = "HOW WE WORK", ["Turno noche · Videoclub Estrella"] = "Night shift · Videoclub Estrella",
+	["CONTROLES"] = "CONTROLS", ["EL TURNO"] = "THE SHIFT",
+	["Interactuar (atender, tomar, usar)"] = "Interact (serve, take, use)", ["Mantener: rechazar o grabar"] = "Hold: turn away or record",
+	["Soltar el casete"] = "Drop the tape", ["Marcar una anomalía"] = "Mark an anomaly", ["Linterna (si se corta la luz)"] = "Flashlight (if the power goes out)",
+	["Ocultar la ficha"] = "Hide the card", ["Soltar el mouse (botones)"] = "Free the mouse (buttons)",
+	["1. Atendé al cliente en el mostrador"] = "1. Serve the customer at the counter", ["2. Rebobiná las cintas devueltas"] = "2. Rewind returned tapes",
+	["3. Las dañadas, a la caja roja"] = "3. Damaged ones go in the red box", ["4. Cada cinta a la góndola de su género"] = "4. Each tape on its genre's shelf",
+	["5. Basura al patio, manchas a limpiar"] = "5. Trash to the yard, clean the stains",
+	["FRÁGIL"] = "FRAGILE", ["NO TIRAR PAPEL AL INODORO"] = "DO NOT FLUSH PAPER", ["¡OFERTA!"] = "SALE!", ["LOS MARTES"] = "ON TUESDAYS",
+	["en alquileres"] = "on rentals", ["NO COMER LO DE OTROS"] = "DON'T EAT OTHERS' FOOD", ["DARÍO"] = "DARÍO",
+	["TURNOS\nLUN  DARÍO\nMAR  DARÍO\nMIE  DARÍO\nJUE  ---"] = "SHIFTS\nMON  DARÍO\nTUE  DARÍO\nWED  DARÍO\nTHU  ---",
+	["SOLO BOLSAS CERRADAS"] = "CLOSED BAGS ONLY", ["RUTA 8\nSALDÁS 12 KM"] = "ROUTE 8\nEXIT IN 12 KM", ["MOTEL LUNA"] = "MOTEL LUNA",
+	["HABITACIONES · TV COLOR"] = "ROOMS · COLOR TV", ["24 HS"] = "24 HRS", ["TV COLOR"] = "COLOR TV",
+	["junto a la pared izquierda"] = "by the left wall", ["entre ACCIÓN y TERROR"] = "between ACTION and HORROR",
+	["entre TERROR y COMEDIA"] = "between HORROR and COMEDY", ["entre COMEDIA y DRAMA"] = "between COMEDY and DRAMA",
+	["entre DRAMA e INFANTIL"] = "between DRAMA and KIDS", ["junto a la pared derecha"] = "by the right wall",
+	["en la puerta del depósito"] = "at the storeroom door", ["en la puerta del baño"] = "at the bathroom door", ["cerca de la entrada"] = "near the entrance",
+	["Canal "] = "Channel ",
+	["[E] sacar la cinta"] = "[E] eject the tape",
+}
+
+-- ===== Patrones (textos con datos adentro) =====
+-- Cada uno: { patrón de Lua, función que arma el texto en inglés con las capturas }.
+local function t(texto) -- referencia adelantada
+	return Idioma.t(texto)
+end
+
+local PATRONES = {
+	{ "^NOCHE (%d+)$", function(n) return "NIGHT " .. n end },
+	{ "^Buenas noches%. ¿Tenés algo de (.+)%?$", function(g) return "Good evening. Do you have anything in " .. t(g) .. "?" end },
+	{ "^Hola, busco una de (.+) para esta noche%.$", function(g) return "Hi, I'm looking for a " .. t(g) .. " one for tonight." end },
+	{ "^¿Me recomendás una de (.+)%?$", function(g) return "Can you recommend a " .. t(g) .. " one?" end },
+	{ "^Notas de Darío mal interpretadas: (%d+)$", function(n) return "Darío's notes misread: " .. n end },
+	{ "^Canal (%d+)$", function(n) return "Channel " .. n end },
+	{ "^CANAL (%d+)$", function(n) return "CHANNEL " .. n end },
+	{ "^Anomalía registrada %((%d+)/(%d+)%)%.$", function(a, b) return "Anomaly logged (" .. a .. "/" .. b .. ")." end },
+	{ "^Anomalías detectadas: (%d+)/(%d+)$", function(a, b) return "Anomalies detected: " .. a .. "/" .. b end },
+	{ "^ANOMALÍAS %(Q%): (%d+)/(%d+)$", function(a, b) return "ANOMALIES (Q): " .. a .. "/" .. b end },
+	{ "^Clientes que se fueron sin atender: (%d+)$", function(n) return "Customers who left without being served: " .. n end },
+	{ "^Cintas anómalas repuestas por error: (.+)$", function(x) return "Anomalous tapes restocked by mistake: " .. x end },
+	{ "^%[(.)%] (.+) (%d+)/(%d+)$", function(m, nombre, a, b) return "[" .. m .. "] " .. t(nombre) .. " " .. a .. "/" .. b end },
+	{ "^(.+): (%d+)/(%d+)$", function(nombre, a, b) return t(nombre) .. ": " .. a .. "/" .. b end },
+	{ "^CLIENTE PIDE: (.+)$", function(g) return "CUSTOMER WANTS: " .. t(g) end },
+	{ "^SOCIO N° (%d+)$", function(n) return "MEMBER NO. " .. n end },
+	{ "^Socio N° (%d+)%. (.+)$", function(n, x) return "Member No. " .. n .. ". " .. t(x) end },
+	{ "^EN MANO: (.+) %((.+), (.+)%) %(G: soltar%)$", function(titulo, genero, estado)
+		local estados = { ["sin rebobinar"] = "not rewound", rebobinada = "rewound", arrugada = "crinkled" }
+		return "IN HAND: " .. t(titulo) .. " (" .. t(genero) .. ", " .. (estados[estado] or estado) .. ") (G: drop)"
+	end },
+	{ "^Pidió algo de (.+)%. Sacale un casete de esa góndola%.$", function(g) return "They asked for something from " .. t(g) .. ". Take a tape from that shelf." end },
+	{ "^Ese no es el que pidió: quiere algo de (.+)%.$", function(g) return "That's not what they asked for: they want something from " .. t(g) .. "." end },
+	{ "^Eso no es (.+)%. Fijate el género de la carátula%.$", function(g) return "That isn't " .. t(g) .. ". Check the genre on the cover." end },
+	{ "^El cliente pidió (.+), no (.+)%.$", function(a, b) return "The customer asked for " .. t(a) .. ", not " .. t(b) .. "." end },
+	{ "^Sacaste: (.+)%. Llevaselo al cliente%.$", function(x) return "You took: " .. t(x) .. ". Bring it to the customer." end },
+	{ "^Repuesto: (.+)$", function(x) return "Restocked: " .. t(x) end },
+	{ "^Rebobinado: (.+)$", function(x) return "Rewound: " .. t(x) end },
+	{ "^Separada: (.+)$", function(x) return "Sorted: " .. t(x) end },
+	{ "^Sacaste: (.+)$", function(x) return "You took: " .. t(x) end },
+	{ "^Algo se movió (.+)%.$", function(z) return "Something moved " .. t(z) .. "." end },
+	{ "^Suena el (.+)%. Acercate y apretá E para atender%.$", function(l) return "The " .. t(l) .. " is ringing. Get close and press E to answer." end },
+	{ "^(.+) fue grabado %((%d+)/(%d+)%) y quedó atrapado en la cinta%.$", function(n, a, b) return n .. " was recorded (" .. a .. "/" .. b .. ") and got trapped in the tape." end },
+	{ "^(.+) fue grabado %((%d+)/(%d+)%)%.$", function(n, a, b) return n .. " was recorded (" .. a .. "/" .. b .. ")." end },
+	{ "^(.+) asustó a todos%.$", function(n) return n .. " scared everyone." end },
+	{ "^(.+) volvió a la noche%.$", function(n) return n .. " is back in the night." end },
+	{ "^(.+) — Radio apagada%.$", function(n) return n .. " — Radio off." end },
+	{ "^(.+) — Radio prendida%.$", function(n) return n .. " — Radio on." end },
+	{ "^Alguien acaba de asustar a todos%. Probá en (%d+) s%.$", function(n) return "Someone just scared everyone. Try again in " .. n .. " s." end },
+	{ "^Te sumaste a la noche (%d+)%. Tu ficha %(Tab%) dice qué falta; el equipo ya está en el local%.$", function(n) return "You joined night " .. n .. ". Your card (Tab) shows what's left; the team is already in the store." end },
+	{ "^El código tiene (%d+) caracteres%.$", function(n) return "The code has " .. n .. " characters." end },
+	{ "^Escribí el código de la sala %((%d+) caracteres%)$", function(n) return "Enter the room code (" .. n .. " characters)" end },
+	{ "^CÓDIGO: (.+)$", function(c) return "CODE: " .. c end },
+	{ "^Sala pública · (%d+)/(%d+) jugadores$", function(a, b) return "Public room · " .. a .. "/" .. b .. " players" end },
+	{ "^Sala privada · (%d+)/(%d+) jugadores$", function(a, b) return "Private room · " .. a .. "/" .. b .. " players" end },
+	{ "^(%d+) / (%d+) jugadores$", function(a, b) return a .. " / " .. b .. " players" end },
+	{ "^Cantidad de jugadores %(máx%. (%d+)%)$", function(n) return "Number of players (max. " .. n .. ")" end },
+	{ "^Esperando que (.+) empiece el turno%.%.%.$", function(n) return "Waiting for " .. t(n) .. " to start the shift..." end },
+	{ "^Mirando a (.+)$", function(n) return "Watching " .. n end },
+	{ "^REVIVIR · R%$ (%d+)$", function(n) return "REVIVE · R$ " .. n end },
+	{ "^ASUSTAR A TODOS · R%$ (%d+)$", function(n) return "SCARE EVERYONE · R$ " .. n end },
+	{ "^Calidad gráfica: (.+)$", function(x) return "Graphics quality: " .. x end },
+	{ "^Hay (.+) en el local%.$", function(x) return "There is " .. t(x) .. " in the store." end },
+	{ "^NOV (%d+) (%d+)  (%d+:%d+)$", function(a, b, c) return "NOV " .. a .. " " .. b .. "  " .. c end },
+	{ "^Eso no es (.+)%.$", function(x) return "That isn't " .. t(x) .. "." end },
+}
+
+-- Texto con etiquetas de texto enriquecido (<font>, <b>...): se traduce solo lo que está entre etiquetas.
+local function traducirEnriquecido(texto: string, idioma: string): string
+	local salida = {}
+	local pos = 1
+	while pos <= #texto do
+		local a, b = string.find(texto, "<[^>]+>", pos)
+		local trozo = a and string.sub(texto, pos, a - 1) or string.sub(texto, pos)
+		if trozo ~= "" then
+			local espacioIni = string.match(trozo, "^%s*")
+			local espacioFin = string.match(trozo, "%s*$")
+			local nucleo = string.sub(trozo, #espacioIni + 1, #trozo - #espacioFin)
+			table.insert(salida, espacioIni .. (nucleo ~= "" and Idioma.t(nucleo) or "") .. espacioFin)
+		end
+		if a then
+			table.insert(salida, string.sub(texto, a, b))
+			pos = b + 1
+		else
+			break
+		end
+	end
+	return table.concat(salida)
+end
+
+local cache = {}
+
+local function traducirInterno(texto: string): string?
+	local exacto = EN[texto]
+	if exacto then
+		return exacto
+	end
+	for _, p in PATRONES do
+		local capturas = { string.match(texto, p[1]) }
+		if #capturas > 0 then
+			return p[2](table.unpack(capturas))
+		end
+	end
+	return nil
+end
+
+--- Traduce un texto del juego al idioma del jugador (si es español o no se conoce, lo devuelve igual).
+function Idioma.t(texto: string): string
+	if typeof(texto) ~= "string" or texto == "" or Idioma.actual() ~= "en" then
+		return texto
+	end
+	local guardado = cache[texto]
+	if guardado then
+		return guardado
+	end
+	local resultado = traducirInterno(texto)
+	if not resultado then
+		if string.find(texto, "<", 1, true) and string.find(texto, ">", 1, true) then
+			resultado = traducirEnriquecido(texto, "en")
+		elseif string.find(texto, "\n", 1, true) then
+			local lineas = {}
+			for linea in string.gmatch(texto .. "\n", "(.-)\n") do
+				table.insert(lineas, linea == "" and "" or Idioma.t(linea))
+			end
+			resultado = table.concat(lineas, "\n")
+		elseif string.sub(texto, 1, 4) == "▶ " or string.sub(texto, 1, 4) == "● " then
+			resultado = string.sub(texto, 1, 4) .. Idioma.t(string.sub(texto, 5))
+		elseif string.find(texto, "\xC2\xB7", 1, true) and not traducirInterno(texto) then
+			-- "algo · algo": cada parte por separado
+			local partes = {}
+			for parte in string.gmatch(texto .. " · ", "(.-) · ") do
+				table.insert(partes, parte == "" and "" or Idioma.t(parte))
+			end
+			resultado = table.concat(partes, " · ")
+		end
+	end
+	resultado = resultado or texto
+	if resultado == texto and string.find(texto, "%a") then
+		sinTraducir[texto] = (sinTraducir[texto] or 0) + 1 -- (sirve para ver qué falta traducir)
+	end
+	cache[texto] = resultado
+	return resultado
+end
+
+function Idioma.sinTraducir()
+	return sinTraducir
+end
+
+return Idioma

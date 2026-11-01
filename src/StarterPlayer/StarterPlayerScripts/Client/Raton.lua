@@ -15,12 +15,13 @@ local UserInputService = game:GetService("UserInputService")
 
 local Raton = {}
 
-local gui, aviso
+local gui, aviso, pista, modal
 local libre = false
 
 local function aplicar()
-	gui.Enabled = libre
+	modal.Visible = libre
 	aviso.Visible = libre
+	pista.Visible = not libre
 end
 
 function Raton.estaLibre(): boolean
@@ -38,17 +39,33 @@ function Raton.init()
 	gui.IgnoreGuiInset = true
 	gui.ResetOnSpawn = false
 	gui.DisplayOrder = 5 -- debajo de todo: no tapa ningún botón del juego
-	gui.Enabled = false
 	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 
-	local modal = Instance.new("TextButton")
+	-- Mientras el mouse está libre este botón de 1 píxel está visible; si no, se oculta (y el mouse vuelve a quedar atrapado).
+	modal = Instance.new("TextButton")
 	modal.Name = "Modal"
 	modal.Size = UDim2.fromOffset(1, 1)
 	modal.Position = UDim2.fromOffset(0, 0)
 	modal.BackgroundTransparency = 1
 	modal.Text = ""
 	modal.Modal = true
+	modal.Visible = false
 	modal.Parent = gui
+
+	-- Pista fija, chica y apagada, abajo al centro: no molesta a la vista.
+	pista = Instance.new("TextLabel")
+	pista.Name = "Pista"
+	pista.AnchorPoint = Vector2.new(0.5, 1)
+	pista.Position = UDim2.fromScale(0.5, 0.995)
+	pista.Size = UDim2.fromScale(0.3, 0.022)
+	pista.BackgroundTransparency = 1
+	pista.Font = Enum.Font.Code
+	pista.TextScaled = true
+	pista.TextColor3 = Color3.fromRGB(236, 236, 226)
+	pista.TextTransparency = 0.55
+	pista.TextStrokeTransparency = 0.8
+	pista.Text = "Desbloquear mouse: Shift mayús"
+	pista.Parent = gui
 
 	aviso = Instance.new("TextLabel")
 	aviso.Name = "Aviso"

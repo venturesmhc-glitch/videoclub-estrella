@@ -56,6 +56,7 @@ local capturasDe = {} -- Player -> veces que lo agarró esta noche
 local activoDesde = 0 -- cuándo empezó la aparición actual (cada una dura Config.Socio.PersecucionSeg)
 local ciclo = false -- la noche ya lo activó: después de irse vuelve a aparecer cada tanto
 local reaparecerEn: number? = nil
+local sinCapturaHasta = 0 -- mientras os.clock() sea menor, el Socio no puede capturar a nadie
 local sustoUsado = false
 local nodos = {} -- { pos, vecinos = {indices} }
 local ruta = {}
@@ -327,6 +328,7 @@ function SocioEntity.activar(donde: Vector3?)
 	ruta = {}
 	activo = true
 	activoDesde = os.clock()
+	sinCapturaHasta = math.max(sinCapturaHasta, os.clock() + cfg.GraciaAparicionSeg)
 	ciclo = true -- desde ahora, durante la noche, va y viene: 30 s presente y un rato afuera
 	reaparecerEn = nil
 	colocar()
@@ -516,6 +518,11 @@ function SocioEntity.init()
 		capturas = 0
 		table.clear(capturasDe)
 		sustoUsado = false
+		sinCapturaHasta = 0
+	end)
+	-- Llega la cinta sin etiqueta: un buen rato sin capturas para que el equipo la agarre y la mire.
+	NightManager.suscribir("CINTA_LLEGA", function()
+		sinCapturaHasta = math.max(sinCapturaHasta, os.clock() + cfg.GraciaCintaSeg)
 	end)
 	NightManager.suscribir("NOCHE_TERMINA", function(datos)
 		SocioEntity.desactivar()
@@ -579,7 +586,7 @@ function SocioEntity.init()
 				end
 				for _, jugador in Players:GetPlayers() do
 					local raiz = raizDe(jugador)
-					if raiz and distanciaPlana(raiz.Position, posicion) < cfg.DistanciaCaptura then
+					if raiz and os.clock() >= sinCapturaHasta and distanciaPlana(raiz.Position, posicion) < cfg.DistanciaCaptura then
 						capturar(jugador)
 						break
 					end

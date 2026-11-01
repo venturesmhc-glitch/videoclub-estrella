@@ -14,6 +14,7 @@ local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Net = require(ReplicatedStorage.Shared.Net)
+local Idioma = require(ReplicatedStorage.Shared.Idioma)
 local NightData = require(ReplicatedStorage.Shared.NightData)
 
 local DialogUI = {}
@@ -84,12 +85,13 @@ local function mostrarDialogo(datos)
 	end
 	tokenDialogo += 1
 	local miToken = tokenDialogo
-	textoNombre.Text = datos.speaker or ""
-	textoDialogo.Text = datos.texto
+	local texto = Idioma.t(datos.texto) -- ya traducido: así la máquina de escribir cuenta las letras del idioma que se ve
+	textoNombre.Text = Idioma.t(datos.speaker or "")
+	textoDialogo.Text = texto
 	textoDialogo.MaxVisibleGraphemes = 0
 	cajaDialogo.Visible = true
 
-	local total = utf8.len(datos.texto) or #datos.texto
+	local total = utf8.len(texto) or #texto
 	local inicio = os.clock()
 	while tokenDialogo == miToken and textoDialogo.MaxVisibleGraphemes < total do
 		task.wait(0.03)

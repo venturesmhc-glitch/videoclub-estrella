@@ -37,6 +37,8 @@ Don Ernesto explica el trabajo y los controles. Suena hasta que alguien lo atien
 - **Quedar fuera de la noche**: a la segunda captura el jugador pasa a ser **espectador** (ve el local por la cámara de sus compañeros, distorsionado y sin el monstruo) y su personaje queda como una estatua traslúcida en el motel. No se reinicia el personaje. Vuelve con **Revivir (R$ 30)** o si todo el equipo cae y la noche se repite.
 - **Screamers** automáticos en las noches 2 a 5 y el botón **Asustar a todos (R$ 10)**. Los dos productos son Developer Products de la experiencia (ids en `Config.Tienda.Productos`; con 0 la compra se simula solo en Studio).
 
+- **Idioma**: el juego se ve en español o en inglés según el idioma de Roblox del jugador (si empieza con "es", español; con cualquier otro, inglés). Todo está escrito en español y `Client/Traductor.lua` traduce lo que se muestra con el diccionario de `Shared/Idioma.lua` (exacto + patrones). Si agregás un texto nuevo, sumá su traducción ahí; `Config.Idioma.Forzar = "en"` fuerza un idioma para probar.
+
 ## Cómo está armado
 - `src/` es la fuente de verdad del código (Luau). `node push.js` lo sincroniza a Studio.
 - `build/videoclub.lua` reconstruye el local (`node mcp-call.js execute_luau @build/videoclub.lua`).

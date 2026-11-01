@@ -287,6 +287,8 @@ Config.Socio = {
 	PeligroEnvioSeg = 0.2,
 	CapturasPorJugador = 2, -- a la segunda captura el jugador queda fuera de la noche (pasa a ser espectador); si caen todos, la noche fracasa
 	AturdimientoSeg = 3.5,
+	GraciaAparicionSeg = 8, -- al aparecer, no puede capturar durante este tiempo (da lugar a reaccionar)
+	GraciaCintaSeg = 90, -- desde que llega la cinta sin etiqueta no puede capturar: tiempo para agarrarla y verla con calma
 	ProgresoMax = 1.5,
 	-- Progreso (0 a ProgresoMax): sube la velocidad del Socio. Se reinicia cada noche con PorNoche[noche].
 	PorNoche = { 0.05, 0.15, 0.3, 0.45, 0.6 },
@@ -339,6 +341,12 @@ Config.Tienda = {
 	Productos = { Asustar = 3726792104, Revivir = 3726792548 },
 	Precios = { Asustar = 10, Revivir = 30 }, -- solo para mostrarlos en los botones (el precio real es el del producto)
 	EnfriamientoAsustarSeg = 45, -- entre un "asustar a todos" y otro (para todo el servidor)
+}
+
+-- Idioma (Idioma.lua): por defecto sigue el de Roblox del jugador (español si empieza con "es", inglés en cualquier otro).
+-- Forzar = "en" o "es" fuerza uno (para pruebas).
+Config.Idioma = {
+	Forzar = nil,
 }
 
 -- Radio del local (Radio.lua / AudioManager): solo prende o apaga la música de fondo de siempre (la capa "Radio" de

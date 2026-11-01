@@ -194,7 +194,6 @@ local function crearBolsa(zona: string)
 	})
 	parte.Parent = carpetaMundo()
 	table.insert(bolsas, bolsa)
-	Net.avisoATodos("Hay una bolsa de basura en " .. nombreZona(zona) .. ".")
 end
 
 local function tirarEnContenedor(jugador: Player)
@@ -274,7 +273,6 @@ local function crearMancha(zona: string)
 	})
 	parte.Parent = carpetaMundo()
 	table.insert(manchas, mancha)
-	Net.avisoATodos("Hay una mancha para limpiar en " .. nombreZona(zona) .. ".")
 end
 
 -- ===== API =====

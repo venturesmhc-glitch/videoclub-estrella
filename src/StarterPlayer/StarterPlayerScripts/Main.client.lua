@@ -7,6 +7,7 @@ local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Co
 
 local ORDEN = {
 	"JugadorLocal",
+	"Traductor",
 	"VHSEffects",
 	"OSD",
 	"AudioManager",

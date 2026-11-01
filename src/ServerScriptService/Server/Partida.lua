@@ -124,9 +124,8 @@ local function empezar(modo: string)
 	estado.fase = "jugando"
 	estado.modo = modo
 	difundir()
-	-- En multijugador se empieza siempre desde la noche 1 (la noche guardada es la del primer jugador y sería injusto
-	-- para el resto del equipo); en solitario se sigue desde donde se quedó.
-	NightManager.iniciarPartida(modo == "multi" and Config.Noche.NocheInicial or nil)
+	-- Toda partida (solo o en equipo) empieza desde la noche 1: la noche guardada no se usa para arrancar.
+	NightManager.iniciarPartida(Config.Noche.NocheInicial)
 end
 
 function Partida.estado()

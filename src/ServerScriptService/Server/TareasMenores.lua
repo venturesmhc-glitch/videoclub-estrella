@@ -56,7 +56,6 @@ local function activar(id: string)
 	contorno.DepthMode = Enum.HighlightDepthMode.Occluded
 	contorno.Parent = t.parte
 	t.contorno = contorno
-	Net.avisoATodos(DEFINICIONES[id].aviso)
 end
 
 local function completar(id: string, jugador: Player)
@@ -68,7 +67,6 @@ local function completar(id: string, jugador: Player)
 	Net.aviso(jugador, "Listo.")
 	if t.cola > 0 then
 		t.cola -= 1
-		Net.avisoATodos(DEFINICIONES[id].aviso)
 	else
 		desactivar(t)
 	end
