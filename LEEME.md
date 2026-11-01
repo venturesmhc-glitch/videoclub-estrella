@@ -33,6 +33,8 @@ Don Ernesto explica el trabajo y los controles. Suena hasta que alguien lo atien
 ## Cómo está armado
 - `src/` es la fuente de verdad del código (Luau). `node push.js` lo sincroniza a Studio.
 - `build/videoclub.lua` reconstruye el local (`node mcp-call.js execute_luau @build/videoclub.lua`).
+- Las tareas extra usan dos modelos de la toolbox guardados en el place, en `ServerStorage.Plantillas`: `trash bag` (bolsa) y `trash` (decal de suciedad).
+  No viajan con el repo (viven en el `.rbxl`); si faltan, `ChoreSystem` usa una esfera negra y un círculo oscuro. Para ponerlos: `insert_asset` 10795701949 (trash bag) y 12900378954 (trash) y moverlos a esa carpeta.
 - `mcp-call.js` es un puente para llamar a las herramientas del servidor MCP de Studio; `studio-mcp.cmd` y `.mcp.json` lo conectan.
 - `dbg.js` ejecuta comandos de depuración en el servidor durante el Play (`node dbg.js empezar | estado | noche 4 | saltar 120 | basura LOCAL | derrame BANO | tarea levantar|tirar|limpiar | todo ...`).
   Se desactivan con `Config.Debug.Comandos = false`.

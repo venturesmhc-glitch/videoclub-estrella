@@ -295,8 +295,9 @@ local M_LARGO, M_CENTRO = M_X1 - M_X0, (M_X0 + M_X1) / 2
 local LATERAL_X = M_X0 + 1
 parte("MostradorCuerpo", V3(M_LARGO, 3.5, 2), V3(M_CENTRO, 1.75, Z_MOSTRADOR), COL_MADERA, Enum.Material.Wood, mostrador)
 parte("MostradorTapa", V3(M_LARGO + 1, 0.3, 3), V3(M_CENTRO, 3.65, Z_MOSTRADOR), C3(190, 180, 160), Enum.Material.SmoothPlastic, mostrador)
--- Lateral izquierdo: cierra el lado de los empleados desde las góndolas (z 3) hasta el mostrador.
-local LAT_Z0, LAT_Z1 = 3, Z_MOSTRADOR - 1
+-- Lateral izquierdo: cierra el lado de los empleados. Empieza en z 7, así queda un paso de 4 studs entre
+-- el final de la góndola de ACCIÓN (z 3, con su punto de uso en z 3.9) y el mostrador.
+local LAT_Z0, LAT_Z1 = 7, Z_MOSTRADOR - 1
 parte("MostradorLateral", V3(2, 3.5, LAT_Z1 - LAT_Z0), V3(LATERAL_X, 1.75, (LAT_Z0 + LAT_Z1) / 2), COL_MADERA, Enum.Material.Wood, mostrador)
 parte("MostradorLateralTapa", V3(3, 0.3, LAT_Z1 - LAT_Z0 + 1), V3(LATERAL_X, 3.65, (LAT_Z0 + LAT_Z1) / 2), C3(190, 180, 160), Enum.Material.SmoothPlastic, mostrador)
 -- Tablones verticales en el frente (lado de los clientes) y zócalo oscuro.
@@ -371,7 +372,7 @@ texto(cartel, Enum.NormalId.Back, "DEVOLUCIONES", Enum.Font.Arcade, C3(30, 30, 3
 -- ===== Góndolas (pasillos por género) =====
 
 local GENEROS = {
-	{ x = -16, nombre = "ACCIÓN", clave = "ACCION", hasta = -1 }, -- más corta: deja paso hasta el lateral del mostrador (z 3)
+	{ x = -16, nombre = "ACCIÓN", clave = "ACCION" },
 	{ x = -8, nombre = "TERROR", clave = "TERROR" },
 	{ x = 0, nombre = "COMEDIA", clave = "COMEDIA" },
 	{ x = 8, nombre = "DRAMA", clave = "DRAMA" },
@@ -433,8 +434,6 @@ end
 for _, g in GENEROS do
 	local pasillo = carpeta("Pasillo_" .. g.clave, gondolas)
 	pasillo:SetAttribute("Genero", g.clave)
-	local Z_HASTA = g.hasta or Z_HASTA -- (cada góndola puede terminar antes)
-	local LARGO = Z_HASTA - Z_DESDE
 	local zc = (Z_DESDE + Z_HASTA) / 2
 	parte("Cuerpo", V3(1.4, 6.3, LARGO), V3(g.x, 3.15, zc), COL_MADERA, Enum.Material.Wood, pasillo)
 	parte("Tope", V3(2.2, 0.2, LARGO + 0.2), V3(g.x, 6.4, zc), COL_MADERA_OSC, Enum.Material.Wood, pasillo, DECO)
@@ -501,16 +500,220 @@ afiche("AficheDer2", V3(23.9, 9, 8), Enum.NormalId.Left, "REBOBINE ANTES DE DEVO
 local letrero = parte("LetreroVideoclub", V3(14, 2.4, 0.2), V3(0, 10, -11.9), C3(30, 28, 26), Enum.Material.SmoothPlastic, afiches, DECO)
 texto(letrero, Enum.NormalId.Back, "VIDEOCLUB ESTRELLA", Enum.Font.Arcade, C3(255, 220, 90))
 
+-- Cartel de instrucciones: en la pared del frente, a la izquierda de la puerta (se ve desde el mostrador y al
+-- entrar o salir). Repite lo que explica la llamada inicial para quien no se acuerde.
+do
+	local CREMA, AMARILLO = C3(240, 232, 205), C3(255, 220, 90)
+	local panel = parte("CartelInstrucciones", V3(4.4, 7, 0.15), V3(-5.5, 4.6, Z_FRENTE - 0.575), C3(30, 28, 26), Enum.Material.SmoothPlastic, afiches)
+	parte("CartelInstruccionesMarco", V3(4.6, 7.2, 0.1), V3(-5.5, 4.6, Z_FRENTE - 0.52), C3(92, 70, 44), Enum.Material.Wood, afiches, DECO)
+	local gui = Instance.new("SurfaceGui")
+	gui.Name = "Instrucciones"
+	gui.Face = Enum.NormalId.Front
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = 100
+	gui.Parent = panel
+	local fondo = Instance.new("Frame")
+	fondo.Size = UDim2.fromScale(1, 1)
+	fondo.BackgroundColor3 = C3(30, 28, 26)
+	fondo.BorderSizePixel = 0
+	fondo.Parent = gui
+	local marco = Instance.new("UIStroke")
+	marco.Color = AMARILLO
+	marco.Thickness = 3
+	marco.Parent = fondo
+	local lista = Instance.new("UIListLayout")
+	lista.Padding = UDim.new(0, 6)
+	lista.SortOrder = Enum.SortOrder.LayoutOrder
+	lista.Parent = fondo
+	local relleno = Instance.new("UIPadding")
+	relleno.PaddingTop, relleno.PaddingBottom = UDim.new(0, 14), UDim.new(0, 10)
+	relleno.PaddingLeft, relleno.PaddingRight = UDim.new(0, 18), UDim.new(0, 14)
+	relleno.Parent = fondo
+	local orden = 0
+	local function linea(txt, alto, fuente, color, tam, centrado)
+		orden += 1
+		local t = Instance.new("TextLabel")
+		t.LayoutOrder = orden
+		t.Size = UDim2.new(1, 0, 0, alto)
+		t.BackgroundTransparency = 1
+		t.RichText = true
+		t.TextWrapped = true
+		t.Font = fuente
+		t.TextSize = tam
+		t.TextColor3 = color
+		t.TextXAlignment = centrado and Enum.TextXAlignment.Center or Enum.TextXAlignment.Left
+		t.TextYAlignment = Enum.TextYAlignment.Top
+		t.Text = txt
+		t.Parent = fondo
+	end
+	local function tecla(k, que)
+		linea('<font color="#FFDC5A"><b>[' .. k .. ']</b></font>  ' .. que, 30, Enum.Font.SourceSansBold, CREMA, 25)
+	end
+	linea("CÓMO SE TRABAJA", 44, Enum.Font.Arcade, AMARILLO, 40, true)
+	linea("Turno noche · Videoclub Estrella", 24, Enum.Font.Code, C3(190, 184, 160), 19, true)
+	linea("CONTROLES", 28, Enum.Font.Arcade, AMARILLO, 24)
+	tecla("E", "Interactuar (atender, tomar, usar)")
+	tecla("R", "Mantener: rechazar o grabar")
+	tecla("G", "Soltar el casete")
+	tecla("Q", "Marcar una anomalía")
+	tecla("F", "Linterna (si se corta la luz)")
+	tecla("TAB", "Ocultar la ficha")
+	linea("EL TURNO", 28, Enum.Font.Arcade, AMARILLO, 24)
+	linea("1. Atendé al cliente en el mostrador", 32, Enum.Font.SourceSansBold, CREMA, 25)
+	linea("2. Rebobiná las cintas devueltas", 32, Enum.Font.SourceSansBold, CREMA, 25)
+	linea("3. Las dañadas, a la caja roja", 32, Enum.Font.SourceSansBold, CREMA, 25)
+	linea("4. Cada cinta a la góndola de su género", 32, Enum.Font.SourceSansBold, CREMA, 25)
+	linea("5. Basura al patio, manchas a limpiar", 32, Enum.Font.SourceSansBold, CREMA, 25)
+	linea('<font color="#E0584A"><b>El Socio N° 0000 solo se mueve cuando nadie lo mira.</b></font>', 60, Enum.Font.SourceSansBold, CREMA, 25, true)
+end
+
 -- ===== Depósito =====
 
 local deposito = carpeta("Deposito")
-for i = 0, 2 do
-	local x = -21 + i * 7
-	parte("EstanteriaMetalica", V3(6, 5, 1.4), V3(x, 2.5, -19.6), C3(110, 116, 120), Enum.Material.Metal, deposito)
-	for fila = 1, 3 do
-		parte("CajaCarton", V3(rng:NextNumber(1.2, 2), rng:NextNumber(0.9, 1.3), 1), V3(x + rng:NextNumber(-2, 2), 0.9 + (fila - 1) * 1.6, -18.8), C3(168, 130, 84), Enum.Material.Cardboard, deposito, DECO)
+
+-- Piezas del depósito (y de su ampliación de la noche 4): estanterías metálicas con VHS sueltos y cajas de cartón
+-- tiradas. Todo apoyado en el piso o en una repisa; nada flota. Van en una tabla para no gastar locales.
+local Deposito = {}
+local CARTON = { C3(168, 130, 84), C3(152, 118, 76), C3(180, 142, 92), C3(140, 108, 70) }
+local COL_VHS = { C3(22, 22, 24), C3(34, 30, 30), C3(28, 34, 44), C3(50, 28, 28), C3(40, 40, 44), C3(18, 26, 22) }
+local COL_ETIQUETA = { C3(236, 230, 210), C3(210, 70, 56), C3(230, 200, 80), C3(90, 140, 190) }
+
+local function aleatorio(lista)
+	return lista[rng:NextInteger(1, #lista)]
+end
+
+-- Un VHS parado (lomo hacia el frente +Z del marco `cf`) o acostado. `cf` es el centro de la base.
+function Deposito.vhs(padre, cf, modo, inclinacion)
+	local color = aleatorio(COL_VHS)
+	if modo == "acostado" then
+		parte("VHS", V3(1.1, 0.3, 0.8), cf * CFrame.new(0, 0.15, 0), color, Enum.Material.SmoothPlastic, padre, DECO)
+		parte("VHSEtiqueta", V3(0.7, 0.02, 0.5), cf * CFrame.new(0, 0.31, 0), aleatorio(COL_ETIQUETA), Enum.Material.SmoothPlastic, padre, DECO)
+		return
+	end
+	local ang = inclinacion or 0
+	-- Al inclinarlo, el centro sube para que la esquina inferior siga tocando la repisa.
+	local alto = 0.55 * math.cos(ang) + 0.15 * math.abs(math.sin(ang))
+	local c = cf * CFrame.new(0, alto, 0) * CFrame.Angles(0, 0, ang)
+	parte("VHS", V3(0.3, 1.1, 0.8), c, color, Enum.Material.SmoothPlastic, padre, DECO)
+	parte("VHSEtiqueta", V3(0.22, 0.7, 0.02), c * CFrame.new(0, 0.05, 0.41), aleatorio(COL_ETIQUETA), Enum.Material.SmoothPlastic, padre, DECO)
+end
+
+-- Caja cerrada de cartón con cinta de embalar. `cf` es el centro de la base.
+function Deposito.caja(padre, cf, ancho, alto, prof, conTexto)
+	local p = parte("CajaCarton", V3(ancho, alto, prof), cf * CFrame.new(0, alto / 2, 0), aleatorio(CARTON), Enum.Material.Cardboard, padre)
+	parte("CajaCinta", V3(0.35, 0.03, prof + 0.02), cf * CFrame.new(0, alto + 0.01, 0), C3(196, 170, 120), Enum.Material.SmoothPlastic, padre, DECO)
+	if conTexto then
+		texto(p, Enum.NormalId.Front, "FRÁGIL", Enum.Font.Arcade, C3(110, 40, 34))
+	end
+	return p
+end
+
+-- Caja volcada con la boca hacia el frente (+Z del marco `cf`): paredes finas, solapas abiertas y VHS desparramados.
+function Deposito.cajaAbierta(padre, cf, ancho, alto, prof)
+	local E = 0.08
+	local color = aleatorio(CARTON)
+	local c = cf * CFrame.new(0, alto / 2, 0)
+	parte("CajaFondo", V3(ancho, alto, E), c * CFrame.new(0, 0, -prof / 2 + E / 2), color, Enum.Material.Cardboard, padre)
+	parte("CajaPared", V3(E, alto, prof), c * CFrame.new(-ancho / 2 + E / 2, 0, 0), color, Enum.Material.Cardboard, padre)
+	parte("CajaPared", V3(E, alto, prof), c * CFrame.new(ancho / 2 - E / 2, 0, 0), color, Enum.Material.Cardboard, padre)
+	parte("CajaPared", V3(ancho, E, prof), c * CFrame.new(0, alto / 2 - E / 2, 0), color, Enum.Material.Cardboard, padre)
+	parte("CajaPiso", V3(ancho, E, prof), c * CFrame.new(0, -alto / 2 + E / 2, 0), C3(130, 100, 64), Enum.Material.Cardboard, padre)
+	-- Solapa de arriba levantada y solapa de abajo caída sobre el piso.
+	local arriba = c * CFrame.new(0, alto / 2, prof / 2) * CFrame.Angles(-math.rad(50), 0, 0) * CFrame.new(0, 0, 0.45)
+	parte("CajaSolapa", V3(ancho, E, 0.9), arriba, color, Enum.Material.Cardboard, padre, DECO)
+	parte("CajaSolapa", V3(ancho, E, 0.9), cf * CFrame.new(0, E / 2, prof / 2 + 0.45), color, Enum.Material.Cardboard, padre, DECO)
+	for _ = 1, rng:NextInteger(3, 5) do
+		local d = prof / 2 + 0.9 + rng:NextNumber(0, 1.6)
+		Deposito.vhs(padre, cf * CFrame.new(rng:NextNumber(-ancho * 0.7, ancho * 0.7), 0, d) * CFrame.Angles(0, rng:NextNumber(-1.2, 1.2), 0), "acostado")
 	end
 end
+
+-- Estantería metálica de 4 niveles. `cf` es el centro de la base en el piso y el frente mira a +Z de `cf`.
+function Deposito.estante(padre, cf, ancho)
+	local PROF, ALTO = 1.6, 6.2
+	local NIVELES = { 0.35, 1.9, 3.45, 5.0 }
+	local AZUL, GRIS = C3(58, 84, 122), C3(150, 154, 156)
+	local m = carpeta("EstanteriaMetalica", padre)
+	for _, dx in { -ancho / 2 + 0.08, ancho / 2 - 0.08 } do
+		for _, dz in { -PROF / 2 + 0.08, PROF / 2 - 0.08 } do
+			parte("Montante", V3(0.16, ALTO, 0.16), cf * CFrame.new(dx, ALTO / 2, dz), AZUL, Enum.Material.Metal, m)
+		end
+	end
+	for _, y in NIVELES do
+		parte("Tabla", V3(ancho, 0.12, PROF), cf * CFrame.new(0, y, 0), GRIS, Enum.Material.Metal, m)
+		parte("Larguero", V3(ancho, 0.2, 0.1), cf * CFrame.new(0, y - 0.1, PROF / 2 - 0.05), C3(214, 128, 40), Enum.Material.Metal, m, DECO)
+	end
+	-- Riostra en diagonal en el costado derecho.
+	local diag = math.sqrt(ALTO ^ 2 + PROF ^ 2)
+	parte("Arriostre", V3(0.06, 0.06, diag), cf * CFrame.new(ancho / 2 - 0.08, ALTO / 2, 0) * CFrame.Angles(math.atan2(ALTO, PROF), 0, 0), AZUL, Enum.Material.Metal, m, DECO)
+	-- Cada nivel lleva tandas de VHS parados (alguno inclinado), pilas de VHS acostados y alguna caja chica.
+	for _, y in NIVELES do
+		local base = y + 0.06
+		local x = -ancho / 2 + 0.3
+		local limite = ancho / 2 - 0.3
+		while x < limite - 0.4 do
+			local tipo = rng:NextNumber()
+			local necesita = tipo < 0.55 and 0.35 or tipo < 0.78 and 1.2 or tipo < 0.92 and 1.65 or 0.5
+			if x + necesita > limite then
+				break
+			end
+			if tipo < 0.55 then
+				local n = rng:NextInteger(3, 9)
+				for i = 1, n do
+					if x + 0.35 > limite then
+						break
+					end
+					local ultimo = i == n and rng:NextNumber() < 0.5
+					local ang = ultimo and rng:NextNumber(0.18, 0.3) * (rng:NextNumber() < 0.5 and -1 or 1) or 0
+					Deposito.vhs(m, cf * CFrame.new(x + 0.17, base, rng:NextNumber(-0.25, 0.1)), "parado", ang)
+					x += ultimo and 0.55 or 0.34
+				end
+			elseif tipo < 0.78 then
+				for k = 1, rng:NextInteger(2, 4) do
+					Deposito.vhs(m, cf * CFrame.new(x + 0.6, base + (k - 1) * 0.3, rng:NextNumber(-0.15, 0.15)) * CFrame.Angles(0, rng:NextNumber(-0.15, 0.15), 0), "acostado")
+				end
+				x += 1.35
+			elseif tipo < 0.92 then
+				local w, h, d = rng:NextNumber(0.9, 1.5), rng:NextNumber(0.8, 1.3), rng:NextNumber(0.9, 1.2)
+				Deposito.caja(m, cf * CFrame.new(x + w / 2, base, 0) * CFrame.Angles(0, rng:NextNumber(-0.2, 0.2), 0), w, h, d, false)
+				x += w + 0.15
+			else
+				x += rng:NextNumber(0.5, 1.1) -- hueco
+			end
+		end
+	end
+	return m
+end
+
+-- Cajas tiradas (cerradas, apiladas torcidas y abiertas con VHS desparramados) en las posiciones `lugares`.
+function Deposito.cajasTiradas(padre, lugares)
+	for _, l in lugares do
+		local cf = CFrame.new(l.x, 0, l.z) * CFrame.Angles(0, math.rad(l.giro or 0), 0)
+		if l.tipo == "abierta" then
+			Deposito.cajaAbierta(padre, cf, l.w or 1.9, l.h or 1.4, l.d or 1.6)
+		elseif l.tipo == "pila" then
+			Deposito.caja(padre, cf, 1.8, 1.3, 1.5, true)
+			Deposito.caja(padre, cf * CFrame.new(0.25, 1.3, 0.1) * CFrame.Angles(0, math.rad(-22), 0), 1.4, 1.0, 1.2, false)
+		else
+			Deposito.caja(padre, cf, l.w or 1.6, l.h or 1.2, l.d or 1.4, l.texto)
+		end
+	end
+end
+
+-- Pared del fondo: tres estanterías (frente a +Z); pared derecha: una más (frente a -X).
+for i = 0, 2 do
+	Deposito.estante(deposito, CFrame.new(-21 + i * 7, 0, -19.1), 6)
+end
+Deposito.estante(deposito, CFrame.new(5.65, 0, -17.2) * CFrame.Angles(0, -math.rad(90), 0), 5)
+Deposito.cajasTiradas(deposito, {
+	{ tipo = "abierta", x = -22.2, z = -15.6, giro = 70 },
+	{ tipo = "pila", x = -22.8, z = -14.4, giro = 12 },
+	{ tipo = "caja", x = -17.2, z = -14.3, giro = -18, texto = true },
+	{ tipo = "caja", x = -17.6, z = -16.3, giro = 35, w = 1.2, h = 0.9, d = 1.2 },
+	{ tipo = "abierta", x = 1.6, z = -15.3, giro = -70 },
+	{ tipo = "pila", x = 3.3, z = -14.5, giro = -25 },
+	{ tipo = "caja", x = -6.6, z = -17.2, giro = 8, w = 1.4, h = 1.0, d = 1.3 },
+})
 local pila1 = parte("PilaCajas1", V3(2.4, 2.2, 2.4), V3(-3, 1.1, -17.5), C3(160, 124, 80), Enum.Material.Cardboard, deposito)
 local pila2 = parte("PilaCajas2", V3(2, 1.4, 2), V3(-3.2, 2.9, -17.5), C3(150, 116, 76), Enum.Material.Cardboard, deposito)
 parte("Mesa", V3(5, 0.3, 2.4), V3(-13, 3.2, -15), COL_MADERA, Enum.Material.Wood, deposito)
@@ -545,9 +748,19 @@ grilla(parte("AzulejoIzquierda", V3(0.1, 5, 7.4), V3(7.55, 2.5, -16.2), AZULEJO,
 -- Cubículo del inodoro (esquina derecha): tabiques y puerta entornada.
 local CUB_X0, CUB_X1 = 19, 24
 parte("CubiculoTabique", V3(0.2, 7, 5.5), V3(CUB_X0, 3.5, -17.2), C3(96, 110, 120), Enum.Material.Metal, bano)
-parte("CubiculoFrente", V3(3.2, 7, 0.2), V3(CUB_X1 - 1.6, 3.5, -14.5), C3(96, 110, 120), Enum.Material.Metal, bano)
-parte("CubiculoPuerta", V3(1.7, 6.6, 0.15), CFrame.new(CUB_X0 + 0.9, 3.5, -14.7) * CFrame.Angles(0, math.rad(-35), 0), C3(110, 126, 136), Enum.Material.Metal, bano, { CanCollide = false })
-parte("CubiculoPomo", V3(0.15, 0.4, 0.15), V3(CUB_X0 + 1.5, 3.4, -14.9), C3(200, 60, 50), Enum.Material.Metal, bano, DECO)
+-- El frente deja una entrada de 2.8 studs (x 19..21.8) y la puerta está abierta hacia adentro, pegada al
+-- tabique, así que se puede pasar sin chocar con ella.
+do
+	local entrada = 2.8
+	parte("CubiculoFrente", V3(CUB_X1 - CUB_X0 - entrada, 7, 0.2), V3((CUB_X0 + entrada + CUB_X1) / 2, 3.5, -14.5), C3(96, 110, 120), Enum.Material.Metal, bano)
+	local largo, ang = 2.6, math.rad(70)
+	local bisagra = V3(CUB_X0 + 0.15, 0, -14.5)
+	local dir = V3(math.cos(ang), 0, -math.sin(ang))
+	local centro = bisagra + dir * (largo / 2)
+	parte("CubiculoPuerta", V3(largo, 6.6, 0.15), CFrame.new(centro.X, 3.5, centro.Z) * CFrame.Angles(0, ang, 0), C3(110, 126, 136), Enum.Material.Metal, bano, { CanCollide = false })
+	local pomo = bisagra + dir * (largo - 0.3) + V3(math.sin(ang), 0, math.cos(ang)) * 0.12
+	parte("CubiculoPomo", V3(0.15, 0.4, 0.15), V3(pomo.X, 3.4, pomo.Z), C3(200, 60, 50), Enum.Material.Metal, bano, DECO)
+end
 
 -- Inodoro: taza, base, tanque, tapa y botón.
 parte("InodoroBase", V3(1.2, 0.9, 1.2), V3(21.5, 0.45, -19.1), C3(235, 235, 232), Enum.Material.SmoothPlastic, bano)
@@ -603,8 +816,10 @@ movible(parte("Planta", V3(2.3, 2.6, 2.3), V3(21.5, 1.5, 23.5), C3(52, 96, 56), 
 parte("MacetaPlanta", V3(1.3, 0.9, 1.3), V3(21.5, 0.45, 23.5), C3(140, 74, 52), Enum.Material.Concrete, props, DECO)
 
 -- Cartel de oferta: de cartón, finito, contra la pared (no estorba el paso) y con diseño propio.
-local standee = movible(parte("CartelOferta", V3(2, 3.6, 0.12), V3(20.2, 1.9, 19.5), C3(210, 60, 50), Enum.Material.SmoothPlastic, props))
-parte("CartelOfertaBase", V3(1.7, 0.1, 1.1), V3(20.2, 0.07, 19.5), C3(60, 52, 46), Enum.Material.Plastic, props, DECO)
+-- Girado 90°: su cara principal mira hacia -X (el mostrador y la puerta), así al entrar y mirar a la derecha se lee.
+local GIRO_CARTEL = CFrame.Angles(0, math.rad(90), 0)
+local standee = movible(parte("CartelOferta", V3(2, 3.6, 0.12), CFrame.new(20.2, 1.9, 19.5) * GIRO_CARTEL, C3(210, 60, 50), Enum.Material.SmoothPlastic, props))
+parte("CartelOfertaBase", V3(1.7, 0.1, 1.1), CFrame.new(20.2, 0.07, 19.5) * GIRO_CARTEL, C3(60, 52, 46), Enum.Material.Plastic, props, DECO)
 for _, cara in { Enum.NormalId.Front, Enum.NormalId.Back } do
 	local sg = Instance.new("SurfaceGui")
 	sg.Face = cara
@@ -844,7 +1059,7 @@ end
 -- Dónde aparece una bolsa de basura.
 spot("BasuraLocal", "BasuraSpot", "LOCAL", -20, 21)
 spot("BasuraMostrador", "BasuraSpot", "MOSTRADOR", -8, 5.2)
-spot("BasuraBano", "BasuraSpot", "BANO", 22.5, -15.5)
+spot("BasuraBano", "BasuraSpot", "BANO", 22.6, -16.4)
 spot("BasuraCocina", "BasuraSpot", "COCINA", -44.5, -5.5)
 spot("BasuraDeposito", "BasuraSpot", "DEPOSITO", -19, -17)
 -- Dónde aparece una mancha para limpiar.
@@ -853,7 +1068,7 @@ spot("DerrameMostrador", "DerrameSpot", "MOSTRADOR", -8.5, 7.8)
 spot("DerrameBano", "DerrameSpot", "BANO", 15.8, -16.2)
 spot("DerrameCocina", "DerrameSpot", "COCINA", -33, -12.5)
 spot("DerramePatio", "DerrameSpot", "PATIO", 38, -12)
-spot("DerrameDeposito", "DerrameSpot", "DEPOSITO", -12, -17.5)
+spot("DerrameDeposito", "DerrameSpot", "DEPOSITO", -9.5, -16.6)
 
 -- ===== Puntos donde puede aparecer una figura (anomalía y predicción de la cinta) =====
 
@@ -900,7 +1115,7 @@ notaSlot(2, V3(-23.95, 8.8, 14.5), "Right") -- pared izquierda, sobre el estante
 notaSlot(3, V3(23.95, 8.8, 14.5), "Left") -- pared derecha, sobre el estante
 notaSlot(4, V3(1, 5, -11.95), "Back") -- pared del fondo, hacia el local
 notaSlot(5, V3(-20, 5, -12.97), "Front") -- adentro del depósito
-notaSlot(6, V3(LATERAL_X + 1.03, 2.6, 8), "Right") -- lateral del mostrador, del lado del empleado
+notaSlot(6, V3(LATERAL_X + 1.03, 2.6, 10), "Right") -- lateral del mostrador, del lado del empleado
 
 -- ===== Waypoints (el Socio se mueve entre ellos; el servidor los conecta con raycasts) =====
 
@@ -938,12 +1153,17 @@ parte("MuroIzquierdo", V3(1, ALTURA, 27), V3(-24.5, ALTURA / 2, -34), COL_PARED_
 parte("MuroDerecho", V3(1, ALTURA, 27), V3(7, ALTURA / 2, -34), COL_PARED_FONDO, Enum.Material.Concrete, largo)
 parte("MuroFin", V3(32.5, ALTURA, 1), V3(-8.75, ALTURA / 2, -47.5), COL_PARED_FONDO, Enum.Material.Concrete, largo)
 for i = 0, 2 do
-	parte("EstanteriaMetalica", V3(6, 5, 1.4), V3(-21 + i * 7, 2.5, -46.6), C3(110, 116, 120), Enum.Material.Metal, largo)
-	parte("EstanteriaMetalica", V3(1.4, 5, 6), V3(6.1, 2.5, -26 - i * 8), C3(110, 116, 120), Enum.Material.Metal, largo)
+	Deposito.estante(largo, CFrame.new(-21 + i * 7, 0, -46.15), 6)
+	Deposito.estante(largo, CFrame.new(5.65, 0, -26 - i * 8) * CFrame.Angles(0, -math.rad(90), 0), 6)
 end
-for i = 0, 5 do
-	parte("CajaCarton", V3(rng:NextNumber(1.4, 2.4), rng:NextNumber(1, 1.8), rng:NextNumber(1.4, 2.4)), V3(-22 + rng:NextNumber(0, 28), 0.9, -22 - rng:NextNumber(0, 22)), C3(168, 130, 84), Enum.Material.Cardboard, largo)
-end
+Deposito.cajasTiradas(largo, {
+	{ tipo = "abierta", x = -18, z = -28, giro = 30 },
+	{ tipo = "pila", x = -6, z = -31, giro = 15 },
+	{ tipo = "caja", x = -12, z = -38, giro = -20, texto = true },
+	{ tipo = "abierta", x = -20, z = -41.5, giro = 100 },
+	{ tipo = "pila", x = 1, z = -42, giro = -30 },
+	{ tipo = "caja", x = -3, z = -24.5, giro = 40, w = 1.4, h = 1.0, d = 1.3 },
+})
 for _, zz in { -27, -34, -41 } do
 	tubo("Tubo", -14, zz, true, zz == -34, largo)
 	tubo("Tubo", -2, zz, zz ~= -41, false, largo)

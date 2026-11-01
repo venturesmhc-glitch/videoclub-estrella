@@ -12,6 +12,7 @@
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerStorage = game:GetService("ServerStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Net = require(ReplicatedStorage.Shared.Net)
@@ -48,6 +49,17 @@ local function carpetaMundo()
 		end
 	end
 	return carpeta
+end
+
+-- Modelos de la toolbox guardados en ServerStorage.Plantillas ("trash bag" = malla de la bolsa,
+-- "trash" = parte plana con el decal de suciedad). Si faltan se usan las formas simples de antes.
+local ALTO_BOLSA = 1.9
+local LADO_MANCHA = { 3.2, 4.2 }
+
+local function plantilla(nombre: string, clase: string): BasePart?
+	local carpetaPlantillas = ServerStorage:FindFirstChild("Plantillas")
+	local modelo = carpetaPlantillas and carpetaPlantillas:FindFirstChild(nombre)
+	return modelo and modelo:FindFirstChildWhichIsA(clase, true) or nil
 end
 
 local function puntoDeZona(etiqueta: string, zona: string): BasePart?
@@ -127,31 +139,40 @@ local function crearBolsa(zona: string)
 		warn("[ChoreSystem] No hay punto de basura en la zona " .. zona)
 		return
 	end
-	local parte = Instance.new("Part")
+	local parte
+	local modelo = plantilla("trash bag", "MeshPart")
+	if modelo then
+		parte = modelo:Clone()
+		parte.Size = parte.Size * (ALTO_BOLSA / parte.Size.Y)
+	else
+		parte = Instance.new("Part")
+		parte.Shape = Enum.PartType.Ball
+		parte.Size = Vector3.new(1.8, 1.6, 1.8)
+		parte.Color = Color3.fromRGB(16, 16, 18)
+		parte.Material = Enum.Material.Plastic
+	end
 	parte.Name = "BolsaBasura"
-	parte.Shape = Enum.PartType.Ball
-	parte.Size = Vector3.new(1.8, 1.6, 1.8)
-	parte.Color = Color3.fromRGB(16, 16, 18)
-	parte.Material = Enum.Material.Plastic
 	parte.Anchored = true
 	parte.CanCollide = false
 	parte.CanQuery = true
-	local base = CFrame.new(punto.Position.X, 0.8, punto.Position.Z) * CFrame.Angles(0, rng:NextNumber(0, math.pi * 2), 0)
+	local base = CFrame.new(punto.Position.X, parte.Size.Y / 2, punto.Position.Z) * CFrame.Angles(0, rng:NextNumber(0, math.pi * 2), 0)
 	parte.CFrame = base
-	-- Nudo de la bolsa.
-	local nudo = Instance.new("Part")
-	nudo.Name = "Nudo"
-	nudo.Size = Vector3.new(0.5, 0.5, 0.5)
-	nudo.Color = parte.Color
-	nudo.Material = Enum.Material.Plastic
-	nudo.CanCollide = false
-	nudo.CanQuery = false
-	nudo.Massless = true
-	nudo.CFrame = base * CFrame.new(0, 0.95, 0)
-	nudo.Parent = parte
-	local soldadura = Instance.new("WeldConstraint")
-	soldadura.Part0, soldadura.Part1 = parte, nudo
-	soldadura.Parent = nudo
+	if not modelo then
+		-- Nudo de la bolsa.
+		local nudo = Instance.new("Part")
+		nudo.Name = "Nudo"
+		nudo.Size = Vector3.new(0.5, 0.5, 0.5)
+		nudo.Color = parte.Color
+		nudo.Material = Enum.Material.Plastic
+		nudo.CanCollide = false
+		nudo.CanQuery = false
+		nudo.Massless = true
+		nudo.CFrame = base * CFrame.new(0, 0.95, 0)
+		nudo.Parent = parte
+		local soldadura = Instance.new("WeldConstraint")
+		soldadura.Part0, soldadura.Part1 = parte, nudo
+		soldadura.Parent = nudo
+	end
 	-- Un contorno suave para encontrarla en la oscuridad.
 	local contorno = Instance.new("Highlight")
 	contorno.FillTransparency = 1
@@ -202,24 +223,35 @@ local function crearMancha(zona: string)
 		warn("[ChoreSystem] No hay punto de mancha en la zona " .. zona)
 		return
 	end
-	local diametro = rng:NextNumber(2.4, 3.4)
-	local parte = Instance.new("Part")
+	local parte
+	local modelo = plantilla("trash", "BasePart")
+	if modelo then
+		-- Parte plana invisible con el decal de suciedad; se achica para que sea una mancha y no un basural.
+		-- Queda apenas sobre las baldosas del baño (0.1 de alto) para que no la tapen.
+		parte = modelo:Clone()
+		local lado = rng:NextNumber(LADO_MANCHA[1], LADO_MANCHA[2])
+		parte.Size = parte.Size * (lado / math.max(parte.Size.X, parte.Size.Z))
+		parte.CFrame = CFrame.new(punto.Position.X, 0.13, punto.Position.Z) * CFrame.Angles(0, rng:NextNumber(0, math.pi * 2), 0)
+	else
+		local diametro = rng:NextNumber(2.4, 3.4)
+		parte = Instance.new("Part")
+		parte.Shape = Enum.PartType.Cylinder
+		parte.Size = Vector3.new(0.08, diametro, diametro)
+		parte.CFrame = CFrame.new(punto.Position.X, 0.06, punto.Position.Z) * CFrame.Angles(0, 0, math.rad(90))
+		parte.Color = Color3.fromRGB(26, 20, 18)
+		parte.Material = Enum.Material.SmoothPlastic
+		parte.Reflectance = 0.12
+		local contorno = Instance.new("Highlight")
+		contorno.FillTransparency = 1
+		contorno.OutlineColor = Color3.fromRGB(235, 225, 190)
+		contorno.OutlineTransparency = 0.6
+		contorno.DepthMode = Enum.HighlightDepthMode.Occluded
+		contorno.Parent = parte
+	end
 	parte.Name = "Mancha"
-	parte.Shape = Enum.PartType.Cylinder
-	parte.Size = Vector3.new(0.08, diametro, diametro)
-	parte.CFrame = CFrame.new(punto.Position.X, 0.06, punto.Position.Z) * CFrame.Angles(0, 0, math.rad(90))
-	parte.Color = Color3.fromRGB(26, 20, 18)
-	parte.Material = Enum.Material.SmoothPlastic
-	parte.Reflectance = 0.12
 	parte.Anchored = true
 	parte.CanCollide = false
 	parte.CanTouch = false
-	local contorno = Instance.new("Highlight")
-	contorno.FillTransparency = 1
-	contorno.OutlineColor = Color3.fromRGB(235, 225, 190)
-	contorno.OutlineTransparency = 0.6
-	contorno.DepthMode = Enum.HighlightDepthMode.Occluded
-	contorno.Parent = parte
 
 	local mancha = { parte = parte, zona = zona }
 	mancha.activar = function(jugador)
