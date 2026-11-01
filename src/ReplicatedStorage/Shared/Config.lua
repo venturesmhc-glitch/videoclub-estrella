@@ -339,7 +339,7 @@ Config.Espectador = {
 -- Con 0 el producto no está creado: en Studio la compra se simula sin gastar nada y en el juego publicado no está disponible.
 Config.Tienda = {
 	Productos = { Asustar = 3726792104, Revivir = 3726792548 },
-	Precios = { Asustar = 10, Revivir = 30 }, -- solo para mostrarlos en los botones (el precio real es el del producto)
+	Precios = { Asustar = 10, Revivir = 15 }, -- solo para mostrarlos en los botones (el precio real es el del producto)
 	EnfriamientoAsustarSeg = 45, -- entre un "asustar a todos" y otro (para todo el servidor)
 }
 

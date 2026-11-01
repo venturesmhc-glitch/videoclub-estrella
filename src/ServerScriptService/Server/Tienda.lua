@@ -2,7 +2,7 @@
 --[[
 	Tienda (servidor): compras con Robux (Developer Products de la experiencia, ids en Config.Tienda.Productos).
 	  asustar  10 Robux: un screamer a todos los demás que siguen en la noche (con enfriamiento para todo el servidor)
-	  revivir  30 Robux: un espectador vuelve a jugar al instante (no hace falta esperar a la noche siguiente)
+	  revivir  15 Robux: un espectador vuelve a jugar al instante (no hace falta esperar a la noche siguiente)
 
 	El cliente solo pide ("Comprar" { producto }); acá se valida, se abre la compra y recién cuando Roblox confirma el
 	pago (ProcessReceipt) se aplica el efecto. En Studio, si el producto todavía no tiene id (0), la compra se simula para
