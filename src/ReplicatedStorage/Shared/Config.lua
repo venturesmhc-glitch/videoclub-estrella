@@ -38,10 +38,13 @@ Config.Casetes = {
 	DistanciaPrompt = 6,
 	-- En la mano: abajo a la derecha de la vista, con la carátula hacia el jugador (relativo a HumanoidRootPart).
 	OffsetEnMano = CFrame.new(0.75, 0.95, -1.7) * CFrame.Angles(math.rad(-12), math.rad(180), math.rad(6)),
-	PosicionMostrador = Vector3.new(-4.2, 3.95, 10.2), -- donde queda la cinta que devuelve un cliente
-	BuzonEntrada = Vector3.new(6, 3.5, 21.9), -- afuera de la ranura
-	BuzonRanura = Vector3.new(6, 3.5, 19.9), -- atravesando la ranura
-	BuzonCaida = Vector3.new(6, 2.75, 19.1), -- sobre la caja de devoluciones
+	-- Donde queda la cinta que devuelve un cliente: 3.6 studs a un costado del punto de atención
+	-- (x -4.2), para que su botón "Tomar" no se superponga con "Atender" / "Rechazar cliente".
+	PosicionMostrador = Vector3.new(-7.8, 3.95, 16.2),
+	VidaMostradorSeg = 45, -- una cinta que nadie levanta del mostrador se retira sola pasado este tiempo
+	BuzonEntrada = Vector3.new(6, 3.5, 27.9), -- afuera de la ranura
+	BuzonRanura = Vector3.new(6, 3.5, 25.9), -- atravesando la ranura
+	BuzonCaida = Vector3.new(6, 2.75, 25.1), -- sobre la caja de devoluciones
 	BuzonAnimSeg = 0.5,
 	ColorSinEtiqueta = Color3.fromRGB(14, 14, 16),
 	MostrarDanoEnEtiqueta = true, -- en la noche 1 la cinta dañada se nota; después se puede volver sutil
@@ -61,10 +64,10 @@ Config.Clientes = {
 	VelocidadCaminar = 9,
 	MaxEnCola = 4,
 	TimeoutCaminarSeg = 12, -- si se traba, se lo teletransporta al destino
-	Entrada = Vector3.new(0, 3, 25),
-	AfueraPuerta = Vector3.new(0, 3, 22.8),
-	AdentroPuerta = Vector3.new(0, 3, 18.2),
-	ColaBase = Vector3.new(-4.2, 3, 13.4),
+	Entrada = Vector3.new(0, 3, 31),
+	AfueraPuerta = Vector3.new(0, 3, 28.8),
+	AdentroPuerta = Vector3.new(0, 3, 24.2),
+	ColaBase = Vector3.new(-4.2, 3, 19.4),
 	ColaPaso = 1.7,
 	PuertaAbiertaTransparencia = 1,
 	PaletaRopa = {
@@ -223,7 +226,7 @@ Config.Socio = {
 Config.Cinta = {
 	DuracionSeg = 40,
 	DuracionFinalSeg = 90, -- en la noche 5 la cinta dura más: verla entera es el final "Mirar"
-	Camara = CFrame.lookAt(Vector3.new(-21, 10.8, 18.5), Vector3.new(2, 2, -6)), -- desde arriba de las estanterías
+	Camara = CFrame.lookAt(Vector3.new(-21, 10.8, 24.5), Vector3.new(2, 2, -6)), -- desde arriba de las estanterías
 	FOV = 78,
 	Intensidad = 2.2, -- intensidad del filtro VHS mientras se ve
 	PeligroBase = 0.3,
@@ -252,6 +255,7 @@ Config.Anomalias = {
 Config.Telefono = {
 	SonarSeg = 18, -- cuánto suena antes de cortarse solo
 	MensajeSeg = 9, -- duración en pantalla de cada mensaje
+	LecturaExtraSeg = 1, -- segundos que se suman a cada línea del mensaje para poder leerla completa
 }
 
 Config.Final = {

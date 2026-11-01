@@ -99,7 +99,7 @@ local function mostrarDialogo(datos)
 		return
 	end
 	textoDialogo.MaxVisibleGraphemes = -1
-	task.wait(cfg.DuracionExtraSeg)
+	task.wait(cfg.DuracionExtraSeg + (datos.extraSeg or 0))
 	if tokenDialogo == miToken then
 		cajaDialogo.Visible = false
 	end

@@ -115,7 +115,8 @@ local function levantar(jugador: Player, bolsa)
 	weld.Part1 = parte
 	weld.C0 = cfg.BolsaEnMano
 	weld.Parent = parte
-	parte.Parent = personaje
+	-- La bolsa se queda donde estaba (no dentro del personaje): en primera persona la cámara
+	-- oculta todo lo que cuelga de él y no se vería en las manos.
 	Net.aviso(jugador, "Llevá la bolsa al contenedor del patio.")
 	TaskSystem.sincronizar()
 end

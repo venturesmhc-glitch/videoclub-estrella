@@ -81,7 +81,7 @@ function EndingSystem.init()
 				objeto = "Videocasetera",
 				hold = Config.Final.GrabarEncimaSeg,
 				tecla = Enum.KeyCode.R,
-				offset = Vector2.new(0, -70),
+				offset = Vector2.new(0, -100),
 				alActivar = grabarEncima,
 			})
 		end

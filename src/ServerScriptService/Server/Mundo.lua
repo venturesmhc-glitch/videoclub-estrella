@@ -111,6 +111,7 @@ function Mundo.init()
 			clave = "tv",
 			accion = "Apagar / prender",
 			objeto = "Tele del mostrador",
+			distancia = 4.5, -- corta, para que su botón no se mezcle con los de la videocasetera y el mostrador
 			alActivar = Mundo.alternarTV,
 		})
 	end

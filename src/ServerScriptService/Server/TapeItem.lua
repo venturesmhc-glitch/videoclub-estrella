@@ -10,6 +10,7 @@
 	API (el estado vive en el registro "casete", una tabla):
 	  TapeItem.crear({ titulo, genero, estado?, rebobinado?, sinEtiqueta? }) -> casete (todavía sin colocar)
 	  TapeItem.colocar(casete, cframe)       -- lo deja en el mundo, listo para que lo tomen
+	  TapeItem.dejarEnMostrador(casete, cframe) -- igual, pero retira las cintas viejas que nadie levantó
 	  TapeItem.entregarPorBuzon(casete)      -- entra por la ranura y cae sobre la caja de devoluciones
 	  TapeItem.tomar(jugador, casete) / TapeItem.enMano(jugador) / TapeItem.consumir(casete)
 	  TapeItem.actualizarEtiqueta(casete)    -- redibuja la carátula (p. ej. después de rebobinar)
@@ -32,6 +33,7 @@ local cfg = Config.Casetes
 local rng = Random.new()
 local registros = {} -- id -> casete
 local enMano = {} -- Player -> casete
+local enMostrador = {} -- casete -> true: cintas que dejó un cliente y nadie levantó todavía
 local contador = 0
 local oyentesCambio = {}
 local restricciones = {}
@@ -224,6 +226,31 @@ function TapeItem.colocar(casete, cframe: CFrame)
 	notificarCambio()
 end
 
+--- Deja sobre el mostrador la cinta que devolvió un cliente. Si alguna anterior quedó sin levantar se
+--- retira (así no se amontonan una encima de otra) y la nueva también se retira sola pasado
+--- Config.Casetes.VidaMostradorSeg si nadie la toma.
+function TapeItem.dejarEnMostrador(casete, cframe: CFrame)
+	local abandonadas = {}
+	for otro in enMostrador do
+		table.insert(abandonadas, otro)
+	end
+	for _, otro in abandonadas do
+		TapeItem.consumir(otro)
+	end
+	if #abandonadas > 0 then
+		Net.avisoATodos("Una cinta quedó sin recoger en el mostrador y se retiró.")
+	end
+
+	TapeItem.colocar(casete, cframe)
+	enMostrador[casete] = true
+	task.delay(cfg.VidaMostradorSeg, function()
+		if enMostrador[casete] and casete.vivo and not casete.dueno then
+			TapeItem.consumir(casete)
+			Net.avisoATodos("Una cinta quedó sin recoger en el mostrador y se retiró.")
+		end
+	end)
+end
+
 function TapeItem.entregarPorBuzon(casete)
 	local parte = casete.parte
 	soltarDeMano(casete)
@@ -277,6 +304,7 @@ function TapeItem.tomar(jugador: Player, casete): boolean
 	end
 
 	enMano[jugador] = casete
+	enMostrador[casete] = nil
 	casete.dueno = jugador
 	casete.prompt.Enabled = false
 
@@ -290,7 +318,9 @@ function TapeItem.tomar(jugador: Player, casete): boolean
 	weld.Part1 = parte
 	weld.C0 = cfg.OffsetEnMano
 	weld.Parent = parte
-	parte.Parent = personaje
+	-- No va dentro del personaje: en primera persona la cámara oculta todo lo que cuelga de él
+	-- (LocalTransparencyModifier = 1) y el jugador no vería la cinta que lleva en la mano.
+	parte.Parent = mundo()
 
 	notificarCambio()
 	return true
@@ -311,6 +341,7 @@ function TapeItem.consumir(casete)
 	end
 	casete.vivo = false
 	soltarDeMano(casete)
+	enMostrador[casete] = nil
 	registros[casete.id] = nil
 	if casete.parte then
 		casete.parte:Destroy()
@@ -327,6 +358,7 @@ function TapeItem.limpiarTodo()
 	end
 	table.clear(registros)
 	table.clear(enMano)
+	table.clear(enMostrador)
 	notificarCambio()
 end
 

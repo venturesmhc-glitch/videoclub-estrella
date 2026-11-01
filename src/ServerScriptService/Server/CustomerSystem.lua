@@ -340,7 +340,7 @@ function CustomerSystem.usarMostrador(jugador: Player)
 			rebobinado = false,
 		})
 		local giro = CFrame.Angles(0, math.rad(rng:NextInteger(-20, 20)), 0)
-		TapeItem.colocar(casete, CFrame.new(Config.Casetes.PosicionMostrador) * CFrame.Angles(math.rad(90), 0, 0) * giro)
+		TapeItem.dejarEnMostrador(casete, CFrame.new(Config.Casetes.PosicionMostrador) * CFrame.Angles(math.rad(90), 0, 0) * giro)
 		decir(cliente, "Gracias")
 		TaskSystem.registrar("atender")
 		if cliente.socio then
@@ -447,7 +447,7 @@ function CustomerSystem.init()
 				hold = 1,
 				distancia = 5.5,
 				tecla = Enum.KeyCode.R,
-				offset = Vector2.new(0, -70),
+				offset = Vector2.new(0, -100),
 				alActivar = CustomerSystem.rechazar,
 			})
 		end

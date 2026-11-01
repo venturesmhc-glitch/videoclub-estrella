@@ -78,7 +78,7 @@ function PhoneUI.init()
 		end
 		task.spawn(function()
 			for _, linea in datos.lineas do
-				DialogUI.mostrar({ speaker = datos.speaker, texto = linea })
+				DialogUI.mostrar({ speaker = datos.speaker, texto = linea, extraSeg = Config.Telefono.LecturaExtraSeg })
 			end
 		end)
 	end)
