@@ -1,0 +1,245 @@
+--!nonstrict
+--[[
+	Depurar (servidor): comandos de prueba. Solo existe si Config.Debug.Comandos es true.
+	Crea ServerStorage.Depurar (BindableFunction). Se usa desde la consola de Studio durante el Play,
+	en el contexto del servidor:
+	  game.ServerStorage.Depurar:Invoke("estado")
+	  game.ServerStorage.Depurar:Invoke("saltar", 120)     -- avanza el reloj hasta ese minuto
+	  game.ServerStorage.Depurar:Invoke("tomar")           -- el primer jugador toma un casete del mundo
+	  game.ServerStorage.Depurar:Invoke("gondola", "TERROR")
+	  game.ServerStorage.Depurar:Invoke("vcr") / "danadas" / "mostrador"
+	Los comandos ejecutan la misma lógica que los prompts, como si el primer jugador los hubiera activado.
+]]
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerStorage = game:GetService("ServerStorage")
+
+local Config = require(ReplicatedStorage.Shared.Config)
+local AnomalyJudge = require(script.Parent.AnomalyJudge)
+local ChoreSystem = require(script.Parent.ChoreSystem)
+local Partida = require(script.Parent.Partida)
+local CursedTapeSystem = require(script.Parent.CursedTapeSystem)
+local CustomerSystem = require(script.Parent.CustomerSystem)
+local EndingSystem = require(script.Parent.EndingSystem)
+local Mundo = require(script.Parent.Mundo)
+local NightManager = require(script.Parent.NightManager)
+local Persistencia = require(script.Parent.Persistencia)
+local PhoneSystem = require(script.Parent.PhoneSystem)
+local RulesSystem = require(script.Parent.RulesSystem)
+local SocioEntity = require(script.Parent.SocioEntity)
+local TapeItem = require(script.Parent.TapeItem)
+local TaskSystem = require(script.Parent.TaskSystem)
+
+local Depurar = {}
+
+local function jugador(): Player?
+	return Players:GetPlayers()[1]
+end
+
+local function descripcionMano(j: Player): string
+	local c = TapeItem.enMano(j)
+	if not c then
+		return "nada"
+	end
+	return string.format("%s [%s, %s, rebobinado=%s]", c.titulo, c.genero, c.estado, tostring(c.rebobinado))
+end
+
+local comandos = {}
+
+function comandos.estado()
+	local e = NightManager.obtenerEstado()
+	local lineas = { string.format("noche %d, fase %s, minuto %.1f", e.noche, e.fase, e.minuto) }
+	for _, l in TaskSystem.resumen() do
+		table.insert(lineas, "  " .. l)
+	end
+	local p = TaskSystem.pedidoActual()
+	table.insert(lineas, "pedido: " .. (p and (p.tipo .. " " .. p.genero) or "ninguno"))
+	local j = jugador()
+	if j then
+		table.insert(lineas, "en mano: " .. descripcionMano(j))
+	end
+	table.insert(lineas, "casetes en el mundo: " .. #TapeItem.enElMundo())
+	return table.concat(lineas, "\n")
+end
+
+function comandos.saltar(minuto)
+	NightManager.saltarA(tonumber(minuto) or 0)
+	return "reloj -> " .. tostring(minuto)
+end
+
+function comandos.tomar()
+	local j = jugador()
+	local lista = TapeItem.enElMundo()
+	if not j or #lista == 0 then
+		return "no hay casetes para tomar"
+	end
+	TapeItem.tomar(j, lista[1])
+	return "en mano: " .. descripcionMano(j)
+end
+
+function comandos.gondola(genero)
+	TaskSystem.usarGondola(jugador(), genero)
+	return "en mano: " .. descripcionMano(jugador())
+end
+
+function comandos.vcr()
+	TaskSystem.usarVideocasetera(jugador())
+	return "en mano: " .. descripcionMano(jugador())
+end
+
+function comandos.danadas()
+	TaskSystem.usarCajaDanadas(jugador())
+	return "en mano: " .. descripcionMano(jugador())
+end
+
+function comandos.mostrador()
+	CustomerSystem.usarMostrador(jugador())
+	return "en mano: " .. descripcionMano(jugador())
+end
+
+function comandos.cinta()
+	local j = jugador()
+	if TapeItem.enMano(j) then
+		TapeItem.consumir(TapeItem.enMano(j))
+	end
+	TapeItem.tomar(j, TapeItem.crear({ titulo = "", genero = "TERROR", sinEtiqueta = true }))
+	return "en mano: " .. descripcionMano(j)
+end
+
+function comandos.socio()
+	return SocioEntity.estadoTexto()
+end
+
+function comandos.socioaparecer(x, z)
+	SocioEntity.activar(Vector3.new(tonumber(x) or 0, 0, tonumber(z) or -10))
+	return SocioEntity.estadoTexto()
+end
+
+function comandos.progreso(valor)
+	SocioEntity.agregarProgreso((tonumber(valor) or 0) - SocioEntity.progreso())
+	return SocioEntity.estadoTexto()
+end
+
+function comandos.noche(n)
+	NightManager.iniciarNoche(tonumber(n) or 1)
+	return "noche " .. tostring(n)
+end
+
+function comandos.todo()
+	return table.concat({
+		comandos.estado(),
+		comandos.socio(),
+		"mundo: " .. Mundo.estadoTexto(),
+		"reglas: " .. RulesSystem.estadoTexto(),
+		"teléfono: " .. PhoneSystem.estadoTexto(),
+		"cinta: reproducciones=" .. CursedTapeSystem.reproducciones(),
+		"anomalías:\n" .. AnomalyJudge.estadoTexto(),
+		"persistencia:\n" .. Persistencia.estadoTexto(),
+	}, "\n")
+end
+
+function comandos.cliente(tipo, genero, extra)
+	local datos = { tipo = tipo or "alquiler", genero = genero or "COMEDIA" }
+	if extra == "socio" then
+		datos.socio = true
+	elseif extra == "anomalo" then
+		datos.anomalo = true
+	elseif extra == "danado" then
+		datos.danado = true
+	end
+	CustomerSystem.llegar(datos)
+	return "llega cliente " .. datos.tipo .. " " .. datos.genero
+end
+
+function comandos.rechazar()
+	CustomerSystem.rechazar(jugador())
+	return comandos.estado()
+end
+
+function comandos.final(id)
+	EndingSystem.disparar(id)
+	return "final " .. tostring(id)
+end
+
+function comandos.sonar(linea, mensaje)
+	PhoneSystem.sonar({ linea = linea or "mostrador", mensaje = tonumber(mensaje), voz = tonumber(mensaje) == nil and mensaje or nil })
+	return PhoneSystem.estadoTexto()
+end
+
+function comandos.atender(linea)
+	PhoneSystem.atender(linea or "mostrador", jugador())
+	return PhoneSystem.estadoTexto()
+end
+
+function comandos.anomalias()
+	local j = jugador()
+	local lineas = {}
+	for _, a in AnomalyJudge.listaDe(j) do
+		table.insert(lineas, string.format("%s %s -> %s (min %.0f)", a.id, a.tipo, a.objetivo, a.minuto))
+	end
+	return table.concat(lineas, "\n")
+end
+
+function comandos.reportar(id)
+	AnomalyJudge.reportar(jugador(), { id = id })
+	return AnomalyJudge.estadoTexto()
+end
+
+function comandos.evento(id, valor)
+	NightManager.emitir(id, { valor = valor ~= "false", texto = valor, ids = { valor }, linea = valor })
+	return "evento " .. tostring(id)
+end
+
+function comandos.empezar()
+	Partida.forzarInicio("solo")
+	return "partida iniciada (modo solo)"
+end
+
+function comandos.basura(zona)
+	ChoreSystem.crearBolsa(zona or "LOCAL")
+	return ChoreSystem.estadoTexto()
+end
+
+function comandos.derrame(zona)
+	ChoreSystem.crearMancha(zona or "LOCAL")
+	return ChoreSystem.estadoTexto()
+end
+
+function comandos.tarea(accion)
+	ChoreSystem.probar(accion, jugador())
+	return ChoreSystem.estadoTexto()
+end
+
+function comandos.pos()
+	local j = jugador()
+	local raiz = j and j.Character and j.Character:FindFirstChild("HumanoidRootPart")
+	return raiz and tostring(raiz.Position) or "sin personaje"
+end
+
+function comandos.mover(x, z)
+	local j = jugador()
+	if j and j.Character then
+		j.Character:PivotTo(CFrame.new(tonumber(x) or 0, 3.5, tonumber(z) or 0))
+	end
+	return comandos.pos()
+end
+
+function Depurar.init()
+	if not Config.Debug.Comandos then
+		return
+	end
+	local funcion = ServerStorage:FindFirstChild("Depurar") or Instance.new("BindableFunction")
+	funcion.Name = "Depurar"
+	funcion.OnInvoke = function(nombre, ...)
+		local comando = comandos[nombre]
+		if not comando then
+			return "comando desconocido: " .. tostring(nombre)
+		end
+		local ok, resultado = pcall(comando, ...)
+		return ok and resultado or ("error: " .. tostring(resultado))
+	end
+	funcion.Parent = ServerStorage
+end
+
+return Depurar

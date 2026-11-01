@@ -1,0 +1,1 @@
+{"datamodel_type":"Client","code":"pcall(function() game:GetService(\"RunService\"):UnbindFromRenderStep(\"Foto\") end)\nworkspace.CurrentCamera.CameraType = Enum.CameraType.Custom\nreturn \"ok\"\n"}
