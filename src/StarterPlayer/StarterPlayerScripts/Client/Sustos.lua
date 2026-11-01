@@ -216,7 +216,7 @@ end
 
 function Sustos.init()
 	Net.obtener("WorldEvent").OnClientEvent:Connect(function(datos)
-		if typeof(datos) == "table" and datos.id == "SUSTO_SUAVE" then
+		if typeof(datos) == "table" and datos.id == "SUSTO_SUAVE" and not Players.LocalPlayer:GetAttribute("Espectador") then
 			Sustos.disparar(typeof(datos.valor) == "string" and datos.valor or "luces")
 		end
 	end)

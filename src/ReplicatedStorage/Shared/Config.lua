@@ -272,8 +272,10 @@ Config.Socio = {
 	AlturaMalla = 8.2, -- altura en studs
 	Tinte = Color3.fromRGB(58, 60, 66), -- oscurece la textura
 	PasoSeg = 0.3, -- avanza a tirones: cada tanto da un paso corto de golpe
-	VelocidadBase = 0.9, -- studs/seg con progreso 0
-	VelocidadPorProgreso = 4.2, -- se suma con progreso 1
+	VelocidadBase = 3.2, -- studs/seg con progreso 0
+	VelocidadPorProgreso = 7.4, -- se suma con progreso 1 (los jugadores corren a 12: no los alcanza si no se frenan)
+	PersecucionSeg = 30, -- cada aparición dura 30 s: después se va
+	EntreApariciones = { 55, 90 }, -- una vez que la noche lo activó, vuelve a aparecer pasado este rango (s) desde que se fue
 	DistanciaCaptura = 3.4,
 	DistanciaPeligro = 45, -- a esta distancia el peligro empieza a subir
 	AnguloVision = 58, -- grados: mitad del cono de visión de cada jugador
@@ -283,7 +285,7 @@ Config.Socio = {
 	TickSeg = 0.1,
 	RecalcularRutaSeg = 1.5,
 	PeligroEnvioSeg = 0.2,
-	CapturasPorJugador = 2, -- a la segunda captura el jugador queda fuera de la noche (fantasma en el motel); si caen todos, la noche fracasa
+	CapturasPorJugador = 2, -- a la segunda captura el jugador queda fuera de la noche (pasa a ser espectador); si caen todos, la noche fracasa
 	AturdimientoSeg = 3.5,
 	ProgresoMax = 1.5,
 	-- Progreso (0 a ProgresoMax): sube la velocidad del Socio. Se reinicia cada noche con PorNoche[noche].
@@ -300,8 +302,10 @@ Config.Socio = {
 	AlturaModelo = 7,
 }
 
--- Jugador fuera de la noche (Fantasmas): aparece quieto en el estacionamiento del motel de enfrente, mirando al local.
+-- Jugador fuera de la noche (Fantasmas): él pasa a ser espectador (ve el local distorsionado, sin el monstruo) y una
+-- estatua traslúcida de su personaje queda quieta en el estacionamiento del motel de enfrente, mirando al local.
 Config.Fantasma = {
+	EstacionamientoOculto = Vector3.new(0, -120, 0), -- donde se guarda el cuerpo real del espectador (invisible y quieto)
 	Translucidez = 0.55, -- transparencia de la skin
 	PisoY = -0.35, -- altura del asfalto del estacionamiento
 	Plazas = { -- una por jugador, delante de las puertas del motel (frente en z = 105)
@@ -315,6 +319,47 @@ Config.Fantasma = {
 	AlcanceLuz = 14,
 	RellenoContorno = 0.78,
 	BordeContorno = 0.45,
+}
+
+-- Espectador: lo que ve un jugador que quedó fuera de la noche.
+Config.Espectador = {
+	Distancia = 7, -- la cámara va detrás del compañero que mira
+	Altura = 3,
+	Saturacion = -0.85,
+	Contraste = 0.25,
+	Tinte = Color3.fromRGB(150, 175, 255),
+	Desenfoque = 3,
+	Peligro = 0.55, -- nivel fijo del filtro VHS (estática y tracking) mientras se es espectador
+	OndaGrados = 2.2, -- el mundo se bambolea apenas
+}
+
+-- Compras con Robux (Tienda.lua). Los ids son de los "Developer Products" de la experiencia (Centro de creación > Monetización).
+-- Con 0 el producto no está creado: en Studio la compra se simula sin gastar nada y en el juego publicado no está disponible.
+Config.Tienda = {
+	Productos = { Asustar = 3726792104, Revivir = 3726792548 },
+	Precios = { Asustar = 10, Revivir = 30 }, -- solo para mostrarlos en los botones (el precio real es el del producto)
+	EnfriamientoAsustarSeg = 45, -- entre un "asustar a todos" y otro (para todo el servidor)
+}
+
+-- Radio del local (Radio.lua / AudioManager): estación 0 = apagada.
+Config.Radio = {
+	Inicial = 1,
+	Volumen = 0.2,
+	Estaciones = {
+		{ Nombre = "Radio AM", Id = "rbxassetid://75201584395115" },
+		{ Nombre = "Synthwave 80s", Id = "rbxassetid://70551940079407" },
+		{ Nombre = "Jazz de bar", Id = "rbxassetid://119374889049308" },
+		{ Nombre = "Cumbia", Id = "rbxassetid://119767062464596" },
+		{ Nombre = "Tango", Id = "rbxassetid://89374837604819" },
+	},
+}
+
+-- Screamers (Screamers.lua / Client/Screamers): sustos fuertes con la cara de la criatura a pantalla completa.
+Config.Screamer = {
+	Sonidos = { "rbxassetid://130285917830946", "rbxassetid://93093877629089", "rbxassetid://118385772421763" },
+	Volumen = 1.2,
+	DuracionSeg = 1.5,
+	EntreAutomaticosSeg = 120, -- tiempo mínimo entre screamers automáticos
 }
 
 -- La cinta sin etiqueta (CursedTapeSystem).

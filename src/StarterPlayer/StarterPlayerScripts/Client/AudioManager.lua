@@ -11,6 +11,7 @@
 	  AudioManager.setGrupo(grupo, 0..1)      -- multiplicador del grupo (ajustes)
 	  AudioManager.getGrupo(grupo) -> 0..1
 	  AudioManager.estado() -> string         -- para depurar: qué capas cargaron
+	  AudioManager.radio(estacion)            -- 0 = apagada; si no, la estación de Config.Radio.Estaciones (la elige la radio del local)
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -153,6 +154,28 @@ function AudioManager.efecto(id: string, opciones)
 	end)
 end
 
+--- La radio del local: la capa de música de fondo suena la estación elegida (o se apaga).
+function AudioManager.radio(estacion: number)
+	local capa = capas.Radio
+	if not capa then
+		return
+	end
+	local definicion = Config.Radio.Estaciones[estacion]
+	if not definicion then
+		capa.volumenBase = 0
+		fundir(capa, 0.4)
+		return
+	end
+	if capa.sonido.SoundId ~= definicion.Id then
+		capa.sonido.SoundId = definicion.Id
+	end
+	capa.volumenBase = Config.Radio.Volumen
+	if not capa.sonido.IsPlaying then
+		capa.sonido:Play()
+	end
+	fundir(capa, 0.4)
+end
+
 function AudioManager.estado(): string
 	local lineas = {}
 	for nombre, capa in capas do
@@ -166,6 +189,11 @@ function AudioManager.init()
 	for nombre, definicion in Config.Audio.Capas do
 		crearCapa(nombre, definicion)
 	end
+	-- La radio del local decide la música de fondo (atributo de Workspace que pone Radio.lua).
+	AudioManager.radio(workspace:GetAttribute("RadioEstacion") or 0)
+	workspace:GetAttributeChangedSignal("RadioEstacion"):Connect(function()
+		AudioManager.radio(workspace:GetAttribute("RadioEstacion") or 0)
+	end)
 	-- Cuando el Socio está muy cerca, el zumbido se corta: el silencio es la señal de peligro.
 	local proximaAlerta = 0
 	Net.obtener("Danger").OnClientEvent:Connect(function(valor)

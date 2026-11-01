@@ -22,6 +22,7 @@ local Net = require(ReplicatedStorage.Shared.Net)
 local NightManager = {}
 
 local estado = { noche = 1, minuto = 0, fase = "espera" }
+local datosNocheActual: NightData.Noche? = nil -- la noche en curso, con las tareas extra según la cantidad de jugadores
 local suscriptores: { [string]: { (any) -> () } } = {}
 local eventos: { NightData.Evento } = {}
 local siguienteEvento = 1
@@ -112,6 +113,11 @@ function NightManager.registrarResumen(fn: () -> { string })
 	proveedorResumen = fn
 end
 
+--- La noche en curso (NightData ajustado a la cantidad de jugadores que había al empezar).
+function NightManager.datosNoche()
+	return datosNocheActual or NightData[estado.noche]
+end
+
 function NightManager.obtenerEstado()
 	return table.clone(estado)
 end
@@ -123,7 +129,8 @@ function NightManager.iniciarNoche(noche: number)
 	estado.fase = "turno"
 	resumenActual = nil
 
-	local datos = NightData[noche]
+	local datos = NightData.paraJugadores(noche, #Players:GetPlayers())
+	datosNocheActual = datos
 	eventos = datos and table.clone(datos.eventos) or {}
 	table.sort(eventos, function(a, b)
 		return a.minuto < b.minuto

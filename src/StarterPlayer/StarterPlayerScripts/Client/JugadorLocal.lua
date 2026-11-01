@@ -22,6 +22,8 @@ local function ocultarInterfazRoblox()
 			StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)
 			StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Health, false)
 			StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.EmotesMenu, false)
+			-- No se puede reiniciar el personaje (menú de Roblox, tecla de reset): el jugador que cae queda fuera de la noche.
+			StarterGui:SetCore("ResetButtonCallback", false)
 		end)
 		if ok then
 			return

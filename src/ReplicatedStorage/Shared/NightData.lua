@@ -1,4 +1,4 @@
---!strict
+--!nonstrict
 --[[
 	NightData: contenido de cada noche (objetivos, modo de los clientes y eventos por horario).
 	"minuto" se cuenta desde las 22:00 (360 = 04:00). Los eventos los dispara NightManager.
@@ -17,6 +17,11 @@
 	  AVISO          { texto }                                                             mensaje corto para todos
 	  BASURA         { zonas = { "LOCAL" | "MOSTRADOR" | "BANO" | "COCINA" | "DEPOSITO" } }  aparecen bolsas (ChoreSystem)
 	  DERRAME        { zonas = { ..., "PATIO" } }                                          aparecen manchas para limpiar
+	  TAREA_MENOR    { ids = { "PLANTA" | "FICHAS" | "CARTEL" | "VIDRIO" | "CAJA" } }        pequeñas tareas del local (TareasMenores)
+	  SUSTO_SUAVE    { tipo = "tele" | "luces" | "ventana" }                                un susto chico (Client/Sustos)
+	  SCREAMER       { variante? }                                                          screamer a pantalla completa (Screamers)
+
+	NightData.paraJugadores(noche, cantidad) devuelve la noche con tareas extra según cuántos jugadores hay.
 ]]
 
 local Config = require(script.Parent.Config)
@@ -53,13 +58,15 @@ end
 
 -- Cuenta lo que hay que hacer: clientes, cintas normales (rebobinar y reponer) y cintas a separar.
 local function objetivosDe(eventos: { Evento }): { Objetivo }
-	local atender, normales, separar, basura, manchas = 0, 0, 0, 0, 0
+	local atender, normales, separar, basura, manchas, menores = 0, 0, 0, 0, 0, 0
 	for _, e in eventos do
 		local datos = e.datos
 		if e.id == "BASURA" then
 			basura += #datos.zonas
 		elseif e.id == "DERRAME" then
 			manchas += #datos.zonas
+		elseif e.id == "TAREA_MENOR" then
+			menores += #datos.ids
 		end
 		if e.id == "CLIENTE" then
 			atender += 1
@@ -85,6 +92,9 @@ local function objetivosDe(eventos: { Evento }): { Objetivo }
 	end
 	if manchas > 0 then
 		table.insert(lista, { id = "limpiar", texto = "Limpiar manchas", meta = manchas })
+	end
+	if menores > 0 then
+		table.insert(lista, { id = "menores", texto = "Cuidar el local", meta = menores })
 	end
 	return lista
 end
@@ -232,5 +242,106 @@ local NightData: { [number]: Noche } = {
 		evento(330, "SOCIO_MOSTRADOR"),
 	}),
 }
+
+-- Suma eventos a una noche y recalcula sus objetivos.
+local function ampliar(n: Noche, extra: { Evento })
+	for _, e in extra do
+		table.insert(n.eventos, e)
+	end
+	n.objetivos = objetivosDe(n.eventos)
+end
+
+-- Las dos primeras noches tenían mucho tiempo muerto: más clientes y cintas, basura, manchas y las pequeñas tareas
+-- del local (regar la planta, ordenar las fichas, enderezar el cartel, limpiar el vidrio, contar la caja).
+ampliar(NightData[1], {
+	evento(22, "AVISO", { texto = "El local también necesita cuidados: regá la planta, ordená las fichas, contá la caja... (se marcan con un contorno)." }),
+	evento(24, "TAREA_MENOR", { ids = { "PLANTA" } }),
+	evento(55, "BASURA", { zonas = { "MOSTRADOR" } }),
+	evento(75, "TAREA_MENOR", { ids = { "FICHAS" } }),
+	evento(90, "DERRAME", { zonas = { "LOCAL" } }),
+	buzon(105, "INFANTIL"),
+	cliente(120, "alquiler", "ACCION"),
+	evento(112, "TAREA_MENOR", { ids = { "CARTEL" } }),
+	cliente(175, "devolucion", "COMEDIA"),
+	evento(165, "TAREA_MENOR", { ids = { "VIDRIO" } }),
+	evento(185, "BASURA", { zonas = { "BANO" } }),
+	buzon(205, "DRAMA"),
+	evento(212, "TAREA_MENOR", { ids = { "CAJA" } }),
+	cliente(220, "alquiler", "DRAMA"),
+	evento(225, "DERRAME", { zonas = { "MOSTRADOR" } }),
+	buzon(255, "COMEDIA"),
+	evento(262, "TAREA_MENOR", { ids = { "PLANTA" } }),
+	cliente(272, "devolucion", "INFANTIL"),
+})
+
+ampliar(NightData[2], {
+	evento(18, "TAREA_MENOR", { ids = { "FICHAS" } }),
+	evento(35, "BASURA", { zonas = { "LOCAL" } }),
+	cliente(55, "alquiler", "INFANTIL"),
+	evento(55, "TAREA_MENOR", { ids = { "PLANTA" } }),
+	buzon(75, "TERROR"),
+	evento(95, "DERRAME", { zonas = { "MOSTRADOR" } }),
+	evento(100, "TAREA_MENOR", { ids = { "VIDRIO" } }),
+	cliente(115, "alquiler", "TERROR"),
+	buzon(125, "COMEDIA", { danado = true }),
+	evento(155, "TAREA_MENOR", { ids = { "CARTEL" } }),
+	evento(165, "BASURA", { zonas = { "COCINA" } }),
+	cliente(175, "devolucion", "ACCION"),
+	evento(195, "DERRAME", { zonas = { "BANO" } }),
+	evento(200, "TAREA_MENOR", { ids = { "CAJA" } }),
+	buzon(210, "INFANTIL"),
+	cliente(225, "alquiler", "DRAMA"),
+	evento(240, "BASURA", { zonas = { "MOSTRADOR" } }),
+	evento(250, "TAREA_MENOR", { ids = { "PLANTA" } }),
+	cliente(270, "devolucion", "TERROR"),
+	buzon(280, "DRAMA"),
+	evento(90, "SCREAMER"),
+})
+
+-- Screamers a pantalla completa en las noches 3 a 5 (los sustos suaves de antes siguen).
+ampliar(NightData[3], { evento(135, "SCREAMER") })
+ampliar(NightData[4], { evento(115, "SCREAMER"), evento(260, "SCREAMER") })
+ampliar(NightData[5], { evento(110, "SCREAMER"), evento(210, "SCREAMER"), evento(300, "SCREAMER") })
+
+-- Con más jugadores hay más trabajo: por cada jugador de más se suman clientes, cintas, basura, manchas y tareas del local,
+-- repartidos por toda la noche. Las noches de 1 jugador quedan como están escritas arriba.
+local GENEROS = { "COMEDIA", "ACCION", "DRAMA", "TERROR", "INFANTIL" }
+local ZONAS_BASURA = { "LOCAL", "MOSTRADOR", "BANO", "COCINA", "DEPOSITO" }
+local ZONAS_DERRAME = { "MOSTRADOR", "LOCAL", "COCINA", "BANO", "DEPOSITO", "PATIO" }
+local TAREAS_MENORES = { "PLANTA", "FICHAS", "CARTEL", "VIDRIO", "CAJA" }
+local porJugadores: { [string]: Noche } = {}
+
+function NightData.paraJugadores(numero: number, cantidad: number): Noche?
+	local base = NightData[numero]
+	if not base or cantidad <= 1 then
+		return base
+	end
+	cantidad = math.min(cantidad, 4)
+	local clave = numero .. ":" .. cantidad
+	if porJugadores[clave] then
+		return porJugadores[clave]
+	end
+	local eventos: { Evento } = table.clone(base.eventos)
+	for p = 1, cantidad - 1 do
+		local corrimiento = (p * 17) % 41 -- cada jugador extra desplaza sus tareas para que no caigan todas juntas
+		local g = (numero + p) % #GENEROS + 1
+		local anomalo = numero >= 2 and p % 2 == 0
+		table.insert(eventos, cliente(26 + corrimiento, "alquiler", GENEROS[g]))
+		table.insert(eventos, cliente(135 + corrimiento, "devolucion", GENEROS[g % #GENEROS + 1]))
+		table.insert(eventos, buzon(78 + corrimiento, GENEROS[(g + 1) % #GENEROS + 1], anomalo and { anomalo = true } or nil))
+		table.insert(eventos, evento(48 + corrimiento, "BASURA", { zonas = { ZONAS_BASURA[(numero + p) % #ZONAS_BASURA + 1] } }))
+		table.insert(eventos, evento(108 + corrimiento, "DERRAME", { zonas = { ZONAS_DERRAME[(numero + p * 2) % #ZONAS_DERRAME + 1] } }))
+		table.insert(eventos, evento(180 + corrimiento, "TAREA_MENOR", { ids = { TAREAS_MENORES[(numero + p) % #TAREAS_MENORES + 1] } }))
+	end
+	local noche: Noche = {
+		titulo = base.titulo,
+		objetivo = base.objetivo,
+		clientesModo = base.clientesModo,
+		objetivos = objetivosDe(eventos),
+		eventos = eventos,
+	}
+	porJugadores[clave] = noche
+	return noche
+end
 
 return NightData

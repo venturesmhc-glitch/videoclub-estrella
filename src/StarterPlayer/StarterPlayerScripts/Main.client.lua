@@ -23,6 +23,9 @@ local ORDEN = {
 	"PhoneUI",
 	"Calle",
 	"Sustos",
+	"Screamers",
+	"Espectador",
+	"TiendaUI",
 }
 
 local carpeta = script.Parent:WaitForChild("Client")

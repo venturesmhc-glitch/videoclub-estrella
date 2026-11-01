@@ -53,6 +53,9 @@ local rotacion = 0
 local progreso = 0
 local capturas = 0 -- total de la noche (para el estado de depuración)
 local capturasDe = {} -- Player -> veces que lo agarró esta noche
+local activoDesde = 0 -- cuándo empezó la aparición actual (cada una dura Config.Socio.PersecucionSeg)
+local ciclo = false -- la noche ya lo activó: después de irse vuelve a aparecer cada tanto
+local reaparecerEn: number? = nil
 local sustoUsado = false
 local nodos = {} -- { pos, vecinos = {indices} }
 local ruta = {}
@@ -323,12 +326,17 @@ function SocioEntity.activar(donde: Vector3?)
 	posicion = donde and Vector3.new(donde.X, 0, donde.Z) or nodoMasLejanoDeTodos()
 	ruta = {}
 	activo = true
+	activoDesde = os.clock()
+	ciclo = true -- desde ahora, durante la noche, va y viene: 30 s presente y un rato afuera
+	reaparecerEn = nil
 	colocar()
 	modelo.Parent = workspace
 end
 
 function SocioEntity.desactivar()
 	activo = false
+	ciclo = false
+	reaparecerEn = nil
 	ruta = {}
 	objetivo = nil
 	if modelo then
@@ -411,6 +419,12 @@ local function capturar(jugador: Player)
 		end
 	end
 	NightManager.fracasar()
+end
+
+--- Vuelve a jugar un espectador (compró el revivir): sus capturas de la noche empiezan de nuevo.
+function SocioEntity.revivirJugador(jugador: Player)
+	capturasDe[jugador] = nil
+	Fantasmas.revivir(jugador)
 end
 
 --- Para pruebas: cuenta una captura de ese jugador como si el Socio lo hubiera agarrado.
@@ -501,10 +515,16 @@ function SocioEntity.init()
 		progreso = cfg.PorNoche[datos.noche] or cfg.PorNoche[#cfg.PorNoche]
 		capturas = 0
 		table.clear(capturasDe)
-		Fantasmas.reviverTodos() -- los que quedaron fuera la noche anterior vuelven al mostrador
 		sustoUsado = false
 	end)
-	NightManager.suscribir("NOCHE_TERMINA", SocioEntity.desactivar)
+	NightManager.suscribir("NOCHE_TERMINA", function(datos)
+		SocioEntity.desactivar()
+		-- Los que quedaron fuera siguen de espectadores en la noche siguiente (se vuelve con Robux); solo si el equipo
+		-- entero cayó y la noche se repite, todos empiezan de nuevo.
+		if datos and datos.fracaso then
+			Fantasmas.reviverTodos()
+		end
+	end)
 	NightManager.suscribir("SOCIO_ACTIVA", function()
 		if not activo then
 			SocioEntity.activar()
@@ -531,6 +551,14 @@ function SocioEntity.init()
 		while true do
 			task.wait(cfg.TickSeg)
 			local enTurno = NightManager.obtenerEstado().fase == "turno"
+			-- Cada aparición dura PersecucionSeg; después se va y vuelve a aparecer pasado un rato.
+			if enTurno and activo and os.clock() - activoDesde >= cfg.PersecucionSeg then
+				SocioEntity.desactivar()
+				ciclo = true
+				reaparecerEn = os.clock() + rng:NextNumber(cfg.EntreApariciones[1], cfg.EntreApariciones[2])
+			elseif enTurno and not activo and ciclo and reaparecerEn and os.clock() >= reaparecerEn then
+				SocioEntity.activar()
+			end
 			local observado = enTurno and activo and alguienLoMira()
 			ultimoObservado = observado
 			-- Mientras lo miran queda congelado en la pose del momento (a medio paso).

@@ -28,6 +28,10 @@ local Persistencia = require(script.Parent.Persistencia)
 local PhoneSystem = require(script.Parent.PhoneSystem)
 local RulesSystem = require(script.Parent.RulesSystem)
 local Salas = require(script.Parent.Salas)
+local Fantasmas = require(script.Parent.Fantasmas)
+local Screamers = require(script.Parent.Screamers)
+local TareasMenores = require(script.Parent.TareasMenores)
+local NightData = require(ReplicatedStorage.Shared.NightData)
 local SocioEntity = require(script.Parent.SocioEntity)
 local TapeItem = require(script.Parent.TapeItem)
 local TaskSystem = require(script.Parent.TaskSystem)
@@ -127,6 +131,49 @@ function comandos.salasim(accion)
 		table.insert(partes, string.format("[%s -> %s tipo=%s sala=%s max=%s esperados=%s]", table.concat(nombres, ","), t.accessCode, t.datos.tipo, t.datos.sala, tostring(t.datos.maximo), tostring(t.datos.esperados)))
 	end
 	return table.concat(partes, " ")
+end
+
+--- "noches": cuántas tareas tiene cada noche según la cantidad de jugadores (1 a 4).
+function comandos.noches()
+	local partes = {}
+	for n = 1, 5 do
+		for cantidad = 1, 4, 3 do
+			local d = NightData.paraJugadores(n, cantidad)
+			local metas = {}
+			for _, o in d.objetivos do
+				table.insert(metas, o.id .. "=" .. o.meta)
+			end
+			table.insert(partes, string.format("N%d/%dJ eventos=%d {%s}", n, cantidad, #d.eventos, table.concat(metas, ",")))
+		end
+	end
+	return table.concat(partes, " | ")
+end
+
+function comandos.radio(n)
+	workspace:SetAttribute("RadioEstacion", tonumber(n) or 0)
+	return "radio=" .. tostring(workspace:GetAttribute("RadioEstacion"))
+end
+
+--- "tareamenor ID": pide una tarea pequeña del local (PLANTA, FICHAS, CARTEL, VIDRIO, CAJA).
+function comandos.tareamenor(id)
+	TareasMenores.pedir(tostring(id or "PLANTA"))
+	return "pedida " .. tostring(id or "PLANTA")
+end
+
+function comandos.screamer()
+	Screamers.disparar()
+	return "screamer enviado"
+end
+
+--- "espectador": deja fuera de la noche al jugador (sin pasar por las capturas); "revivir" lo trae de vuelta.
+function comandos.espectador()
+	Fantasmas.convertir(jugador())
+	return "espectador=" .. tostring(Fantasmas.esFantasma(jugador()))
+end
+
+function comandos.revivir()
+	SocioEntity.revivirJugador(jugador())
+	return "espectador=" .. tostring(Fantasmas.esFantasma(jugador()))
 end
 
 function comandos.socio()

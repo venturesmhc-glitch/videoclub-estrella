@@ -62,6 +62,13 @@ end
 -- Decoración que no debe frenar al jugador ni a los raycasts.
 local DECO = { CanCollide = false, CanTouch = false, CanQuery = false }
 
+-- Objeto del local que se puede "cuidar" (TareasMenores): lleva el tag TareaMenor y el id de la tarea.
+local function tareaMenor(p, id)
+	CollectionService:AddTag(p, "TareaMenor")
+	p:SetAttribute("TareaId", id)
+	return p
+end
+
 local function texto(parteBase, cara, contenido, fuente, colorTexto, colorFondo)
 	local sg = Instance.new("SurfaceGui")
 	sg.Face = cara
@@ -229,7 +236,7 @@ muro("MuroFrente", "X", Z_FRENTE, -24.5, 24.5, {
 	{ -3, 3, 0, 9 },
 	{ 9, 22, 3, 9 },
 }, COL_PARED, muros)
-vidrio("VentanaIzquierda", "X", Z_FRENTE, -22, -8, 3, 9, VIDRIOS)
+tareaMenor(vidrio("VentanaIzquierda", "X", Z_FRENTE, -22, -8, 3, 9, VIDRIOS), "VIDRIO")
 vidrio("VentanaDerecha", "X", Z_FRENTE, 9, 22, 3, 9, VIDRIOS)
 local puerta = vidrio("PuertaEntrada", "X", Z_FRENTE, -3, 3, 0, 9, VIDRIOS, 0.55)
 puerta:SetAttribute("Cerrada", true) -- turno noche: la puerta no se abre
@@ -336,8 +343,10 @@ CollectionService:AddTag(vcr, "Videocasetera")
 local caja = parte("CajaRegistradora", V3(1.8, 1, 1.5), V3(-1, 4.3, Z_MOSTRADOR + 0.3), C3(200, 190, 160), Enum.Material.Metal, mostrador)
 parte("CajaDisplay", V3(1.1, 0.4, 0.1), V3(-1, 5, Z_MOSTRADOR - 0.2), C3(40, 255, 140), Enum.Material.Neon, mostrador)
 CollectionService:AddTag(caja, "CajaRegistradora")
+tareaMenor(caja, "CAJA")
 local fichas = parte("FichasSocios", V3(1, 0.7, 1.4), V3(1.6, 4.1, Z_MOSTRADOR + 0.4), C3(180, 150, 90), Enum.Material.Cardboard, mostrador)
 local contestador = parte("Contestador", V3(1.2, 0.4, 1), V3(3.6, 3.95, Z_MOSTRADOR + 0.6), C3(30, 30, 32), Enum.Material.Plastic, mostrador)
+tareaMenor(fichas, "FICHAS")
 local telefono = parte("Telefono", V3(1, 0.5, 1.2), V3(5.8, 4.05, Z_MOSTRADOR + 0.4), C3(110, 24, 30), Enum.Material.Plastic, mostrador)
 parte("TelefonoAuricular", V3(1.3, 0.25, 0.35), V3(5.8, 4.4, Z_MOSTRADOR + 0.4), C3(90, 18, 24), Enum.Material.Plastic, mostrador)
 CollectionService:AddTag(telefono, "Telefono")
@@ -357,6 +366,33 @@ parte("CajaDanadasTapa", V3(1.5, 0.15, 1.5), V3(CD_X, 1.58, CD_Z), C3(110, 28, 2
 parte("CajaDanadasRanura", V3(0.9, 0.05, 0.12), V3(CD_X, 1.67, CD_Z), C3(10, 10, 10), Enum.Material.SmoothPlastic, mostrador, DECO)
 for _, cara in { Enum.NormalId.Front, Enum.NormalId.Back, Enum.NormalId.Left, Enum.NormalId.Right } do
 	texto(cajaDanadas, cara, "DAÑADAS", Enum.Font.Arcade, C3(245, 240, 220))
+end
+
+-- ===== Radio =====
+-- Sobre el lateral del mostrador, del lado de los empleados, con el parlante hacia +X. La usa Radio.lua (E cambia de
+-- estación, R mantenido la apaga). Tiene una lucecita en el dial para encontrarla en la oscuridad.
+do
+	local RX, RY, RZ = LATERAL_X + 0.1, 3.8 + 0.5, 12.6
+	local radio = parte("Radio", V3(0.9, 1.0, 1.9), V3(RX, RY, RZ), C3(70, 44, 30), Enum.Material.Wood, mostrador)
+	CollectionService:AddTag(radio, "Radio")
+	parte("RadioParlante", V3(0.05, 0.75, 0.85), V3(RX + 0.47, RY - 0.05, RZ - 0.4), C3(26, 26, 28), Enum.Material.Fabric, mostrador, DECO)
+	for i = -1, 1 do
+		parte("RadioRejilla", V3(0.06, 0.04, 0.8), V3(RX + 0.5, RY - 0.05 + i * 0.2, RZ - 0.4), C3(110, 100, 88), Enum.Material.Metal, mostrador, DECO)
+	end
+	local dial = parte("RadioDial", V3(0.05, 0.3, 0.55), V3(RX + 0.47, RY + 0.25, RZ + 0.5), C3(255, 214, 140), Enum.Material.Neon, mostrador, DECO)
+	local luzDial = Instance.new("PointLight")
+	luzDial.Color = C3(255, 200, 120)
+	luzDial.Range = 6
+	luzDial.Brightness = 0.5
+	luzDial.Shadows = false
+	luzDial.Parent = dial
+	for _, dz in { 0.3, 0.7 } do
+		local perilla = parte("RadioPerilla", V3(0.12, 0.22, 0.22), V3(RX + 0.5, RY - 0.25, RZ + dz), C3(214, 190, 150), Enum.Material.Plastic, mostrador, DECO)
+		perilla.Shape = Enum.PartType.Cylinder
+		perilla.CFrame = CFrame.new(perilla.Position) * CFrame.Angles(0, 0, 0)
+	end
+	-- Antena telescópica, inclinada hacia atrás.
+	parte("RadioAntena", V3(0.05, 1.6, 0.05), CFrame.new(RX - 0.1, RY + 0.5 + 0.7, RZ + 0.75) * CFrame.Angles(math.rad(-12), 0, math.rad(14)), C3(190, 190, 186), Enum.Material.Metal, mostrador, DECO)
 end
 
 -- ===== Ranura de devoluciones (al lado de la puerta, sobre el frente) =====
@@ -825,7 +861,7 @@ movible(fichas)
 movible(pila1)
 movible(pila2)
 -- (La banqueta cilíndrica que hacía de silla se eliminó.)
-movible(parte("Planta", V3(2.3, 2.6, 2.3), V3(21.5, 1.5, 23.5), C3(52, 96, 56), Enum.Material.Grass, props, { Shape = Enum.PartType.Ball }))
+tareaMenor(movible(parte("Planta", V3(2.3, 2.6, 2.3), V3(21.5, 1.5, 23.5), C3(52, 96, 56), Enum.Material.Grass, props, { Shape = Enum.PartType.Ball })), "PLANTA")
 parte("MacetaPlanta", V3(1.3, 0.9, 1.3), V3(21.5, 0.45, 23.5), C3(140, 74, 52), Enum.Material.Concrete, props, DECO)
 
 -- Cartel de oferta: de cartón, finito, contra la pared (no estorba el paso) y con diseño propio.
@@ -833,6 +869,7 @@ parte("MacetaPlanta", V3(1.3, 0.9, 1.3), V3(21.5, 0.45, 23.5), C3(140, 74, 52), 
 local GIRO_CARTEL = CFrame.Angles(0, math.rad(90), 0)
 local standee = movible(parte("CartelOferta", V3(2, 3.6, 0.12), CFrame.new(20.2, 1.9, 19.5) * GIRO_CARTEL, C3(210, 60, 50), Enum.Material.SmoothPlastic, props))
 parte("CartelOfertaBase", V3(1.7, 0.1, 1.1), CFrame.new(20.2, 0.07, 19.5) * GIRO_CARTEL, C3(60, 52, 46), Enum.Material.Plastic, props, DECO)
+tareaMenor(standee, "CARTEL")
 for _, cara in { Enum.NormalId.Front, Enum.NormalId.Back } do
 	local sg = Instance.new("SurfaceGui")
 	sg.Face = cara

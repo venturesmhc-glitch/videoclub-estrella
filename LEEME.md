@@ -31,6 +31,12 @@ Don Ernesto explica el trabajo y los controles. Suena hasta que alguien lo atien
 
 - **Tareas extra** (para repartir entre varios): las bolsas de basura se llevan al contenedor del patio (puerta del fondo a la derecha; con una bolsa en las manos no se pueden tomar casetes) y las manchas se limpian manteniendo E. La cocina (puerta del fondo a la izquierda) y el baño también tienen tareas.
 
+- **Tareas del local**: además de clientes, cintas, basura y manchas hay pequeñas tareas (regar la planta, ordenar las fichas, enderezar el cartel, limpiar el vidrio, contar la caja; se marcan con un contorno y se hacen manteniendo E). Con más jugadores hay más trabajo (clientes, cintas, basura, manchas y tareas del local por cada jugador extra: `NightData.paraJugadores`).
+- **Radio** (sobre el lateral del mostrador): E cambia de estación (Radio AM, Synthwave, Jazz, Cumbia, Tango), R mantenido la apaga. Las estaciones están en `Config.Radio`.
+- **El monstruo** aparece 30 s por persecución (`Config.Socio.PersecucionSeg`) y vuelve a aparecer cada 55 a 90 s mientras dure la noche.
+- **Quedar fuera de la noche**: a la segunda captura el jugador pasa a ser **espectador** (ve el local por la cámara de sus compañeros, distorsionado y sin el monstruo) y su personaje queda como una estatua traslúcida en el motel. No se reinicia el personaje. Vuelve con **Revivir (R$ 30)** o si todo el equipo cae y la noche se repite.
+- **Screamers** automáticos en las noches 2 a 5 y el botón **Asustar a todos (R$ 10)**. Los dos productos son Developer Products de la experiencia (ids en `Config.Tienda.Productos`; con 0 la compra se simula solo en Studio).
+
 ## Cómo está armado
 - `src/` es la fuente de verdad del código (Luau). `node push.js` lo sincroniza a Studio.
 - `build/videoclub.lua` reconstruye el local (`node mcp-call.js execute_luau @build/videoclub.lua`).

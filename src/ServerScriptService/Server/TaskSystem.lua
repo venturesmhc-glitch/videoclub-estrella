@@ -91,7 +91,7 @@ function TaskSystem.iniciarNoche(noche: number)
 	table.clear(porId)
 	perdidos = 0
 	avisadoCompleta = false
-	local datos = NightData[noche]
+	local datos = NightManager.datosNoche() -- trae las tareas extra según la cantidad de jugadores
 	for _, objetivo in (datos and datos.objetivos or {}) do
 		local tarea = { id = objetivo.id, texto = objetivo.texto, actual = 0, meta = objetivo.meta }
 		table.insert(tareas, tarea)
