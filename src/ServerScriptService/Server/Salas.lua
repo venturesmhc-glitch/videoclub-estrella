@@ -2,11 +2,14 @@
 --[[
 	Salas (servidor): salas de multijugador entre servidores de Roblox.
 
-	Cada sala vive en su propio servidor reservado. Hay dos tipos de servidor:
-	  - el de entrada (público): muestra el menú, lista las salas públicas y crea o une salas;
-	  - el de la sala (reservado): corre el turno. Mientras espera jugadores (fase "lobby") publica su ficha en un
-	    MemoryStore con el código, la cantidad de jugadores y el código de acceso del servidor reservado.
+	El juego y el menú viven en servidores distintos, para que los jugadores de un servidor público (hasta 60) no
+	compartan una misma partida:
+	  - el de entrada (público): SOLO muestra el menú, lista las salas públicas y crea o une salas. Nunca corre un turno;
+	  - el de juego (reservado, lo crea ReserveServer): corre el turno de una sala o de una partida en solitario.
+	    Mientras una sala espera jugadores (fase "lobby") publica su ficha en un MemoryStore con el código, la cantidad
+	    de jugadores y el código de acceso del servidor reservado.
 
+	  Solo:   se reserva un servidor de un solo lugar y se teletransporta al jugador; arranca el turno al llegar.
 	  Crear:  se reserva un servidor (ReserveServer), se anota la ficha y se teletransporta al anfitrión con los datos
 	          de la sala; ese servidor arranca directamente en la sala de espera.
 	  Unirse: por la lista (salas públicas) o por código (públicas y privadas): se busca la ficha y se teletransporta.
@@ -20,6 +23,7 @@
 	  Salas.datosDeEntrada(jugador) -> datos de la sala con la que llegó el jugador, o nil
 	  Salas.codigoNuevo() -> string
 	  Salas.listar() -> { { codigo, anfitrion, jugadores, maximo } } | nil, error   (solo salas públicas)
+	  Salas.crearSolo(jugador) -> ok, error                  (reserva un servidor para una partida en solitario)
 	  Salas.crear(jugador, publica, maximo) -> ok, error     (reserva, anota y teletransporta)
 	  Salas.unirse(jugador, codigo) -> ok, error             (busca y teletransporta)
 	  Salas.publicar(sala)   -- sala = { codigo, accessCode, publica, maximo, anfitrion, anfitrionId, jugadores }
@@ -52,7 +56,7 @@ function Salas.datosDeEntrada(jugador: Player)
 		return jugador:GetJoinData()
 	end)
 	local datos = ok and entrada and entrada.TeleportData
-	if typeof(datos) == "table" and typeof(datos.sala) == "string" then
+	if typeof(datos) == "table" and typeof(datos.tipo) == "string" then
 		return datos
 	end
 	return nil
@@ -120,6 +124,7 @@ end
 
 local function teleportar(jugador: Player, codigo: string, v)
 	local datos = {
+		tipo = "sala",
 		sala = codigo,
 		accessCode = v.accessCode,
 		publica = v.publica,
@@ -132,6 +137,25 @@ local function teleportar(jugador: Player, codigo: string, v)
 	if not ok then
 		warn("[Salas] Falló el teletransporte: " .. tostring(err))
 		return false, "No se pudo entrar a la sala. Probá de nuevo."
+	end
+	return true
+end
+
+function Salas.crearSolo(jugador: Player)
+	local ok, accessCode = pcall(function()
+		return (TeleportService:ReserveServer(game.PlaceId))
+	end)
+	if not ok or typeof(accessCode) ~= "string" then
+		warn("[Salas] ReserveServer falló: " .. tostring(accessCode))
+		return false, "No se pudo preparar la partida. Probá de nuevo."
+	end
+	local datos = { tipo = "solo", sala = "SOLO", publica = false, maximo = 1, anfitrionId = jugador.UserId }
+	local okTp, err = pcall(function()
+		TeleportService:TeleportToPrivateServer(game.PlaceId, accessCode, { jugador }, nil, datos)
+	end)
+	if not okTp then
+		warn("[Salas] Falló el teletransporte: " .. tostring(err))
+		return false, "No se pudo preparar la partida. Probá de nuevo."
 	end
 	return true
 end

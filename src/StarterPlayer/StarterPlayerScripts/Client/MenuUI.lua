@@ -56,6 +56,7 @@ local TEXTOS = {
 	salaPublicaTipo = "Sala pública · %d/%d jugadores",
 	salaPrivadaTipo = "Sala privada · %d/%d jugadores",
 	salir = "SALIR DE LA SALA",
+	salirAlMenu = "SALIR AL MENÚ PRINCIPAL",
 	entrando = "Entrando a la sala...",
 	ajustesTitulo = "AJUSTES",
 	volMusica = "Música",
@@ -308,6 +309,7 @@ local function construirPrincipal()
 	boton(p, TEXTOS.ayuda, UDim2.fromScale(0.5, 0.84), function()
 		mostrarPantalla("ayuda")
 	end, TAM_BOTON)
+	table.insert(mensajes, texto(p, { texto = "", tamano = UDim2.fromScale(0.5, 0.04), posicion = UDim2.fromScale(0.5, 0.93), ancla = Vector2.new(0.5, 0.5), color = COLOR_APAGADO }))
 end
 
 local lobbyLista, lobbyEstado, lobbyBotonEmpezar, lobbyBotonVolver, lobbyCodigo, lobbyTipo
@@ -518,6 +520,8 @@ local function construirAyuda()
 	end, UDim2.fromScale(0.25, 0.07))
 end
 
+local botonSalirAlMenu
+
 local function construirAjustes()
 	local p = nuevaPantalla("ajustes")
 	texto(p, { texto = TEXTOS.ajustesTitulo, fuente = FUENTE_TITULO, color = COLOR_ACENTO, tamano = UDim2.fromScale(0.7, 0.1), posicion = UDim2.fromScale(0.5, 0.14), ancla = Vector2.new(0.5, 0.5) })
@@ -544,9 +548,14 @@ local function construirAjustes()
 		botonCalidad.Text = string.format(TEXTOS.calidad, Rendimiento.nivel())
 	end)
 	texto(p, { texto = TEXTOS.idioma, tamano = UDim2.fromScale(0.7, 0.045), posicion = UDim2.fromScale(0.5, 0.75), ancla = Vector2.new(0.5, 0.5), color = COLOR_APAGADO })
-	boton(p, TEXTOS.volver, UDim2.fromScale(0.5, 0.86), function()
+	boton(p, TEXTOS.volver, UDim2.fromScale(0.5, 0.85), function()
 		mostrarPantalla(destinoVolver())
 	end, UDim2.fromScale(0.25, 0.07))
+	-- El servidor de juego es aparte del menú: desde acá se vuelve al servidor de entrada.
+	botonSalirAlMenu = boton(p, TEXTOS.salirAlMenu, UDim2.fromScale(0.5, 0.94), function()
+		enviar("salir")
+	end, UDim2.fromScale(0.3, 0.06))
+	botonSalirAlMenu.Visible = false
 end
 
 local function actualizarLobby()
@@ -598,8 +607,11 @@ function mostrarPantalla(nombre)
 	for clave, pantalla in pantallas do
 		pantalla.Visible = clave == nombre
 	end
-	if nombre == "salas" or nombre == "crear" or nombre == "unirse" then
+	if nombre == "salas" or nombre == "crear" or nombre == "unirse" or nombre == "principal" then
 		ponerMensaje("")
+	end
+	if botonSalirAlMenu then
+		botonSalirAlMenu.Visible = nombre == "ajustes" and enJuego and estadoPartida.nube == true
 	end
 	if nombre == "lobby" then
 		actualizarLobby()

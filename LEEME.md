@@ -42,6 +42,7 @@ Don Ernesto explica el trabajo y los controles. Suena hasta que alguien lo atien
 - Todos los números del juego están en `src/ReplicatedStorage/Shared/Config.lua`; el contenido de cada noche, en `NightData.lua`.
 
 ## Pendiente / límites conocidos
+- **Servidores**: el servidor público (el de entrada) solo muestra el menú, lista y crea salas; nunca corre un turno, así que los 60 que caben ahí no comparten partida. "Un jugador" y las salas abren un servidor reservado y teletransportan; ahí corre el turno y se vuelve al menú desde Ajustes (M).
 - **Salas (multijugador)**: en el juego publicado cada sala es un servidor reservado (`Salas.lua`: `ReserveServer` + `TeleportService` + MemoryStore para la lista y los códigos). En Studio no hay teletransporte, así que ahí la sala es el propio servidor (modo local; se prueba con *Start Server* + varios clientes). La parte entre servidores no se pudo probar en Studio: probala publicada con dos cuentas.
 - **Audio**: zumbido de tubo, hiss de cinta, aire pesado, ondas beta y música de fondo (ids en `Config.Audio.Capas`, de la Creator Store). Los elegí por nombre y comprobé que cargan, pero no los escuché: ajustalos a gusto.
 - **DataStore**: en Studio hace falta activar *Allow Studio Access to API Services* para guardar; en el juego publicado funciona solo.
