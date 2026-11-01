@@ -10,7 +10,8 @@
 	Se mueve entre los Waypoints del local (tag "Waypoint"; los vecinos se calculan con raycasts).
 	Su velocidad depende del "progreso": sube con la cinta, la contaminación y romper reglas; baja al detectar anomalías.
 	Si llega a tocar a un jugador sin que nadie lo mire, lo "graba": susto (uno por noche como máximo),
-	el jugador vuelve al mostrador aturdido y el Socio retrocede. Con CapturasMax capturas la noche fracasa.
+	el jugador vuelve al mostrador aturdido y el Socio retrocede. A la segunda captura (Config.Socio.CapturasPorJugador) ese jugador queda fuera de la noche y aparece como fantasma en
+	el motel (Fantasmas); cuando caen todos, la noche fracasa.
 
 	El peligro (0..1) por jugador se manda por el remote Danger y deforma el tracking del filtro VHS.
 
@@ -29,6 +30,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Personajes = require(ReplicatedStorage.Shared.Personajes)
+local Fantasmas = require(script.Parent.Fantasmas)
 local NightManager = require(script.Parent.NightManager)
 local TapeItem = require(script.Parent.TapeItem)
 
@@ -49,7 +51,8 @@ local activo = false
 local posicion = Vector3.new(0, 0, -16) -- a nivel del piso
 local rotacion = 0
 local progreso = 0
-local capturas = 0
+local capturas = 0 -- total de la noche (para el estado de depuración)
+local capturasDe = {} -- Player -> veces que lo agarró esta noche
 local sustoUsado = false
 local nodos = {} -- { pos, vecinos = {indices} }
 local ruta = {}
@@ -243,7 +246,7 @@ local function alguienLoMira(): boolean
 	params.FilterType = Enum.RaycastFilterType.Exclude
 	params.FilterDescendantsInstances = personajes()
 	for _, jugador in Players:GetPlayers() do
-		if observadoPor(jugador, params) then
+		if not Fantasmas.esFantasma(jugador) and observadoPor(jugador, params) then
 			return true
 		end
 	end
@@ -253,6 +256,9 @@ end
 -- ===== Utilidades =====
 
 local function raizDe(jugador: Player): BasePart?
+	if Fantasmas.esFantasma(jugador) then
+		return nil -- fuera de la noche: no es blanco del Socio, no cuenta como "mirando" ni recibe aviso de peligro
+	end
 	local personaje = jugador.Character
 	local humanoide = personaje and personaje:FindFirstChildOfClass("Humanoid")
 	if humanoide and humanoide.Health > 0 then
@@ -352,7 +358,9 @@ end
 
 local function capturar(jugador: Player)
 	capturas += 1
-	local raiz = raizDe(jugador)
+	local veces = (capturasDe[jugador] or 0) + 1
+	capturasDe[jugador] = veces
+	local fuera = veces >= cfg.CapturasPorJugador
 	local personaje = jugador.Character
 
 	if not sustoUsado then
@@ -366,22 +374,29 @@ local function capturar(jugador: Player)
 		TapeItem.colocar(casete, CFrame.new(Config.Casetes.PosicionMostrador) * CFrame.Angles(math.rad(90), 0, 0))
 	end
 
-	local inicio = workspace:FindFirstChild("SpawnLocation")
-	if personaje and inicio then
-		personaje:PivotTo(CFrame.new(inicio.Position + Vector3.new(0, 3, 0)))
+	if fuera then
+		-- Segunda captura: queda fuera de la noche. Suelta lo que lleve y pasa a ser un fantasma en el motel.
+		NightManager.emitir("JUGADOR_FUERA", { jugador = jugador })
+		Fantasmas.convertir(jugador)
+		Net.avisoATodos(string.format("%s fue grabado (%d/%d) y quedó atrapado en la cinta.", jugador.DisplayName, veces, cfg.CapturasPorJugador))
+	else
+		local inicio = workspace:FindFirstChild("SpawnLocation")
+		if personaje and inicio then
+			personaje:PivotTo(CFrame.new(inicio.Position + Vector3.new(0, 3, 0)))
+		end
+		local humanoide = personaje and personaje:FindFirstChildOfClass("Humanoid")
+		if humanoide then
+			humanoide.WalkSpeed = 0
+			humanoide.JumpHeight = 0
+			task.delay(cfg.AturdimientoSeg, function()
+				if humanoide.Parent and not Fantasmas.esFantasma(jugador) then
+					humanoide.WalkSpeed = Config.Jugador.VelocidadCaminar
+					humanoide.JumpHeight = Config.Jugador.AlturaSalto
+				end
+			end)
+		end
+		Net.avisoATodos(string.format("%s fue grabado (%d/%d).", jugador.DisplayName, veces, cfg.CapturasPorJugador))
 	end
-	local humanoide = personaje and personaje:FindFirstChildOfClass("Humanoid")
-	if humanoide then
-		humanoide.WalkSpeed = 0
-		humanoide.JumpHeight = 0
-		task.delay(cfg.AturdimientoSeg, function()
-			if humanoide.Parent then
-				humanoide.WalkSpeed = Config.Jugador.VelocidadCaminar
-				humanoide.JumpHeight = Config.Jugador.AlturaSalto
-			end
-		end)
-	end
-	Net.avisoATodos(string.format("%s fue grabado.", jugador.DisplayName))
 
 	-- El Socio retrocede lejos y baja un poco la presión.
 	SocioEntity.agregarProgreso(cfg.PorCaptura)
@@ -389,9 +404,18 @@ local function capturar(jugador: Player)
 	ruta = {}
 	colocar()
 
-	if capturas >= cfg.CapturasMax then
-		NightManager.fracasar()
+	-- Si ya no queda nadie en pie, la noche fracasa.
+	for _, otro in Players:GetPlayers() do
+		if not Fantasmas.esFantasma(otro) then
+			return
+		end
 	end
+	NightManager.fracasar()
+end
+
+--- Para pruebas: cuenta una captura de ese jugador como si el Socio lo hubiera agarrado.
+function SocioEntity.capturarJugador(jugador: Player)
+	capturar(jugador)
 end
 
 -- ===== Bucle =====
@@ -468,6 +492,7 @@ function SocioEntity.estadoTexto(): string
 end
 
 function SocioEntity.init()
+	Fantasmas.init()
 	construirGrafo()
 	task.spawn(construirModelo) -- precarga la malla (tarda un poco) para que activar() no espere
 
@@ -475,6 +500,8 @@ function SocioEntity.init()
 		SocioEntity.desactivar()
 		progreso = cfg.PorNoche[datos.noche] or cfg.PorNoche[#cfg.PorNoche]
 		capturas = 0
+		table.clear(capturasDe)
+		Fantasmas.reviverTodos() -- los que quedaron fuera la noche anterior vuelven al mostrador
 		sustoUsado = false
 	end)
 	NightManager.suscribir("NOCHE_TERMINA", SocioEntity.desactivar)
@@ -496,7 +523,7 @@ function SocioEntity.init()
 		end
 	end)
 	Players.PlayerRemoving:Connect(function(jugador)
-		miradas[jugador], ignorados[jugador], ultimoPeligro[jugador] = nil, nil, nil
+		miradas[jugador], ignorados[jugador], ultimoPeligro[jugador], capturasDe[jugador] = nil, nil, nil, nil
 	end)
 
 	task.spawn(function()

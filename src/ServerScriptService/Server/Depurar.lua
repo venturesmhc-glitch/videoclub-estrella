@@ -111,6 +111,11 @@ function comandos.socio()
 	return SocioEntity.estadoTexto()
 end
 
+function comandos.capturar()
+	SocioEntity.capturarJugador(jugador())
+	return SocioEntity.estadoTexto()
+end
+
 function comandos.socioaparecer(x, z)
 	SocioEntity.activar(Vector3.new(tonumber(x) or 0, 0, tonumber(z) or -10))
 	return SocioEntity.estadoTexto()

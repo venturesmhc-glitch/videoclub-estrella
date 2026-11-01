@@ -270,7 +270,7 @@ Config.Socio = {
 	TickSeg = 0.1,
 	RecalcularRutaSeg = 1.5,
 	PeligroEnvioSeg = 0.2,
-	CapturasMax = 3, -- capturas del equipo que hacen fracasar la noche
+	CapturasPorJugador = 2, -- a la segunda captura el jugador queda fuera de la noche (fantasma en el motel); si caen todos, la noche fracasa
 	AturdimientoSeg = 3.5,
 	ProgresoMax = 1.5,
 	-- Progreso (0 a ProgresoMax): sube la velocidad del Socio. Se reinicia cada noche con PorNoche[noche].
@@ -285,6 +285,23 @@ Config.Socio = {
 	PorCaptura = -0.12,
 	DistanciaAparicion = 14, -- "presentarse" en un pasillo: a cuántos studs del fondo aparece
 	AlturaModelo = 7,
+}
+
+-- Jugador fuera de la noche (Fantasmas): aparece quieto en el estacionamiento del motel de enfrente, mirando al local.
+Config.Fantasma = {
+	Translucidez = 0.55, -- transparencia de la skin
+	PisoY = -0.35, -- altura del asfalto del estacionamiento
+	Plazas = { -- una por jugador, delante de las puertas del motel (frente en z = 105)
+		Vector3.new(-4.5, 0, 101),
+		Vector3.new(4.5, 0, 101),
+		Vector3.new(-13.5, 0, 101),
+		Vector3.new(13.5, 0, 101),
+	},
+	ColorLuz = Color3.fromRGB(190, 220, 255),
+	BrilloLuz = 0.8,
+	AlcanceLuz = 14,
+	RellenoContorno = 0.78,
+	BordeContorno = 0.45,
 }
 
 -- La cinta sin etiqueta (CursedTapeSystem).

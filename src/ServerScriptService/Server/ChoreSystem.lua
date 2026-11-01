@@ -343,6 +343,9 @@ end
 
 function ChoreSystem.init()
 	NightManager.suscribir("NOCHE_INICIA", ChoreSystem.limpiarTodo)
+	NightManager.suscribir("JUGADOR_FUERA", function(datos)
+		alSalirElPersonaje(datos.jugador) -- quedó fuera de la noche: la bolsa vuelve a su lugar
+	end)
 	NightManager.suscribir("BASURA", function(datos)
 		for _, zona in datos.zonas or {} do
 			crearBolsa(zona)

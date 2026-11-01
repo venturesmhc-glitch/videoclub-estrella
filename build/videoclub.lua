@@ -1325,10 +1325,53 @@ for _, y in { 0.9, 1.8, 2.7 } do
 	parte("AlambradoHilo", V3(100, 0.05, 0.05), V3(-58, y, 61), C3(180, 180, 176), Enum.Material.Metal, calle, DECO)
 	parte("AlambradoHilo", V3(100, 0.05, 0.05), V3(58, y, 61), C3(180, 180, 176), Enum.Material.Metal, calle, DECO)
 end
--- Álamos oscuros en el campo (de lejos son una silueta).
-for _, pos in { V3(-62, 0, 70), V3(-50, 0, 82), V3(50, 0, 72), V3(66, 0, 84), V3(-78, 0, 88), V3(80, 0, 92) } do
-	parte("AlamoTronco", V3(1.2, 20, 1.2), V3(pos.X, 10, pos.Z), C3(70, 56, 44), Enum.Material.Wood, calle, DECO)
-	parte("AlamoCopa", V3(6, 22, 6), V3(pos.X, 21, pos.Z), C3(24, 40, 28), Enum.Material.Grass, calle, DECO).Shape = Enum.PartType.Ball
+-- Álamos oscuros en el campo (de lejos son una silueta): tronco que se afina, unas ramas peladas abajo y una copa
+-- alargada hecha de muchas matas de hojas superpuestas (no una bola). Apoyados sobre el pasto (cara de arriba en y -0.45).
+do
+	local HOJAS = { C3(26, 48, 30), C3(34, 62, 36), C3(22, 40, 26), C3(42, 72, 40), C3(30, 54, 28) }
+	local CORTEZA = { C3(74, 58, 46), C3(64, 50, 40) }
+	local function alamo(x, z, k)
+		local base = -0.45
+		local alto = 24 * k
+		-- Tronco en tres tramos cada vez más finos.
+		local tramo = alto * 0.36
+		for i, diametro in { 1.7, 1.25, 0.85 } do
+			local t = parte("AlamoTronco", V3(tramo, diametro * k, diametro * k), CFrame.new(x, base + tramo * (i - 0.5), z) * CFrame.Angles(0, 0, math.rad(90)), aleatorio(CORTEZA), Enum.Material.Wood, calle, DECO)
+			t.Shape = Enum.PartType.Cylinder
+			t.Material = Enum.Material.Wood
+			t.MaterialVariant = ""
+		end
+		-- Raíces que se abren en la base.
+		for i = 0, 3 do
+			local ang = i * math.pi / 2 + rng:NextNumber(-0.4, 0.4)
+			local r = parte("AlamoRaiz", V3(0.7 * k, 0.6 * k, 2.2 * k), CFrame.new(x + math.cos(ang) * 0.9 * k, base + 0.2, z + math.sin(ang) * 0.9 * k) * CFrame.Angles(0, -ang + math.pi / 2, 0) * CFrame.Angles(math.rad(-18), 0, 0), CORTEZA[1], Enum.Material.Wood, calle, DECO)
+			r.MaterialVariant = ""
+		end
+		-- Ramas que salen del tronco hacia la copa.
+		for i = 0, 5 do
+			local ang = i * 1.05 + rng:NextNumber(-0.3, 0.3)
+			local y = base + alto * (0.3 + 0.07 * i)
+			local largo = 4.2 * k
+			local rama = parte("AlamoRama", V3(0.3 * k, 0.3 * k, largo), CFrame.new(x, y, z) * CFrame.Angles(0, ang, 0) * CFrame.Angles(math.rad(38), 0, 0) * CFrame.new(0, 0, -largo / 2), CORTEZA[2], Enum.Material.Wood, calle, DECO)
+			rama.MaterialVariant = ""
+		end
+		-- Copa: matas de hojas de distinto tamaño y verde, más anchas al medio y en punta arriba.
+		local n = 26
+		for j = 0, n - 1 do
+			local t = j / (n - 1)
+			local radio = 3.6 * k * math.sin(math.pi * (0.12 + 0.82 * t)) ^ 0.7
+			local y = base + alto * (0.26 + 0.74 * t)
+			for _ = 1, 3 do
+				local dx, dz = rng:NextNumber(-1, 1) * radio * 0.75, rng:NextNumber(-1, 1) * radio * 0.75
+				local d = math.max(1.3 * k, radio * rng:NextNumber(0.6, 1.0))
+				local m = parte("AlamoHojas", V3(d, d * rng:NextNumber(1.0, 1.35), d), V3(x + dx, y + rng:NextNumber(-0.8, 0.8), z + dz), aleatorio(HOJAS), Enum.Material.LeafyGrass, calle, DECO)
+				m.Shape = Enum.PartType.Ball
+			end
+		end
+	end
+	for _, pos in { V3(-62, 0, 70), V3(-50, 0, 82), V3(50, 0, 72), V3(66, 0, 84), V3(-78, 0, 88), V3(80, 0, 92) } do
+		alamo(pos.X, pos.Z, rng:NextNumber(0.85, 1.15))
+	end
 end
 
 -- Matorrales secos en el campo y la banquina, y una serranía lejana (silueta azul oscura contra el cielo estrellado).
@@ -1516,9 +1559,10 @@ do
 end
 
 -- Auto estacionado frente a una habitación.
-local Autos = require(game.ReplicatedStorage.Shared.Autos)
+-- (se clona el módulo: así el builder no usa una copia vieja guardada en caché si Autos cambió)
+local Autos = require(game.ReplicatedStorage.Shared.Autos:Clone())
 local estacionado = Autos.crear(C3(120, 30, 40), { conFaros = false })
-estacionado:PivotTo(CFrame.new(-22, 0, 98.5) * CFrame.Angles(0, math.rad(90), 0))
+estacionado:PivotTo(CFrame.new(-22, -0.34, 98.5) * CFrame.Angles(0, math.rad(90), 0))
 estacionado.Parent = motel
 
 -- ===== Spawn (detrás del mostrador) =====

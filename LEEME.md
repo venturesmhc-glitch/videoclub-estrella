@@ -20,7 +20,8 @@ Don Ernesto explica el trabajo y los controles. Suena hasta que alguien lo atien
 - **Rebobinar** las cintas devueltas (videocasetera, mantener E) y **reponerlas** en la góndola de su género.
 - **Separar** en la caja de dañadas las cintas arrugadas y las anómalas (título que no existe).
 - **El Socio N° 0000 solo se mueve cuando nadie lo mira.** El filtro VHS se deforma cuando está cerca. Si te toca, te graba:
-  volvés al mostrador aturdido. Tres capturas del equipo y la noche se repite.
+  volvés al mostrador aturdido. Cada captura se cuenta en el aviso ("fue grabado (1/2)"): a la segunda, ese jugador queda fuera de la noche y aparece como fantasma
+  traslúcido en el motel de enfrente (se lo ve desde las ventanas). Si caen todos, la noche se repite; en la siguiente vuelven todos.
 - A las 3:33 (noche 1) cae por el buzón un casete sin etiqueta. En la videocasetera se **reproduce** (mirás el local desde
   arriba, con cosas que no están): da información, pero hace avanzar al Socio. **E** saca la cinta.
 - Noche 2: anomalías por jugador (apuntales y **Q**). Noche 3: notas de Darío (algunas son falsas), teléfonos, clientes que

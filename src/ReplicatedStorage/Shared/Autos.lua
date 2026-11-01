@@ -2,7 +2,7 @@
 --[[
 	Autos: arma un auto simple hecho con partes (carrocería, cabina, ruedas, faros y luces traseras).
 	Lo usan el builder del mapa (el auto estacionado frente al motel) y Calle (los autos que pasan por la ruta).
-	El auto mira hacia +X: para que vaya hacia -X se lo gira 180° sobre Y.
+	El auto mira hacia +X: para que vaya hacia -X se lo gira 180° sobre Y. El pivote del modelo está a la altura de las ruedas.
 
 	  Autos.crear(color, opciones?) -> Model   opciones: { largo?, conFaros? }
 ]]
@@ -39,6 +39,9 @@ function Autos.crear(color: Color3, opciones)
 	local origen = CFrame.new(0, 0, 0)
 	local carroceria = parte(modelo, "Carroceria", Vector3.new(largo, 1.5, 4.4), origen * CFrame.new(0, 1.85, 0), color, Enum.Material.Metal, { Reflectance = 0.15 })
 	modelo.PrimaryPart = carroceria
+	-- El punto de pivote queda en el piso (debajo de las ruedas), no en el centro de la carrocería: así PivotTo(y = altura del
+	-- asfalto) apoya el auto sobre el camino en vez de hundirlo.
+	carroceria.PivotOffset = CFrame.new(0, -1.85, 0)
 	-- Cabina con vidrios oscuros.
 	parte(modelo, "Cabina", Vector3.new(largo * 0.5, 1.3, 3.9), origen * CFrame.new(-largo * 0.07, 3.2, 0), Color3.fromRGB(30, 36, 42), Enum.Material.Glass, { Transparency = 0.15 })
 	parte(modelo, "Techo", Vector3.new(largo * 0.46, 0.15, 3.8), origen * CFrame.new(-largo * 0.07, 3.9, 0), color, Enum.Material.Metal)

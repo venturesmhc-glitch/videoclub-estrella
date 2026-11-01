@@ -24,13 +24,15 @@ local rng = Random.new()
 local autos = {} -- { modelo, direccion, velocidad, z }
 local carpeta
 
+local ASFALTO_Y = -0.44 -- cara de arriba de la calzada (ver CalleDeAfuera en el builder)
+
 local function crearAuto()
 	local sentido = rng:NextInteger(0, 1) == 0 and 1 or -1 -- 1: hacia +X, -1: hacia -X
 	local z = sentido == 1 and cfg.CarrilZ[1] or cfg.CarrilZ[2]
 	local color = cfg.Colores[rng:NextInteger(1, #cfg.Colores)]
 	local modelo = Autos.crear(color, { largo = rng:NextNumber(8, 10.5) })
 	local xInicio = -sentido * cfg.LargoRuta / 2
-	modelo:PivotTo(CFrame.new(xInicio, 0, z) * CFrame.Angles(0, sentido == 1 and 0 or math.pi, 0))
+	modelo:PivotTo(CFrame.new(xInicio, ASFALTO_Y, z) * CFrame.Angles(0, sentido == 1 and 0 or math.pi, 0))
 	modelo.Parent = carpeta
 
 	-- Sonido 3D del auto que pasa.
@@ -173,7 +175,7 @@ function Calle.init()
 				a.modelo:Destroy()
 				table.remove(autos, i)
 			else
-				a.modelo:PivotTo(CFrame.new(a.x, 0, a.z) * CFrame.Angles(0, a.sentido == 1 and 0 or math.pi, 0))
+				a.modelo:PivotTo(CFrame.new(a.x, ASFALTO_Y, a.z) * CFrame.Angles(0, a.sentido == 1 and 0 or math.pi, 0))
 			end
 		end
 	end)
