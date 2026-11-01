@@ -385,10 +385,20 @@ local PASO_FILA = 1.35
 
 local gondolas = carpeta("Gondolas")
 
-local function cajaCasete(padre, x, y, z, paleta, genero)
+-- Formato de todos los VHS del local (góndolas, estantes de pared, depósito y las cintas que se llevan en la
+-- mano): carcasa oscura con una etiqueta de color. Acá los de las góndolas, de frente (carátula hacia el pasillo).
+local COL_VHS = { C3(22, 22, 24), C3(34, 30, 30), C3(28, 34, 44), C3(50, 28, 28), C3(40, 40, 44), C3(18, 26, 22) }
+
+local function aleatorio(lista)
+	return lista[rng:NextInteger(1, #lista)]
+end
+
+-- `hacia`: -1 o 1, el lado (en x) hacia el que mira la carátula.
+local function cajaCasete(padre, x, y, z, paleta, genero, hacia)
 	local c = paleta[rng:NextInteger(1, #paleta)]
 	local k = rng:NextNumber(0.85, 1.1)
-	parte("Casete", V3(0.3, 1.1, 0.8), V3(x, y, z), C3(c.R * 255 * k, c.G * 255 * k, c.B * 255 * k), Enum.Material.SmoothPlastic, padre, DECO)
+	parte("Casete", V3(0.3, 1.1, 0.8), V3(x, y, z), aleatorio(COL_VHS), Enum.Material.SmoothPlastic, padre, DECO)
+	parte("CasetEtiqueta", V3(0.02, 0.82, 0.6), V3(x + hacia * 0.16, y + 0.05, z), C3(c.R * 255 * k, c.G * 255 * k, c.B * 255 * k), Enum.Material.SmoothPlastic, padre, DECO)
 end
 
 -- Portada: casete con título legible y que se puede apuntar (CanQuery). AnomalySystem la altera
@@ -396,9 +406,7 @@ end
 -- servidor generen las mismas anomalías a partir de la misma semilla.
 local Catalogo = require(game.ReplicatedStorage.Shared.Catalogo)
 local function portada(padre, g, lado, y, z, fila, col)
-	local paleta = PALETAS[g.clave]
-	local color = paleta[rng:NextInteger(1, #paleta)]
-	local p = parte("Portada", V3(0.3, 1.1, 0.8), V3(g.x + lado * 0.85, y, z), color, Enum.Material.SmoothPlastic, padre, {
+	local p = parte("Portada", V3(0.3, 1.1, 0.8), V3(g.x + lado * 0.85, y, z), aleatorio(COL_VHS), Enum.Material.SmoothPlastic, padre, {
 		CanCollide = false, CanTouch = false,
 	})
 	local titulo = Catalogo.tituloAleatorio(g.clave, rng)
@@ -447,8 +455,8 @@ for _, g in GENEROS do
 				portada(pasillo, g, -1, y, z, fila, col)
 				portada(pasillo, g, 1, y, z, fila, col)
 			else
-				cajaCasete(pasillo, g.x - 0.85, y, z, PALETAS[g.clave], g.clave)
-				cajaCasete(pasillo, g.x + 0.85, y, z, PALETAS[g.clave], g.clave)
+				cajaCasete(pasillo, g.x - 0.85, y, z, PALETAS[g.clave], g.clave, -1)
+				cajaCasete(pasillo, g.x + 0.85, y, z, PALETAS[g.clave], g.clave, 1)
 			end
 		end
 	end
@@ -479,7 +487,7 @@ for _, lado in { -1, 1 } do
 		local y = 1.35 + (fila - 1) * PASO_FILA
 		parte("RepisaPared", V3(0.5, 0.12, 23), V3(lado * 22.95, y - 0.6, 5.5), COL_MADERA_OSC, Enum.Material.Wood, paredes, DECO)
 		for col = 0, 22 do
-			cajaCasete(paredes, lado * 22.65, y, -6 + col + 0.5, PALETA_PARED, "PARED")
+			cajaCasete(paredes, lado * 22.65, y, -6 + col + 0.5, PALETA_PARED, "PARED", -lado)
 		end
 	end
 end
@@ -575,12 +583,7 @@ local deposito = carpeta("Deposito")
 -- tiradas. Todo apoyado en el piso o en una repisa; nada flota. Van en una tabla para no gastar locales.
 local Deposito = {}
 local CARTON = { C3(168, 130, 84), C3(152, 118, 76), C3(180, 142, 92), C3(140, 108, 70) }
-local COL_VHS = { C3(22, 22, 24), C3(34, 30, 30), C3(28, 34, 44), C3(50, 28, 28), C3(40, 40, 44), C3(18, 26, 22) }
 local COL_ETIQUETA = { C3(236, 230, 210), C3(210, 70, 56), C3(230, 200, 80), C3(90, 140, 190) }
-
-local function aleatorio(lista)
-	return lista[rng:NextInteger(1, #lista)]
-end
 
 -- Un VHS parado (lomo hacia el frente +Z del marco `cf`) o acostado. `cf` es el centro de la base.
 function Deposito.vhs(padre, cf, modo, inclinacion)
@@ -747,14 +750,16 @@ grilla(parte("AzulejoIzquierda", V3(0.1, 5, 7.4), V3(7.55, 2.5, -16.2), AZULEJO,
 
 -- Cubículo del inodoro (esquina derecha): tabiques y puerta entornada.
 local CUB_X0, CUB_X1 = 19, 24
-parte("CubiculoTabique", V3(0.2, 7, 5.5), V3(CUB_X0, 3.5, -17.2), C3(96, 110, 120), Enum.Material.Metal, bano)
--- El frente deja una entrada de 2.8 studs (x 19..21.8) y la puerta está abierta hacia adentro, pegada al
--- tabique, así que se puede pasar sin chocar con ella.
+-- El frente del cubículo quedó 1.1 studs más atrás que antes: queda
+-- un pasillo de 2.5 studs entre el frente y la pared divisoria, y una entrada de 2.6 studs (x 19..21.6).
+-- La puerta (más corta) está abierta hacia adentro, así que no tapa la entrada.
 do
-	local entrada = 2.8
-	parte("CubiculoFrente", V3(CUB_X1 - CUB_X0 - entrada, 7, 0.2), V3((CUB_X0 + entrada + CUB_X1) / 2, 3.5, -14.5), C3(96, 110, 120), Enum.Material.Metal, bano)
-	local largo, ang = 2.6, math.rad(70)
-	local bisagra = V3(CUB_X0 + 0.15, 0, -14.5)
+	local FZ = -15.6 -- z del frente del cubículo
+	local entrada = 2.6
+	parte("CubiculoTabique", V3(0.2, 7, FZ + 19.95 + 0.1), V3(CUB_X0, 3.5, (-19.95 + FZ + 0.1) / 2), C3(96, 110, 120), Enum.Material.Metal, bano)
+	parte("CubiculoFrente", V3(CUB_X1 - CUB_X0 - entrada, 7, 0.2), V3((CUB_X0 + entrada + CUB_X1) / 2, 3.5, FZ), C3(96, 110, 120), Enum.Material.Metal, bano)
+	local largo, ang = 2.4, math.rad(60)
+	local bisagra = V3(CUB_X0 + 0.15, 0, FZ)
 	local dir = V3(math.cos(ang), 0, -math.sin(ang))
 	local centro = bisagra + dir * (largo / 2)
 	parte("CubiculoPuerta", V3(largo, 6.6, 0.15), CFrame.new(centro.X, 3.5, centro.Z) * CFrame.Angles(0, ang, 0), C3(110, 126, 136), Enum.Material.Metal, bano, { CanCollide = false })
@@ -1000,9 +1005,23 @@ parte("ContenedorRuedaB", V3(0.5, 0.5, 0.5), V3(46.4, 0.25, PZ0 + 3.4), C3(20, 2
 local carteContenedor = parte("ContenedorCartel", V3(2.4, 0.8, 0.06), V3(44, 2.6, PZ0 + 3.62), C3(236, 232, 214), Enum.Material.SmoothPlastic, patio, DECO)
 texto(carteContenedor, Enum.NormalId.Front, "SOLO BOLSAS CERRADAS", Enum.Font.Arcade, C3(30, 70, 40))
 -- Bolsas decorativas sueltas y cajones.
+-- (usan la malla "trash bag" de ServerStorage.Plantillas, la misma que las bolsas de la tarea de basura)
+local moldeBolsa = game.ServerStorage:FindFirstChild("Plantillas") and game.ServerStorage.Plantillas:FindFirstChild("trash bag")
+moldeBolsa = moldeBolsa and moldeBolsa:FindFirstChildWhichIsA("MeshPart", true)
 for i = 1, 5 do
-	local bolsa = parte("BolsaSuelta", V3(1.3, 1.2, 1.3), V3(37 + rng:NextNumber(0, 5), 0.6, PZ0 + 1.6 + rng:NextNumber(0, 2.5)), C3(14, 14, 16), Enum.Material.Plastic, patio, DECO)
-	bolsa.Shape = Enum.PartType.Ball
+	local bx, bz = 37 + rng:NextNumber(0, 5), PZ0 + 1.6 + rng:NextNumber(0, 2.5)
+	if moldeBolsa then
+		local alto = rng:NextNumber(1.4, 1.9)
+		local bolsa = moldeBolsa:Clone()
+		bolsa.Name = "BolsaSuelta"
+		bolsa.Size = bolsa.Size * (alto / bolsa.Size.Y)
+		bolsa.CFrame = CFrame.new(bx, alto / 2, bz) * CFrame.Angles(0, rng:NextNumber(0, math.pi * 2), 0)
+		bolsa.Anchored, bolsa.CanCollide, bolsa.CanTouch, bolsa.CanQuery = true, false, false, false
+		bolsa.Parent = patio
+	else
+		local bolsa = parte("BolsaSuelta", V3(1.3, 1.2, 1.3), V3(bx, 0.6, bz), C3(14, 14, 16), Enum.Material.Plastic, patio, DECO)
+		bolsa.Shape = Enum.PartType.Ball
+	end
 end
 for i = 0, 2 do
 	parte("Tarima", V3(3.4, 0.45, 3.4), V3(29.5, 0.25 + i * 0.5, PZ0 + 2.4), C3(150, 112, 70), Enum.Material.Wood, patio, DECO)
@@ -1030,9 +1049,11 @@ for _, pos in { V3(33.2, 1.5, -6), V3(38.8, 1.5, -6.5) } do
 	parte("SillaPatio", V3(1.5, 0.2, 1.5), V3(pos.X, 1.6, pos.Z), C3(190, 70, 50), Enum.Material.Plastic, patio, DECO)
 	parte("SillaPatioPatas", V3(1.2, 1.5, 1.2), V3(pos.X, 0.8, pos.Z), C3(70, 70, 70), Enum.Material.Metal, patio, DECO)
 end
-local parrilla = parte("Parrilla", V3(4, 0.3, 1.6), V3(30, 2.9, -4.8), C3(30, 30, 32), Enum.Material.Metal, patio)
-parte("ParrillaCuerpo", V3(4, 2.6, 1.6), V3(30, 1.3, -4.8), C3(96, 52, 40), Enum.Material.Brick, patio)
-parte("ParrillaChimenea", V3(1, 5, 1), V3(30, 5.1, -4.2), C3(90, 50, 38), Enum.Material.Brick, patio)
+-- Parrilla de ladrillo apoyada contra el cerco sur (cara interior en z = -1): el cuerpo y la chimenea tocan la pared.
+local PARRILLA_Z = PZ1 - 0.8 -- el cuerpo mide 1.6 de fondo
+local parrilla = parte("Parrilla", V3(4, 0.3, 1.6), V3(30, 2.9, PARRILLA_Z), C3(30, 30, 32), Enum.Material.Metal, patio)
+parte("ParrillaCuerpo", V3(4, 2.6, 1.6), V3(30, 1.3, PARRILLA_Z), C3(96, 52, 40), Enum.Material.Brick, patio)
+parte("ParrillaChimenea", V3(1.2, 5, 1.2), V3(30, 5.1, PZ1 - 0.6), C3(90, 50, 38), Enum.Material.Brick, patio)
 
 -- Farol sobre la puerta del patio y farol del fondo (única luz de afuera).
 for _, pos in { V3(27, 9, -9.75), V3(46, 9, -10) } do
@@ -1059,7 +1080,7 @@ end
 -- Dónde aparece una bolsa de basura.
 spot("BasuraLocal", "BasuraSpot", "LOCAL", -20, 21)
 spot("BasuraMostrador", "BasuraSpot", "MOSTRADOR", -8, 5.2)
-spot("BasuraBano", "BasuraSpot", "BANO", 22.6, -16.4)
+spot("BasuraBano", "BasuraSpot", "BANO", 23.1, -16.9)
 spot("BasuraCocina", "BasuraSpot", "COCINA", -44.5, -5.5)
 spot("BasuraDeposito", "BasuraSpot", "DEPOSITO", -19, -17)
 -- Dónde aparece una mancha para limpiar.

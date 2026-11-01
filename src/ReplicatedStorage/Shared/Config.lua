@@ -98,6 +98,7 @@ Config.Casetes = {
 	BuzonRanura = Vector3.new(6, 3.5, 25.9), -- atravesando la ranura
 	BuzonCaida = Vector3.new(6, 2.75, 25.1), -- sobre la caja de devoluciones
 	BuzonAnimSeg = 0.5,
+	ColorCarcasa = Color3.fromRGB(28, 28, 32), -- carcasa de todos los VHS (el género va en la franja de la carátula)
 	ColorSinEtiqueta = Color3.fromRGB(14, 14, 16),
 	MostrarDanoEnEtiqueta = true, -- en la noche 1 la cinta dañada se nota; después se puede volver sutil
 }

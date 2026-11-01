@@ -179,7 +179,8 @@ function TapeItem.crear(datos)
 	local parte = Instance.new("Part")
 	parte.Name = "Casete"
 	parte.Size = cfg.Tamano
-	parte.Color = casete.sinEtiqueta and cfg.ColorSinEtiqueta or (Catalogo.Colores[casete.genero] or Color3.new(0.2, 0.2, 0.2))
+	-- Carcasa oscura como los VHS de las góndolas y del depósito; el género se ve en la franja de la carátula.
+	parte.Color = casete.sinEtiqueta and cfg.ColorSinEtiqueta or cfg.ColorCarcasa
 	parte.Material = Enum.Material.SmoothPlastic
 	parte.Anchored = true
 	parte.CanCollide = false
