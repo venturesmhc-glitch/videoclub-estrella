@@ -408,6 +408,12 @@ function MenuUI.init()
 	fondo.Modal = true
 	fondo.Parent = gui
 
+	-- Ya hay un fondo negro propio: se retira el que puso ReplicatedFirst/InicioNegro apenas arrancó el cliente.
+	local inicio = jugador.PlayerGui:FindFirstChild("InicioNegro")
+	if inicio then
+		inicio:Destroy()
+	end
+
 	pantallas = {}
 	local carga = nuevaPantalla("cargando")
 	texto(carga, { texto = TEXTOS.cargando, tamano = UDim2.fromScale(0.4, 0.06), posicion = UDim2.fromScale(0.5, 0.5), ancla = Vector2.new(0.5, 0.5), color = COLOR_APAGADO })

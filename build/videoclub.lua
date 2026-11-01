@@ -495,12 +495,20 @@ end
 -- ===== Carteles y afiches =====
 
 local afiches = carpeta("Afiches")
-local function afiche(nombre, pos, cara, contenido, color, orientacion)
-	local tam = orientacion == "X" and V3(0.1, 3.4, 2.5) or V3(2.5, 3.4, 0.1)
+-- ancho: largo del afiche sobre la pared (2.5 por defecto). unaLinea: el texto no se parte en dos renglones.
+local function afiche(nombre, pos, cara, contenido, color, orientacion, ancho, unaLinea)
+	ancho = ancho or 2.5
+	local tam = orientacion == "X" and V3(0.1, 3.4, ancho) or V3(ancho, 3.4, 0.1)
 	local p = parte(nombre, tam, pos, color, Enum.Material.SmoothPlastic, afiches, DECO)
-	texto(p, cara, contenido, Enum.Font.Arcade, C3(245, 240, 220))
+	local t = texto(p, cara, contenido, Enum.Font.Arcade, C3(245, 240, 220))
+	if unaLinea then
+		t.TextScaled = false
+		t.TextWrapped = false
+		t.TextSize = 32
+	end
 end
-afiche("AficheIzq1", V3(-23.9, 9, -2), Enum.NormalId.Right, "ESTRENOS", C3(120, 30, 40), "X")
+-- "ESTRENOS" en 2.5 studs de ancho se cortaba como "ES / TRENOS": más ancho y en un solo renglón.
+afiche("AficheIzq1", V3(-23.9, 9, -2), Enum.NormalId.Right, "ESTRENOS", C3(120, 30, 40), "X", 4.6, true)
 afiche("AficheIzq2", V3(-23.9, 9, 8), Enum.NormalId.Right, "HAGASE SOCIO", C3(40, 70, 120), "X")
 afiche("AficheDer1", V3(23.9, 9, -2), Enum.NormalId.Left, "2x1 LOS MARTES", C3(30, 100, 70), "X")
 afiche("AficheDer2", V3(23.9, 9, 8), Enum.NormalId.Left, "REBOBINE ANTES DE DEVOLVER", C3(110, 80, 30), "X")
@@ -994,6 +1002,11 @@ parte("CercoRemateS", V3(PX1 - PX0 + 2, 0.4, 1.5), V3(patCentroX, ALTURA + 0.2, 
 parte("CercoRemateE", V3(1.5, 0.4, PZ1 - PZ0 + 2), V3(PX1 + 0.5, ALTURA + 0.2, patCentroZ), C3(80, 52, 44), Enum.Material.Brick, patio, DECO)
 -- Cielo cerrado con un techo negro (la noche sin estrellas) para que no se vea el vacío.
 parte("CieloPatio", V3(PX1 - PX0 + 3, 1, PZ1 - PZ0 + 3), V3(patCentroX, ALTURA + 20, patCentroZ), C3(6, 6, 8), Enum.Material.SmoothPlastic, patio, DECO)
+-- Techo invisible (y 10 a 11): subiéndose a la parrilla y la chimenea se llegaba al borde del cerco (y 12) y se podía
+-- salir. A esta altura nadie alcanza el borde, y a pie (cabeza a y 5) o parado sobre el contenedor no molesta.
+parte("TechoInvisiblePatio", V3(PX1 - PX0 + 2, 1, PZ1 - PZ0 + 2), V3(patCentroX, 10.5, patCentroZ), C3(255, 255, 255), nil, patio, {
+	Transparency = 1, CanCollide = true, CanTouch = false, CanQuery = false,
+})
 
 -- Contenedor de basura (donde se tiran las bolsas).
 local contenedor = parte("Contenedor", V3(5.4, 3.6, 2.8), V3(44, 1.8, PZ0 + 2.2), C3(34, 78, 52), Enum.Material.Metal, patio)
