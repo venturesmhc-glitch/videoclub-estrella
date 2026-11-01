@@ -32,6 +32,8 @@ local TEXTOS = {
 	ayuda = "CÓMO JUGAR",
 	volver = "VOLVER",
 	cargando = "CARGANDO...",
+	reuniendo = "REUNIENDO AL EQUIPO...",
+	salaIniciando = "Iniciando la partida... entrando al servidor de juego.",
 	salaTitulo = "SALA DE ESPERA",
 	salaEspera = "Esperando que %s empiece el turno...",
 	salaAnfitrion = "Sos el anfitrión. Cuando estén todos, empezá el turno.",
@@ -86,7 +88,7 @@ local COLOR_APAGADO = Color3.fromRGB(150, 150, 142)
 local FUENTE = Enum.Font.Code
 local FUENTE_TITULO = Enum.Font.Arcade
 
-local gui, fondo, pantallas
+local gui, fondo, pantallas, cargandoTexto
 local estadoPartida = { fase = "cargando" }
 local enJuego = false -- el turno ya empezó
 local ajustesAbiertos = false
@@ -573,9 +575,13 @@ local function actualizarLobby()
 	lobbyTipo.Text = string.format(estadoPartida.publica == false and TEXTOS.salaPrivadaTipo or TEXTOS.salaPublicaTipo, #jugadores, maximo)
 	local soyAnfitrion = estadoPartida.anfitrionId == Players.LocalPlayer.UserId
 	lobbyEstado.Text = soyAnfitrion and TEXTOS.salaAnfitrion or string.format(TEXTOS.salaEspera, estadoPartida.anfitrion or "el anfitrión")
-	lobbyBotonEmpezar.Visible = soyAnfitrion
+	local iniciando = estadoPartida.iniciando == true
+	if iniciando then
+		lobbyEstado.Text = TEXTOS.salaIniciando
+	end
+	lobbyBotonEmpezar.Visible = soyAnfitrion and not iniciando
 	-- En servidores aparte cualquiera puede irse; en el modo local de Studio solo el anfitrión (cierra la sala).
-	lobbyBotonVolver.Visible = soyAnfitrion or estadoPartida.nube == true
+	lobbyBotonVolver.Visible = (soyAnfitrion or estadoPartida.nube == true) and not iniciando
 end
 
 -- ===== Visibilidad y bloqueo del movimiento =====
@@ -662,6 +668,12 @@ local function alCambiarPartida(datos)
 		else
 			actualizarLobby()
 		end
+	elseif datos.fase == "reuniendo" then
+		enJuego = false
+		cargandoTexto.Text = TEXTOS.reuniendo
+		if pantallaActual ~= "ajustes" and pantallaActual ~= "ayuda" then
+			mostrarPantalla("cargando")
+		end
 	elseif datos.fase == "menu" then
 		enJuego = false
 		if pantallaActual == "lobby" or pantallaActual == "cargando" then
@@ -700,7 +712,7 @@ function MenuUI.init()
 
 	pantallas = {}
 	local carga = nuevaPantalla("cargando")
-	texto(carga, { texto = TEXTOS.cargando, tamano = UDim2.fromScale(0.4, 0.06), posicion = UDim2.fromScale(0.5, 0.5), ancla = Vector2.new(0.5, 0.5), color = COLOR_APAGADO })
+	cargandoTexto = texto(carga, { texto = TEXTOS.cargando, tamano = UDim2.fromScale(0.4, 0.06), posicion = UDim2.fromScale(0.5, 0.5), ancla = Vector2.new(0.5, 0.5), color = COLOR_APAGADO })
 	construirPrincipal()
 	construirSalas()
 	construirCrear()

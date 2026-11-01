@@ -2,14 +2,22 @@
 --[[
 	Partida (servidor): menú de inicio y salas de multijugador.
 	El turno no arranca solo: alguien tiene que elegir en el menú.
-	  fase "menu"    nadie eligió todavía (servidor de entrada: se puede jugar solo, crear una sala o unirse a una)
-	  fase "lobby"   sala de espera: la sala ya existe (con su código) y el anfitrión aprieta "Iniciar"
-	  fase "jugando" el turno está en marcha (quien entra después se suma directo)
-	Menú y juego van en servidores distintos (ver Salas.lua): el servidor de entrada solo muestra el menú; "Un jugador" y
-	las salas abren un servidor reservado y teletransportan ahí, y recién ese servidor corre el turno. (En Studio no hay
-	teletransporte: el propio servidor hace de sala y "Un jugador" arranca de inmediato.)
-	El estado se manda a todos por el remote PartidaState; la lista de salas y los avisos de error llegan por SalasState.
-	El cliente (MenuUI) solo muestra: toda decisión se valida acá.
+	  fase "menu"      nadie eligió todavía
+	  fase "lobby"     sala de espera: la sala existe (con su código) y el anfitrión aprieta "Iniciar"
+	  fase "reuniendo" (servidor de juego) llegó el primero del equipo; se espera a los demás antes de empezar
+	  fase "jugando"   el turno está en marcha (quien entra después se suma directo)
+
+	Menú y juego van en servidores distintos (ver Salas.lua):
+	  - Servidor de entrada: solo muestra el menú y la sala de espera; nunca corre un turno. Crear o unirse a una sala NO
+	    cambia de servidor: la sala es un registro compartido y cada uno la ve desde su servidor. Recién al apretar
+	    "Iniciar" se teletransporta a todo el equipo junto a un servidor de juego. "Un jugador" también abre uno.
+	  - Servidor de juego (reservado): lo configuran los datos con los que llega el equipo; arranca el turno cuando están
+	    todos (o pasado un tiempo).
+	  - En Studio no hay teletransporte: el propio servidor hace de sala (modo local) y "Un jugador" arranca de inmediato.
+
+	El estado se manda por PartidaState (en el servidor de entrada cada jugador recibe el suyo: menú o la sala en la que
+	está); la lista de salas y los avisos de error llegan por SalasState. El cliente (MenuUI) solo muestra: toda decisión
+	se valida acá.
 
 	Acciones de MenuAction: estado | salas | solo | crear { publica, maximo } | unirse { codigo } | empezar | salir
 ]]
@@ -24,9 +32,16 @@ local Salas = require(script.Parent.Salas)
 
 local Partida = {}
 
--- sala = { tipo = "sala" | "solo", codigo, accessCode?, publica, maximo, anfitrionId? } cuando la sala existe
+-- sala = { tipo = "sala" | "solo", codigo, publica, maximo, anfitrionId?, esperados? } (servidor de juego y modo local)
 local estado = { fase = "menu", modo = nil, anfitrion = nil, sala = nil }
-local ultimaPublicacion = 0
+
+local nube = Salas.enNube()
+local enEntrada = nube and not Salas.esServidorDeSala() -- servidor público: menú y salas de espera
+local miSala = {} -- Player -> código de la sala de espera en la que está (solo servidor de entrada)
+local cache = {} -- código -> último registro leído
+local yaMandados = {} -- Player -> true: ya se lo teletransportó al servidor de juego
+local firmas = {} -- código -> resumen del registro, para avisar a los clientes solo cuando cambia
+local ultimaRenovacion = {} -- código -> os.clock()
 
 local function nombres(): { string }
 	local lista = {}
@@ -36,6 +51,7 @@ local function nombres(): { string }
 	return lista
 end
 
+-- Estado de un servidor de juego o del modo local.
 local function paquete()
 	local sala = estado.sala
 	return {
@@ -47,13 +63,46 @@ local function paquete()
 		maximo = sala and sala.maximo or Config.Partida.MaxJugadores,
 		codigo = sala and sala.codigo or nil,
 		publica = if sala then sala.publica else nil,
-		nube = Salas.enNube(), -- true: las salas son servidores aparte (se puede salir de la sala); false: modo local de Studio
+		nube = nube, -- true: las salas son servidores aparte; false: modo local de Studio
+	}
+end
+
+-- Estado que ve un jugador en el servidor de entrada: el menú, o la sala de espera en la que está.
+local function paqueteDeEntrada(jugador: Player)
+	local codigo = miSala[jugador]
+	local registro = codigo and cache[codigo]
+	if not registro then
+		return { fase = "menu", jugadores = {}, maximo = Config.Partida.MaxJugadores, nube = true }
+	end
+	local lista = {}
+	for _, m in registro.miembros do
+		table.insert(lista, m.nombre)
+	end
+	return {
+		fase = "lobby",
+		modo = "multi",
+		anfitrion = registro.anfitrion,
+		anfitrionId = registro.anfitrionId,
+		jugadores = lista,
+		maximo = registro.maximo,
+		codigo = codigo,
+		publica = registro.publica,
+		iniciando = registro.estado == "iniciando",
+		nube = true,
 	}
 end
 
 local function difundir(jugador: Player?)
 	local remoto = Net.obtener("PartidaState")
-	if jugador then
+	if enEntrada then
+		if jugador then
+			remoto:FireClient(jugador, paqueteDeEntrada(jugador))
+		else
+			for _, j in Players:GetPlayers() do
+				remoto:FireClient(j, paqueteDeEntrada(j))
+			end
+		end
+	elseif jugador then
 		remoto:FireClient(jugador, paquete())
 	else
 		remoto:FireAllClients(paquete())
@@ -72,31 +121,10 @@ local function empezar(modo: string)
 	if estado.fase == "jugando" then
 		return
 	end
-	local sala = estado.sala
 	estado.fase = "jugando"
 	estado.modo = modo
 	difundir()
-	if sala and sala.tipo ~= "solo" and Salas.enNube() then
-		task.spawn(Salas.retirar, sala.codigo) -- ya empezó: deja de aparecer en la lista y de aceptar códigos
-	end
 	NightManager.iniciarPartida()
-end
-
-local function publicarSala()
-	local sala = estado.sala
-	if not sala or sala.tipo == "solo" or not Salas.enNube() or estado.fase ~= "lobby" then
-		return
-	end
-	ultimaPublicacion = os.clock()
-	Salas.publicar({
-		codigo = sala.codigo,
-		accessCode = sala.accessCode,
-		publica = sala.publica,
-		maximo = sala.maximo,
-		anfitrion = estado.anfitrion and estado.anfitrion.DisplayName or "—",
-		anfitrionId = estado.anfitrion and estado.anfitrion.UserId or sala.anfitrionId,
-		jugadores = #Players:GetPlayers(),
-	})
 end
 
 function Partida.estado()
@@ -108,6 +136,87 @@ function Partida.forzarInicio(modo: string?)
 	empezar(modo or "solo")
 end
 
+-- ===== Servidor de entrada: salas de espera =====
+
+local function firmaDe(registro): string
+	local ids = {}
+	for _, m in registro.miembros do
+		table.insert(ids, m.id)
+	end
+	return table.concat(ids, ",") .. "|" .. tostring(registro.anfitrionId) .. "|" .. tostring(registro.estado)
+end
+
+--- Teletransporta al servidor de juego a los jugadores de este servidor que están en esa sala.
+local function mandarAlJuego(codigo: string, registro)
+	local grupo = {}
+	for jugador, c in miSala do
+		if c == codigo and not yaMandados[jugador] then
+			yaMandados[jugador] = true
+			table.insert(grupo, jugador)
+		end
+	end
+	if #grupo == 0 then
+		return
+	end
+	if not Salas.teleportar(grupo, codigo, registro) then
+		for _, jugador in grupo do
+			yaMandados[jugador] = nil
+			mensaje(jugador, "No se pudo entrar al servidor de juego. Probá de nuevo.", true)
+		end
+	end
+end
+
+local function salirDeSalaDeEspera(jugador: Player)
+	local codigo = miSala[jugador]
+	if not codigo then
+		return
+	end
+	miSala[jugador] = nil
+	if not yaMandados[jugador] then
+		task.spawn(Salas.quitar, jugador, codigo)
+	end
+end
+
+local function sondearSalas()
+	local codigos = {}
+	for _, codigo in miSala do
+		codigos[codigo] = true
+	end
+	local cambio = false
+	for codigo in codigos do
+		local registro, errorDeRed = Salas.leer(codigo)
+		if registro then
+			local firma = firmaDe(registro)
+			if firmas[codigo] ~= firma then
+				firmas[codigo] = firma
+				cache[codigo] = registro
+				cambio = true
+			end
+			if registro.estado == "iniciando" and registro.accessCode then
+				mandarAlJuego(codigo, registro)
+			elseif os.clock() - (ultimaRenovacion[codigo] or 0) >= Config.Salas.LatidoSeg then
+				ultimaRenovacion[codigo] = os.clock()
+				task.spawn(Salas.renovar, codigo)
+			end
+		elseif not errorDeRed then
+			-- La sala ya no existe (la cerraron o venció): se avisa y se vuelve al menú.
+			cache[codigo], firmas[codigo], ultimaRenovacion[codigo] = nil, nil, nil
+			for jugador, c in table.clone(miSala) do
+				if c == codigo then
+					miSala[jugador] = nil
+					if not yaMandados[jugador] then
+						mensaje(jugador, "La sala se cerró.", true)
+					end
+				end
+			end
+			cambio = true
+		end
+	end
+	if cambio then
+		difundir()
+	end
+end
+
 -- ===== Acciones del menú =====
 
 local function limpiarCodigo(texto): string
@@ -116,7 +225,7 @@ end
 
 local function listarSalas(jugador: Player)
 	local remoto = Net.obtener("SalasState")
-	if Salas.enNube() then
+	if nube then
 		if not Net.limitar(jugador, "listarSalas", 1.5) then
 			return
 		end
@@ -140,27 +249,39 @@ local function listarSalas(jugador: Player)
 end
 
 local function crearSala(jugador: Player, datos)
-	if estado.fase ~= "menu" then
-		return
-	end
 	if not Net.limitar(jugador, "crearSala", 3) then
 		return
 	end
 	local publica = datos.publica ~= false
 	local maximo = math.clamp(math.floor(tonumber(datos.maximo) or Config.Partida.MaxJugadores), 2, Config.Partida.MaxJugadores)
-	if Salas.enNube() then
+	if enEntrada then
+		if miSala[jugador] then
+			return
+		end
 		mensaje(jugador, "Creando la sala...")
 		task.spawn(function()
-			local ok, err = Salas.crear(jugador, publica, maximo)
-			if not ok then
-				mensaje(jugador, err or "No se pudo crear la sala.", true)
+			local codigo, registro = Salas.crearRegistro(jugador, publica, maximo)
+			if not codigo then
+				mensaje(jugador, registro or "No se pudo crear la sala.", true)
+				return
 			end
+			if not jugador.Parent then
+				Salas.quitar(jugador, codigo)
+				return
+			end
+			-- Sin teletransporte: la sala de espera se ve desde acá hasta que el anfitrión inicie.
+			miSala[jugador], cache[codigo], firmas[codigo] = codigo, registro, firmaDe(registro)
+			ultimaRenovacion[codigo] = os.clock()
+			difundir(jugador)
 		end)
+		return
+	end
+	if estado.fase ~= "menu" then
 		return
 	end
 	-- Modo local: este servidor pasa a ser la sala y quien la crea es el anfitrión.
 	estado.fase, estado.modo, estado.anfitrion = "lobby", "multi", jugador
-	estado.sala = { codigo = Salas.codigoNuevo(), publica = publica, maximo = maximo }
+	estado.sala = { tipo = "sala", codigo = Salas.codigoNuevo(), publica = publica, maximo = maximo }
 	difundir()
 end
 
@@ -173,16 +294,23 @@ local function unirseASala(jugador: Player, datos)
 		mensaje(jugador, string.format("El código tiene %d caracteres.", Config.Salas.LargoCodigo), true)
 		return
 	end
-	if Salas.enNube() then
-		if estado.fase ~= "menu" then
+	if enEntrada then
+		if miSala[jugador] then
 			return
 		end
 		mensaje(jugador, "Buscando la sala...")
 		task.spawn(function()
-			local ok, err = Salas.unirse(jugador, codigo)
-			if not ok then
+			local registro, err = Salas.agregar(jugador, codigo)
+			if not registro then
 				mensaje(jugador, err or "No se pudo entrar a la sala.", true)
+				return
 			end
+			if not jugador.Parent then
+				Salas.quitar(jugador, codigo)
+				return
+			end
+			miSala[jugador], cache[codigo], firmas[codigo] = codigo, registro, firmaDe(registro)
+			difundir(jugador)
 		end)
 		return
 	end
@@ -199,15 +327,45 @@ local function unirseASala(jugador: Player, datos)
 	end
 end
 
-local function iniciarSolo(jugador: Player)
-	if estado.fase ~= "menu" then
+local function iniciarSala(jugador: Player)
+	if enEntrada then
+		local codigo = miSala[jugador]
+		local registro = codigo and cache[codigo]
+		if not registro or registro.anfitrionId ~= jugador.UserId or registro.estado ~= "espera" then
+			return
+		end
+		if not Net.limitar(jugador, "iniciarSala", 3) then
+			return
+		end
+		mensaje(jugador, "Preparando el servidor de juego...")
+		task.spawn(function()
+			local nuevo, err = Salas.iniciar(codigo, jugador)
+			if not nuevo then
+				mensaje(jugador, err or "No se pudo iniciar la partida.", true)
+				return
+			end
+			cache[codigo], firmas[codigo] = nuevo, firmaDe(nuevo)
+			difundir() -- todos los de esta sala ven "Iniciando..."
+			mandarAlJuego(codigo, nuevo)
+			-- Los demás servidores de entrada ya vieron el cambio; el registro se borra para que no quede en la lista.
+			task.delay(Config.Salas.CierreSalaSeg, Salas.retirar, codigo)
+		end)
 		return
 	end
-	if not Salas.enNube() then
+	if estado.fase == "lobby" and jugador == estado.anfitrion then
+		empezar("multi")
+	end
+end
+
+local function iniciarSolo(jugador: Player)
+	if estado.fase ~= "menu" and not enEntrada then
+		return
+	end
+	if not nube then
 		empezar("solo") -- Studio: no hay otro servidor adonde ir
 		return
 	end
-	if not Net.limitar(jugador, "crearSala", 3) then
+	if miSala[jugador] or not Net.limitar(jugador, "crearSala", 3) then
 		return
 	end
 	mensaje(jugador, "Preparando tu partida...")
@@ -220,9 +378,14 @@ local function iniciarSolo(jugador: Player)
 end
 
 local function salirDeLaSala(jugador: Player)
-	if Salas.enNube() then
-		Salas.irAlInicio(jugador)
-	elseif jugador == estado.anfitrion then
+	if enEntrada then
+		if miSala[jugador] and not yaMandados[jugador] then
+			salirDeSalaDeEspera(jugador)
+			difundir(jugador)
+		end
+	elseif nube then
+		Salas.irAlInicio(jugador) -- desde un servidor de juego: de vuelta al servidor de entrada
+	elseif jugador == estado.anfitrion and estado.fase == "lobby" then
 		-- Modo local: el anfitrión cierra la sala y todos vuelven al menú.
 		estado.fase, estado.modo, estado.anfitrion, estado.sala = "menu", nil, nil, nil
 		difundir()
@@ -249,22 +412,25 @@ function Partida.init()
 		elseif accion == "unirse" then
 			unirseASala(jugador, datos)
 		elseif accion == "empezar" then
-			if estado.fase == "lobby" and jugador == estado.anfitrion then
-				empezar("multi")
-			end
+			iniciarSala(jugador)
 		elseif accion == "salir" then
-			if estado.fase == "lobby" or Salas.enNube() then
-				salirDeLaSala(jugador) -- en servidores aparte se puede volver al menú aun con el turno en marcha
-			end
+			salirDeLaSala(jugador)
 		end
 	end)
 
-	-- Cada segundo: si el anfitrión no está (todavía no llegó o se fue) pasa al primero que haya, y la sala renueva su
-	-- ficha para seguir apareciendo en la lista.
+	-- Cada segundo (modo local y servidor de juego): si el anfitrión no está pasa al primero que haya. En el servidor
+	-- de entrada se leen las salas de espera de los jugadores presentes.
 	task.spawn(function()
+		local desdeSondeo = 0
 		while true do
 			task.wait(1)
-			if estado.fase == "lobby" then
+			if enEntrada then
+				desdeSondeo += 1
+				if desdeSondeo >= Config.Salas.SondeoSeg then
+					desdeSondeo = 0
+					sondearSalas()
+				end
+			elseif estado.fase == "lobby" then
 				if not estado.anfitrion or estado.anfitrion.Parent ~= Players then
 					local nuevo = Players:GetPlayers()[1]
 					if nuevo and nuevo ~= estado.anfitrion then
@@ -272,28 +438,31 @@ function Partida.init()
 						difundir()
 					end
 				end
-				if os.clock() - ultimaPublicacion >= Config.Salas.LatidoSeg then
-					publicarSala()
-				end
 			end
 		end
 	end)
 
 	local function alEntrar(jugador: Player)
 		local yaEstabaJugando = estado.fase == "jugando" -- (antes de que, en una partida en solitario, arranque por este jugador)
-		-- Servidor reservado para una sala: la configuran los datos con los que llegó el primer jugador.
+		-- Servidor de juego: lo configuran los datos con los que llegó el primer jugador.
 		if not estado.sala and Salas.esServidorDeSala() then
 			local d = Salas.datosDeEntrada(jugador)
 			if d then
 				estado.sala = {
 					tipo = d.tipo,
 					codigo = d.sala,
-					accessCode = d.accessCode,
 					publica = d.publica ~= false,
 					maximo = math.clamp(tonumber(d.maximo) or Config.Partida.MaxJugadores, d.tipo == "solo" and 1 or 2, Config.Partida.MaxJugadores),
 					anfitrionId = d.anfitrionId,
+					esperados = tonumber(d.esperados) or 1,
 				}
-				estado.fase, estado.modo = "lobby", "multi"
+				estado.fase, estado.modo = "reuniendo", "multi"
+				-- Si alguien del equipo no llega, se empieza igual pasado un rato.
+				task.delay(Config.Salas.EsperaEquipoSeg, function()
+					if estado.fase == "reuniendo" then
+						empezar("multi")
+					end
+				end)
 			end
 		end
 		-- Un servidor de juego solo se pisa teletransportado desde el menú: quien llegue sin datos vuelve al inicio.
@@ -309,10 +478,12 @@ function Partida.init()
 			jugador:Kick("La sala está llena.")
 			return
 		end
-		-- Partida en solitario: el turno arranca apenas llega el jugador.
-		if estado.sala and estado.sala.tipo == "solo" and estado.fase ~= "jugando" then
-			estado.anfitrion = jugador
-			empezar("solo")
+		if estado.sala and estado.fase == "reuniendo" then
+			estado.anfitrion = estado.anfitrion or jugador
+			-- Partida en solitario o equipo completo: arranca el turno.
+			if estado.sala.tipo == "solo" or #Players:GetPlayers() >= estado.sala.esperados then
+				empezar(estado.sala.tipo == "solo" and "solo" or "multi")
+			end
 		end
 		task.delay(1, difundir, jugador)
 		if yaEstabaJugando then
@@ -323,9 +494,8 @@ function Partida.init()
 				end
 			end)
 		end
-		if estado.fase == "lobby" then
+		if estado.fase == "lobby" or estado.fase == "reuniendo" then
 			difundir()
-			publicarSala() -- que el contador de jugadores de la lista se actualice enseguida
 		end
 	end
 	Players.PlayerAdded:Connect(alEntrar)
@@ -334,11 +504,18 @@ function Partida.init()
 	end
 
 	Players.PlayerRemoving:Connect(function(jugador)
+		if enEntrada then
+			-- Se fue del servidor de entrada: si no lo mandaron al juego, deja la sala de espera.
+			salirDeSalaDeEspera(jugador)
+			yaMandados[jugador] = nil
+			task.defer(difundir)
+			return
+		end
 		if estado.fase ~= "lobby" then
 			return
 		end
 		if estado.anfitrion == jugador then
-			-- El anfitrión se fue: pasa al siguiente.
+			-- El anfitrión se fue (modo local): pasa al siguiente.
 			estado.anfitrion = nil
 			for _, otro in Players:GetPlayers() do
 				if otro ~= jugador then
@@ -347,19 +524,13 @@ function Partida.init()
 				end
 			end
 			if not estado.anfitrion then
-				if estado.sala and Salas.enNube() then
-					task.spawn(Salas.retirar, estado.sala.codigo) -- la sala quedó vacía
-				end
 				estado.fase, estado.modo, estado.sala = "menu", nil, nil
 			end
 		end
-		task.defer(function()
-			difundir()
-			publicarSala()
-		end)
+		task.defer(difundir)
 	end)
 
-	if not Config.Partida.MenuActivo and not Salas.enNube() then
+	if not Config.Partida.MenuActivo and not nube then
 		task.spawn(function()
 			while #Players:GetPlayers() == 0 do
 				task.wait(0.5)

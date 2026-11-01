@@ -27,6 +27,7 @@ local NightManager = require(script.Parent.NightManager)
 local Persistencia = require(script.Parent.Persistencia)
 local PhoneSystem = require(script.Parent.PhoneSystem)
 local RulesSystem = require(script.Parent.RulesSystem)
+local Salas = require(script.Parent.Salas)
 local SocioEntity = require(script.Parent.SocioEntity)
 local TapeItem = require(script.Parent.TapeItem)
 local TaskSystem = require(script.Parent.TaskSystem)
@@ -105,6 +106,27 @@ function comandos.cinta()
 	end
 	TapeItem.tomar(j, TapeItem.crear({ titulo = "", genero = "TERROR", sinEtiqueta = true }))
 	return "en mano: " .. descripcionMano(j)
+end
+
+--- Pruebas de las salas con Config.Salas.SimularNube: "salasim" resume la lista y los teletransportes anotados;
+--- "salasim amigo" suma a un jugador falso a la primera sala pública (como si entrara desde otro servidor).
+function comandos.salasim(accion)
+	local lista = Salas.listar() or {}
+	local partes = {}
+	if accion == "amigo" and lista[1] then
+		local registro, err = Salas.agregar({ UserId = 999, DisplayName = "Amigo" }, lista[1].codigo)
+		table.insert(partes, "agregar=" .. tostring(registro ~= nil) .. " " .. tostring(err or ""))
+	end
+	table.insert(partes, "lista=" .. #lista .. (lista[1] and (" cod=" .. lista[1].codigo .. " " .. lista[1].jugadores .. "/" .. lista[1].maximo) or ""))
+	table.insert(partes, "teleportes=" .. #Salas.teleportesSimulados)
+	for _, t in Salas.teleportesSimulados do
+		local nombres = {}
+		for _, j in t.jugadores do
+			table.insert(nombres, j.Name)
+		end
+		table.insert(partes, string.format("[%s -> %s tipo=%s sala=%s max=%s esperados=%s]", table.concat(nombres, ","), t.accessCode, t.datos.tipo, t.datos.sala, tostring(t.datos.maximo), tostring(t.datos.esperados)))
+	end
+	return table.concat(partes, " ")
 end
 
 function comandos.socio()

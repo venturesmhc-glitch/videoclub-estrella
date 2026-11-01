@@ -42,8 +42,7 @@ Don Ernesto explica el trabajo y los controles. Suena hasta que alguien lo atien
 - Todos los números del juego están en `src/ReplicatedStorage/Shared/Config.lua`; el contenido de cada noche, en `NightData.lua`.
 
 ## Pendiente / límites conocidos
-- **Servidores**: el servidor público (el de entrada) solo muestra el menú, lista y crea salas; nunca corre un turno, así que los 60 que caben ahí no comparten partida. "Un jugador" y las salas abren un servidor reservado y teletransportan; ahí corre el turno y se vuelve al menú desde Ajustes (M).
-- **Salas (multijugador)**: en el juego publicado cada sala es un servidor reservado (`Salas.lua`: `ReserveServer` + `TeleportService` + MemoryStore para la lista y los códigos). En Studio no hay teletransporte, así que ahí la sala es el propio servidor (modo local; se prueba con *Start Server* + varios clientes). La parte entre servidores no se pudo probar en Studio: probala publicada con dos cuentas.
-- **Audio**: zumbido de tubo, hiss de cinta, aire pesado, ondas beta y música de fondo (ids en `Config.Audio.Capas`, de la Creator Store). Los elegí por nombre y comprobé que cargan, pero no los escuché: ajustalos a gusto.
-- **DataStore**: en Studio hace falta activar *Allow Studio Access to API Services* para guardar; en el juego publicado funciona solo.
-- Probado con un jugador en Studio; falta probar con 2 a 4 jugadores y en móviles.
+- **Servidores**: el servidor público (el de entrada) solo muestra el menú y la sala de espera; nunca corre un turno, así que los 60 que caben ahí no comparten partida. Crear o unirse a una sala **no te cambia de servidor**: la sala es un registro compartido (MemoryStore) y cada jugador la ve desde donde está. Al apretar **Iniciar**, el anfitrión reserva un servidor de juego y todo el equipo se teletransporta junto; ahí el turno arranca cuando llegaron todos (o a los 20 s). "Un jugador" también abre un servidor de juego propio. Desde Ajustes (M) se vuelve al menú.
+- **Salas (multijugador)**: ver `Salas.lua` y `Partida.lua`. En Studio no hay teletransporte ni MemoryStore asegurado: ahí la sala es el propio servidor (modo local; se prueba con *Start Server* + varios clientes). Con `Config.Salas.SimularNube = true` Studio simula el servidor de entrada con un MemoryStore en memoria (el comando `node dbg.js salasim` muestra los teletransportes anotados). La parte entre servidores reales no se pudo probar en Studio: probala publicada con dos cuentas.
+
+

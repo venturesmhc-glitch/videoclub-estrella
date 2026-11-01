@@ -86,10 +86,14 @@ Config.Partida = {
 -- Salas de multijugador entre servidores (Salas.lua). Cada sala es un servidor reservado; se anotan en un MemoryStore.
 Config.Salas = {
 	ForzarLocal = false, -- true: la sala es el propio servidor aunque no sea Studio (pruebas)
+	SimularNube = false, -- true (solo para probar en Studio): el servidor actúa como servidor de entrada con un MemoryStore y un teletransporte simulados
 	LargoCodigo = 5,
 	Mapa = "SalasVideoclub",
-	VencimientoSeg = 45, -- una sala que deja de renovar su ficha desaparece de la lista a los 45 s
-	LatidoSeg = 15, -- cada cuánto renueva la ficha mientras espera jugadores
+	VencimientoSeg = 45, -- una sala de espera que nadie renueva desaparece a los 45 s
+	LatidoSeg = 15, -- cada cuánto se renueva el registro de una sala mientras alguien la mira
+	SondeoSeg = 2, -- cada cuánto un servidor de entrada lee el registro de las salas en las que tiene jugadores
+	CierreSalaSeg = 25, -- tras iniciar, el registro se borra a los 25 s (tiempo para que todos los servidores vean el cambio)
+	EsperaEquipoSeg = 20, -- el servidor de juego espera tanto al equipo completo antes de empezar igual
 	MaxListadas = 40,
 	RefrescoListaSeg = 4, -- la lista de salas del cliente se actualiza cada tanto
 }
