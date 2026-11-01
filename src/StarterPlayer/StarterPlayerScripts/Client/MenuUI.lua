@@ -1,8 +1,9 @@
 --!nonstrict
 --[[
-	MenuUI (cliente): menú de inicio, sala de espera y ajustes.
-	  - Al entrar se ve el menú: UN JUGADOR (arranca el turno), MULTIJUGADOR (sala de espera donde el anfitrión
-	    elige cuándo empezar), AJUSTES y CÓMO JUGAR.
+	MenuUI (cliente): menú de inicio, salas de multijugador y ajustes.
+	  - Al entrar se ve el menú: UN JUGADOR (arranca el turno), MULTIJUGADOR, AJUSTES y CÓMO JUGAR.
+	  - MULTIJUGADOR lista las salas públicas y abajo ofrece CREAR (pública o privada, de 2 a 4 jugadores) y UNIRSE POR
+	    CÓDIGO. Una vez dentro de una sala se ve su código, quiénes están, y el anfitrión la inicia con INICIAR.
 	  - Durante el turno, la tecla M abre los ajustes (el juego no se pausa: es cooperativo en vivo).
 	El servidor (Partida) decide la fase; este módulo solo la muestra y manda las elecciones (remote MenuAction).
 	Todos los textos están en TEXTOS para poder traducirlos más adelante.
@@ -35,7 +36,27 @@ local TEXTOS = {
 	salaEspera = "Esperando que %s empiece el turno...",
 	salaAnfitrion = "Sos el anfitrión. Cuando estén todos, empezá el turno.",
 	salaCupo = "%d / %d jugadores",
-	empezar = "EMPEZAR TURNO",
+	empezar = "INICIAR",
+	salasTitulo = "MULTIJUGADOR",
+	salasSub = "Salas públicas",
+	salasVacio = "No hay salas públicas por ahora.\nCreá una o unite con un código.",
+	crear = "CREAR",
+	unirseCodigo = "UNIRSE POR CÓDIGO",
+	crearTitulo = "CREAR SALA",
+	visibilidad = "Visibilidad de la sala",
+	publica = "PÚBLICA",
+	privada = "PRIVADA",
+	cantidadJugadores = "Cantidad de jugadores (máx. %d)",
+	crearSala = "CREAR SALA",
+	unirseTitulo = "UNIRSE POR CÓDIGO",
+	codigoAyuda = "Escribí el código de la sala (%d caracteres)",
+	codigoHint = "CÓDIGO",
+	unirse = "UNIRSE",
+	codigoSala = "CÓDIGO: %s",
+	salaPublicaTipo = "Sala pública · %d/%d jugadores",
+	salaPrivadaTipo = "Sala privada · %d/%d jugadores",
+	salir = "SALIR DE LA SALA",
+	entrando = "Entrando a la sala...",
 	ajustesTitulo = "AJUSTES",
 	volMusica = "Música",
 	volAmbiente = "Sonido ambiente",
@@ -221,8 +242,51 @@ local function destinoVolver()
 	return "principal"
 end
 
-local function enviar(accion)
-	Net.obtener("MenuAction"):FireServer({ accion = accion })
+local function enviar(accion, extra)
+	local datos = { accion = accion }
+	for clave, valor in extra or {} do
+		datos[clave] = valor
+	end
+	Net.obtener("MenuAction"):FireServer(datos)
+end
+
+-- Mensaje de estado de las pantallas de salas (errores del servidor, "Creando la sala...", etc.).
+local mensajes = {}
+local function ponerMensaje(texto, esError)
+	for _, etiqueta in mensajes do
+		etiqueta.Text = texto or ""
+		etiqueta.TextColor3 = esError and Color3.fromRGB(235, 110, 100) or COLOR_APAGADO
+	end
+end
+
+-- Botón que queda marcado (borde y texto en acento) cuando está elegido.
+local function selector(padre, etiqueta, posicion, tamano, alActivar)
+	local b = Instance.new("TextButton")
+	b.Size = tamano
+	b.AnchorPoint = Vector2.new(0.5, 0.5)
+	b.Position = posicion
+	b.BackgroundColor3 = Color3.new(1, 1, 1)
+	b.BackgroundTransparency = 1
+	b.AutoButtonColor = false
+	b.Font = FUENTE
+	b.TextScaled = true
+	b.Text = etiqueta
+	b.Parent = padre
+	local borde = Instance.new("UIStroke")
+	borde.Thickness = 2
+	borde.Parent = b
+	local relleno = Instance.new("UIPadding")
+	relleno.PaddingTop, relleno.PaddingBottom = UDim.new(0.18, 0), UDim.new(0.18, 0)
+	relleno.Parent = b
+	local function marcar(activo)
+		b.TextColor3 = activo and COLOR_ACENTO or COLOR_APAGADO
+		borde.Color = activo and COLOR_ACENTO or COLOR_TEXTO
+		borde.Transparency = activo and 0 or 0.6
+		b.BackgroundTransparency = activo and 0.88 or 1
+	end
+	marcar(false)
+	b.Activated:Connect(alActivar)
+	return b, marcar
 end
 
 local function construirPrincipal()
@@ -235,7 +299,8 @@ local function construirPrincipal()
 		enviar("solo")
 	end, TAM_BOTON)
 	boton(p, TEXTOS.multi, UDim2.fromScale(0.5, 0.58), function()
-		enviar("multi")
+		mostrarPantalla("salas")
+		enviar("salas")
 	end, TAM_BOTON)
 	boton(p, TEXTOS.ajustes, UDim2.fromScale(0.5, 0.71), function()
 		mostrarPantalla("ajustes")
@@ -245,19 +310,198 @@ local function construirPrincipal()
 	end, TAM_BOTON)
 end
 
-local lobbyLista, lobbyEstado, lobbyBotonEmpezar, lobbyBotonVolver
+local lobbyLista, lobbyEstado, lobbyBotonEmpezar, lobbyBotonVolver, lobbyCodigo, lobbyTipo
+local listaSalas, listaVacia
 
 local function construirLobby()
 	local p = nuevaPantalla("lobby")
-	texto(p, { texto = TEXTOS.salaTitulo, fuente = FUENTE_TITULO, color = COLOR_ACENTO, tamano = UDim2.fromScale(0.7, 0.11), posicion = UDim2.fromScale(0.5, 0.16), ancla = Vector2.new(0.5, 0.5) })
-	lobbyEstado = texto(p, { texto = "", tamano = UDim2.fromScale(0.7, 0.05), posicion = UDim2.fromScale(0.5, 0.26), ancla = Vector2.new(0.5, 0.5), color = COLOR_APAGADO })
-	lobbyLista = texto(p, { texto = "", tamano = UDim2.fromScale(0.4, 0.3), posicion = UDim2.fromScale(0.5, 0.45), ancla = Vector2.new(0.5, 0.5), escalado = false })
+	texto(p, { texto = TEXTOS.salaTitulo, fuente = FUENTE_TITULO, color = COLOR_ACENTO, tamano = UDim2.fromScale(0.7, 0.1), posicion = UDim2.fromScale(0.5, 0.13), ancla = Vector2.new(0.5, 0.5) })
+	lobbyCodigo = texto(p, { texto = "", fuente = FUENTE_TITULO, color = COLOR_TEXTO, tamano = UDim2.fromScale(0.6, 0.085), posicion = UDim2.fromScale(0.5, 0.23), ancla = Vector2.new(0.5, 0.5) })
+	lobbyTipo = texto(p, { texto = "", tamano = UDim2.fromScale(0.6, 0.04), posicion = UDim2.fromScale(0.5, 0.3), ancla = Vector2.new(0.5, 0.5), color = COLOR_APAGADO })
+	lobbyLista = texto(p, { texto = "", tamano = UDim2.fromScale(0.4, 0.26), posicion = UDim2.fromScale(0.5, 0.48), ancla = Vector2.new(0.5, 0.5), escalado = false })
 	lobbyLista.TextSize = 24
-	lobbyBotonEmpezar = boton(p, TEXTOS.empezar, UDim2.fromScale(0.5, 0.7), function()
+	lobbyEstado = texto(p, { texto = "", tamano = UDim2.fromScale(0.7, 0.05), posicion = UDim2.fromScale(0.5, 0.67), ancla = Vector2.new(0.5, 0.5), color = COLOR_APAGADO })
+	-- Abajo: INICIAR (solo el anfitrión) y SALIR.
+	lobbyBotonEmpezar = boton(p, TEXTOS.empezar, UDim2.fromScale(0.5, 0.77), function()
 		enviar("empezar")
 	end, UDim2.fromScale(0.34, 0.075))
-	lobbyBotonVolver = boton(p, TEXTOS.volver, UDim2.fromScale(0.5, 0.85), function()
-		enviar("cancelar")
+	lobbyBotonVolver = boton(p, TEXTOS.salir, UDim2.fromScale(0.5, 0.89), function()
+		enviar("salir")
+	end, UDim2.fromScale(0.3, 0.07))
+end
+
+-- Lista de salas públicas: una fila por sala; tocar una fila entra a esa sala.
+local function actualizarListaSalas(salas)
+	if not listaSalas then
+		return
+	end
+	for _, hijo in listaSalas:GetChildren() do
+		if hijo:IsA("TextButton") then
+			hijo:Destroy()
+		end
+	end
+	listaVacia.Visible = #salas == 0
+	for i, sala in salas do
+		local fila = Instance.new("TextButton")
+		fila.LayoutOrder = i
+		fila.Size = UDim2.new(1, -10, 0, 46)
+		fila.BackgroundColor3 = COLOR_TEXTO
+		fila.BackgroundTransparency = 0.93
+		fila.AutoButtonColor = false
+		fila.Font = FUENTE
+		fila.TextSize = 22
+		fila.TextColor3 = COLOR_TEXTO
+		fila.TextXAlignment = Enum.TextXAlignment.Left
+		fila.Text = string.format("%s    %s    %d/%d", sala.codigo, sala.anfitrion or "—", sala.jugadores or 1, sala.maximo or Config.Partida.MaxJugadores)
+		fila.Parent = listaSalas
+		local relleno = Instance.new("UIPadding")
+		relleno.PaddingLeft = UDim.new(0, 12)
+		relleno.Parent = fila
+		fila.MouseEnter:Connect(function()
+			fila.BackgroundTransparency = 0.8
+			fila.TextColor3 = COLOR_ACENTO
+		end)
+		fila.MouseLeave:Connect(function()
+			fila.BackgroundTransparency = 0.93
+			fila.TextColor3 = COLOR_TEXTO
+		end)
+		fila.Activated:Connect(function()
+			ponerMensaje(TEXTOS.entrando)
+			enviar("unirse", { codigo = sala.codigo })
+		end)
+	end
+end
+
+local function construirSalas()
+	local p = nuevaPantalla("salas")
+	texto(p, { texto = TEXTOS.salasTitulo, fuente = FUENTE_TITULO, color = COLOR_ACENTO, tamano = UDim2.fromScale(0.7, 0.1), posicion = UDim2.fromScale(0.5, 0.13), ancla = Vector2.new(0.5, 0.5) })
+	texto(p, { texto = TEXTOS.salasSub, tamano = UDim2.fromScale(0.4, 0.04), posicion = UDim2.fromScale(0.5, 0.2), ancla = Vector2.new(0.5, 0.5), color = COLOR_APAGADO })
+	listaSalas = Instance.new("ScrollingFrame")
+	listaSalas.Size = UDim2.fromScale(0.6, 0.38)
+	listaSalas.AnchorPoint = Vector2.new(0.5, 0.5)
+	listaSalas.Position = UDim2.fromScale(0.5, 0.43)
+	listaSalas.BackgroundTransparency = 1
+	listaSalas.BorderSizePixel = 0
+	listaSalas.ScrollBarThickness = 6
+	listaSalas.CanvasSize = UDim2.new(0, 0, 0, 0)
+	listaSalas.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	listaSalas.Parent = p
+	local marco = Instance.new("UIStroke")
+	marco.Color = COLOR_TEXTO
+	marco.Transparency = 0.7
+	marco.Parent = listaSalas
+	local orden = Instance.new("UIListLayout")
+	orden.Padding = UDim.new(0, 6)
+	orden.SortOrder = Enum.SortOrder.LayoutOrder
+	orden.Parent = listaSalas
+	listaVacia = texto(p, { texto = TEXTOS.salasVacio, tamano = UDim2.fromScale(0.5, 0.12), posicion = UDim2.fromScale(0.5, 0.43), ancla = Vector2.new(0.5, 0.5), color = COLOR_APAGADO })
+	table.insert(mensajes, texto(p, { texto = "", tamano = UDim2.fromScale(0.6, 0.045), posicion = UDim2.fromScale(0.5, 0.67), ancla = Vector2.new(0.5, 0.5), color = COLOR_APAGADO }))
+	-- Abajo: CREAR y UNIRSE POR CÓDIGO.
+	boton(p, TEXTOS.crear, UDim2.fromScale(0.31, 0.78), function()
+		mostrarPantalla("crear")
+	end, UDim2.fromScale(0.28, 0.075))
+	boton(p, TEXTOS.unirseCodigo, UDim2.fromScale(0.69, 0.78), function()
+		mostrarPantalla("unirse")
+	end, UDim2.fromScale(0.28, 0.075))
+	boton(p, TEXTOS.volver, UDim2.fromScale(0.5, 0.9), function()
+		mostrarPantalla("principal")
+	end, UDim2.fromScale(0.25, 0.07))
+end
+
+local function construirCrear()
+	local p = nuevaPantalla("crear")
+	local publica, maximo = true, Config.Partida.MaxJugadores
+	texto(p, { texto = TEXTOS.crearTitulo, fuente = FUENTE_TITULO, color = COLOR_ACENTO, tamano = UDim2.fromScale(0.7, 0.1), posicion = UDim2.fromScale(0.5, 0.12), ancla = Vector2.new(0.5, 0.5) })
+	texto(p, { texto = TEXTOS.visibilidad, tamano = UDim2.fromScale(0.5, 0.045), posicion = UDim2.fromScale(0.5, 0.27), ancla = Vector2.new(0.5, 0.5), color = COLOR_APAGADO })
+	local TAM = UDim2.fromScale(0.2, 0.075)
+	local marcarPublica, marcarPrivada
+	local function elegir(esPublica)
+		publica = esPublica
+		marcarPublica(esPublica)
+		marcarPrivada(not esPublica)
+	end
+	local _
+	_, marcarPublica = selector(p, TEXTOS.publica, UDim2.fromScale(0.39, 0.36), TAM, function()
+		elegir(true)
+	end)
+	_, marcarPrivada = selector(p, TEXTOS.privada, UDim2.fromScale(0.61, 0.36), TAM, function()
+		elegir(false)
+	end)
+	elegir(true)
+
+	texto(p, { texto = string.format(TEXTOS.cantidadJugadores, Config.Partida.MaxJugadores), tamano = UDim2.fromScale(0.6, 0.045), posicion = UDim2.fromScale(0.5, 0.5), ancla = Vector2.new(0.5, 0.5), color = COLOR_APAGADO })
+	local numero = texto(p, { texto = tostring(maximo), fuente = FUENTE_TITULO, color = COLOR_ACENTO, tamano = UDim2.fromScale(0.08, 0.08), posicion = UDim2.fromScale(0.5, 0.59), ancla = Vector2.new(0.5, 0.5) })
+	local function cambiar(delta)
+		maximo = math.clamp(maximo + delta, 2, Config.Partida.MaxJugadores)
+		numero.Text = tostring(maximo)
+	end
+	boton(p, "-", UDim2.fromScale(0.41, 0.59), function()
+		cambiar(-1)
+	end, UDim2.fromScale(0.06, 0.07))
+	boton(p, "+", UDim2.fromScale(0.59, 0.59), function()
+		cambiar(1)
+	end, UDim2.fromScale(0.06, 0.07))
+
+	table.insert(mensajes, texto(p, { texto = "", tamano = UDim2.fromScale(0.6, 0.045), posicion = UDim2.fromScale(0.5, 0.69), ancla = Vector2.new(0.5, 0.5), color = COLOR_APAGADO }))
+	boton(p, TEXTOS.crearSala, UDim2.fromScale(0.5, 0.78), function()
+		ponerMensaje("")
+		enviar("crear", { publica = publica, maximo = maximo })
+	end, UDim2.fromScale(0.34, 0.075))
+	boton(p, TEXTOS.volver, UDim2.fromScale(0.5, 0.9), function()
+		mostrarPantalla("salas")
+		enviar("salas")
+	end, UDim2.fromScale(0.25, 0.07))
+end
+
+local function construirUnirse()
+	local p = nuevaPantalla("unirse")
+	texto(p, { texto = TEXTOS.unirseTitulo, fuente = FUENTE_TITULO, color = COLOR_ACENTO, tamano = UDim2.fromScale(0.7, 0.1), posicion = UDim2.fromScale(0.5, 0.12), ancla = Vector2.new(0.5, 0.5) })
+	texto(p, { texto = string.format(TEXTOS.codigoAyuda, Config.Salas.LargoCodigo), tamano = UDim2.fromScale(0.6, 0.045), posicion = UDim2.fromScale(0.5, 0.3), ancla = Vector2.new(0.5, 0.5), color = COLOR_APAGADO })
+	local caja = Instance.new("TextBox")
+	caja.Size = UDim2.fromScale(0.3, 0.11)
+	caja.AnchorPoint = Vector2.new(0.5, 0.5)
+	caja.Position = UDim2.fromScale(0.5, 0.45)
+	caja.BackgroundColor3 = Color3.new(1, 1, 1)
+	caja.BackgroundTransparency = 0.93
+	caja.BorderSizePixel = 0
+	caja.Font = FUENTE_TITULO
+	caja.TextScaled = true
+	caja.TextColor3 = COLOR_ACENTO
+	caja.PlaceholderText = TEXTOS.codigoHint
+	caja.PlaceholderColor3 = COLOR_APAGADO
+	caja.ClearTextOnFocus = false
+	caja.Text = ""
+	caja.Parent = p
+	local borde = Instance.new("UIStroke")
+	borde.Color = COLOR_TEXTO
+	borde.Transparency = 0.4
+	borde.Thickness = 2
+	borde.Parent = caja
+	local relleno = Instance.new("UIPadding")
+	relleno.PaddingTop, relleno.PaddingBottom = UDim.new(0.12, 0), UDim.new(0.12, 0)
+	relleno.Parent = caja
+	-- Solo letras y números, en mayúsculas y del largo del código.
+	caja:GetPropertyChangedSignal("Text"):Connect(function()
+		local limpio = string.upper(caja.Text):gsub("[^%w]", "")
+		limpio = string.sub(limpio, 1, Config.Salas.LargoCodigo)
+		if limpio ~= caja.Text then
+			caja.Text = limpio
+		end
+	end)
+	local function unirse()
+		ponerMensaje(TEXTOS.entrando)
+		enviar("unirse", { codigo = caja.Text })
+	end
+	caja.FocusLost:Connect(function(apretoEnter)
+		if apretoEnter then
+			unirse()
+		end
+	end)
+	table.insert(mensajes, texto(p, { texto = "", tamano = UDim2.fromScale(0.6, 0.045), posicion = UDim2.fromScale(0.5, 0.58), ancla = Vector2.new(0.5, 0.5), color = COLOR_APAGADO }))
+	boton(p, TEXTOS.unirse, UDim2.fromScale(0.5, 0.74), unirse, UDim2.fromScale(0.34, 0.075))
+	boton(p, TEXTOS.volver, UDim2.fromScale(0.5, 0.88), function()
+		mostrarPantalla("salas")
+		enviar("salas")
 	end, UDim2.fromScale(0.25, 0.07))
 end
 
@@ -309,20 +553,20 @@ local function actualizarLobby()
 	if not lobbyLista then
 		return
 	end
+	local jugadores = estadoPartida.jugadores or {}
+	local maximo = estadoPartida.maximo or Config.Partida.MaxJugadores
 	local lineas = {}
-	for _, nombre in estadoPartida.jugadores or {} do
+	for _, nombre in jugadores do
 		table.insert(lineas, "• " .. nombre)
 	end
-	table.insert(lineas, "")
-	table.insert(lineas, string.format(TEXTOS.salaCupo, #(estadoPartida.jugadores or {}), estadoPartida.maximo or Config.Partida.MaxJugadores))
 	lobbyLista.Text = table.concat(lineas, "\n")
+	lobbyCodigo.Text = estadoPartida.codigo and string.format(TEXTOS.codigoSala, estadoPartida.codigo) or ""
+	lobbyTipo.Text = string.format(estadoPartida.publica == false and TEXTOS.salaPrivadaTipo or TEXTOS.salaPublicaTipo, #jugadores, maximo)
 	local soyAnfitrion = estadoPartida.anfitrionId == Players.LocalPlayer.UserId
 	lobbyEstado.Text = soyAnfitrion and TEXTOS.salaAnfitrion or string.format(TEXTOS.salaEspera, estadoPartida.anfitrion or "el anfitrión")
-	if estadoPartida.conteo then
-		lobbyEstado.Text ..= string.format(TEXTOS.salaConteo, estadoPartida.conteo)
-	end
 	lobbyBotonEmpezar.Visible = soyAnfitrion
-	lobbyBotonVolver.Visible = soyAnfitrion
+	-- En servidores aparte cualquiera puede irse; en el modo local de Studio solo el anfitrión (cierra la sala).
+	lobbyBotonVolver.Visible = soyAnfitrion or estadoPartida.nube == true
 end
 
 -- ===== Visibilidad y bloqueo del movimiento =====
@@ -353,6 +597,9 @@ function mostrarPantalla(nombre)
 	bloquearMovimiento(not enJuego)
 	for clave, pantalla in pantallas do
 		pantalla.Visible = clave == nombre
+	end
+	if nombre == "salas" or nombre == "crear" or nombre == "unirse" then
+		ponerMensaje("")
 	end
 	if nombre == "lobby" then
 		actualizarLobby()
@@ -443,12 +690,37 @@ function MenuUI.init()
 	local carga = nuevaPantalla("cargando")
 	texto(carga, { texto = TEXTOS.cargando, tamano = UDim2.fromScale(0.4, 0.06), posicion = UDim2.fromScale(0.5, 0.5), ancla = Vector2.new(0.5, 0.5), color = COLOR_APAGADO })
 	construirPrincipal()
+	construirSalas()
+	construirCrear()
+	construirUnirse()
 	construirLobby()
 	construirAyuda()
 	construirAjustes()
 	mostrarPantalla("cargando")
 
 	Net.obtener("PartidaState").OnClientEvent:Connect(alCambiarPartida)
+	Net.obtener("SalasState").OnClientEvent:Connect(function(datos)
+		if typeof(datos) ~= "table" then
+			return
+		end
+		if datos.tipo == "lista" then
+			actualizarListaSalas(datos.salas or {})
+			if datos.error then
+				ponerMensaje(datos.error, true)
+			end
+		elseif datos.tipo == "mensaje" then
+			ponerMensaje(tostring(datos.texto or ""), datos.error == true)
+		end
+	end)
+	-- Mientras se ve la lista de salas se refresca sola.
+	task.spawn(function()
+		while true do
+			task.wait(Config.Salas.RefrescoListaSeg)
+			if pantallaActual == "salas" and fondo.Visible then
+				enviar("salas")
+			end
+		end
+	end)
 	Net.obtener("NightState").OnClientEvent:Connect(function(estadoNoche)
 		if typeof(estadoNoche) ~= "table" then
 			return

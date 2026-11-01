@@ -6,7 +6,7 @@ argentino, noviembre de 1997. Hay cinco noches y tres finales.
 ## Cómo jugarlo
 1. Abrí `starvideoclub` en Roblox Studio (ya está abierto con todo cargado) y apretá **Play**.
    También se puede jugar desde Roblox si publicás el lugar (Archivo → Publicar en Roblox, `Alt+P`).
-2. Al entrar aparece el **menú**: Un jugador (arranca el turno), Multijugador (sala de espera: el anfitrión elige cuándo empezar), Ajustes (música, ambiente y estática del filtro) y Cómo jugar. **M** abre los ajustes durante el turno.
+2. Al entrar aparece el **menú**: Un jugador (arranca el turno), Multijugador (lista de salas públicas; abajo, **Crear** —pública o privada, de 2 a 4 jugadores— y **Unirse por código**; dentro de la sala se ve el código y los jugadores, y el anfitrión la arranca con **Iniciar**), Ajustes (música, ambiente y estática del filtro) y Cómo jugar. **M** abre los ajustes durante el turno.
 3. Controles: **WASD** moverte · **E** interactuar · **R** (mantener) segunda acción · **Tab** ocultar la ficha · **G** soltar el casete que llevás ·
    **Q** marcar una anomalía (apuntándole) · **F** linterna (cuando se corta la luz).
 4. La **ficha de socio** (cartón, a la izquierda) es tu inventario: tareas, lo que llevás en la mano y lo que pide el cliente.
@@ -42,6 +42,7 @@ Don Ernesto explica el trabajo y los controles. Suena hasta que alguien lo atien
 - Todos los números del juego están en `src/ReplicatedStorage/Shared/Config.lua`; el contenido de cada noche, en `NightData.lua`.
 
 ## Pendiente / límites conocidos
+- **Salas (multijugador)**: en el juego publicado cada sala es un servidor reservado (`Salas.lua`: `ReserveServer` + `TeleportService` + MemoryStore para la lista y los códigos). En Studio no hay teletransporte, así que ahí la sala es el propio servidor (modo local; se prueba con *Start Server* + varios clientes). La parte entre servidores no se pudo probar en Studio: probala publicada con dos cuentas.
 - **Audio**: zumbido de tubo, hiss de cinta, aire pesado, ondas beta y música de fondo (ids en `Config.Audio.Capas`, de la Creator Store). Los elegí por nombre y comprobé que cargan, pero no los escuché: ajustalos a gusto.
 - **DataStore**: en Studio hace falta activar *Allow Studio Access to API Services* para guardar; en el juego publicado funciona solo.
 - Probado con un jugador en Studio; falta probar con 2 a 4 jugadores y en móviles.

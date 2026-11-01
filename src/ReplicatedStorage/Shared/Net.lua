@@ -37,8 +37,9 @@ local DEFINICIONES: { [string]: string } = {
 	EndingTrigger = "RemoteEvent", -- s>c: final alcanzado { id, lineas }
 	ProfileLoaded = "RemoteEvent", -- s>c: noche y finales guardados
 	DropTape = "RemoteEvent", -- c>s: soltar el casete que se lleva en la mano (tecla G)
-	MenuAction = "RemoteEvent", -- c>s: { accion = "solo" | "multi" | "empezar" | "cancelar" } desde el menú de inicio
-	PartidaState = "RemoteEvent", -- s>c: { fase = "menu" | "lobby" | "jugando", modo, anfitrion, jugadores }
+	MenuAction = "RemoteEvent", -- c>s: { accion = "estado" | "salas" | "solo" | "crear" | "unirse" | "empezar" | "salir", ... } desde el menú
+	PartidaState = "RemoteEvent", -- s>c: { fase = "menu" | "lobby" | "jugando", modo, anfitrion, jugadores, codigo, publica, maximo }
+	SalasState = "RemoteEvent", -- s>c: { tipo = "lista", salas = { { codigo, anfitrion, jugadores, maximo } } } | { tipo = "mensaje", texto, error }
 }
 
 --- Solo servidor: crea la carpeta Remotes con todos los remotes definidos.

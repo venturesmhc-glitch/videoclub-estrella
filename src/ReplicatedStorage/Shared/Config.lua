@@ -81,8 +81,17 @@ Config.Calle = {
 Config.Partida = {
 	MenuActivo = true, -- false: el turno arranca solo al entrar el primer jugador (útil para pruebas)
 	MaxJugadores = 4,
-	MenuAParejaSeg = 10, -- con 2 o más jugadores en el menú, pasa solo a la sala de espera tras este tiempo
-	LobbyAutoSeg = 30, -- en la sala con 2 o más jugadores, el turno arranca solo tras este tiempo
+}
+
+-- Salas de multijugador entre servidores (Salas.lua). Cada sala es un servidor reservado; se anotan en un MemoryStore.
+Config.Salas = {
+	ForzarLocal = false, -- true: la sala es el propio servidor aunque no sea Studio (pruebas)
+	LargoCodigo = 5,
+	Mapa = "SalasVideoclub",
+	VencimientoSeg = 45, -- una sala que deja de renovar su ficha desaparece de la lista a los 45 s
+	LatidoSeg = 15, -- cada cuánto renueva la ficha mientras espera jugadores
+	MaxListadas = 40,
+	RefrescoListaSeg = 4, -- la lista de salas del cliente se actualiza cada tanto
 }
 
 Config.Casetes = {
