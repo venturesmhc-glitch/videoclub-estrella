@@ -21,7 +21,7 @@ Config.Noche = {
 	Fecha = { Dia = 14, Mes = "NOV", Anio = 1997 }, -- fecha de la noche 1; cada noche suma un día
 	NocheInicial = 1,
 	NochesImplementadas = 5, -- al terminar la última noche sin llegar a un final, el turno se repite
-	RetardoInicioSeg = 5, -- espera desde que entra el primer jugador hasta que arranca el turno
+	RetardoInicioSeg = 1, -- espera desde que se elige jugar hasta que arranca el turno (la pantalla sigue negra: ver MenuUI)
 	PausaFinSeg = 14, -- pantalla de resumen entre un turno y el siguiente
 	IntervaloSincronizacionSeg = 1,
 }

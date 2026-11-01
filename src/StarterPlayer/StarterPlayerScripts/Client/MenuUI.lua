@@ -359,6 +359,27 @@ function mostrarPantalla(nombre)
 	end
 end
 
+-- Entre que arranca la partida (el menú se va) y que aparece el cartel "NOCHE n" con los controles (lo muestra
+-- DialogUI cuando llega NightState "turno") hay un instante: ahí el fondo negro se queda puesto para que nunca
+-- se vea el local sin el cartel.
+local faseNoche = "espera"
+local ESPERA_CARTEL_MAX_SEG = 8
+
+local function esperarCartelDeNoche()
+	pantallaActual = "esperando"
+	fondo.Visible = true
+	fondo.BackgroundTransparency = 0
+	bloquearMovimiento(true)
+	for _, pantalla in pantallas do
+		pantalla.Visible = false
+	end
+	task.delay(ESPERA_CARTEL_MAX_SEG, function()
+		if pantallaActual == "esperando" then
+			mostrarPantalla("juego")
+		end
+	end)
+end
+
 local function alCambiarPartida(datos)
 	if typeof(datos) ~= "table" then
 		return
@@ -368,7 +389,11 @@ local function alCambiarPartida(datos)
 		if not enJuego then
 			enJuego = true
 			if pantallaActual ~= "ajustes" and pantallaActual ~= "ayuda" then
-				mostrarPantalla("juego")
+				if faseNoche == "espera" then
+					esperarCartelDeNoche()
+				else
+					mostrarPantalla("juego") -- el turno ya está en marcha (se entró tarde): no hay cartel que esperar
+				end
 			end
 		end
 	elseif datos.fase == "lobby" then
@@ -424,6 +449,20 @@ function MenuUI.init()
 	mostrarPantalla("cargando")
 
 	Net.obtener("PartidaState").OnClientEvent:Connect(alCambiarPartida)
+	Net.obtener("NightState").OnClientEvent:Connect(function(estadoNoche)
+		if typeof(estadoNoche) ~= "table" then
+			return
+		end
+		faseNoche = estadoNoche.fase
+		if pantallaActual == "esperando" and faseNoche ~= "espera" then
+			-- task.defer: que DialogUI ponga primero su cartel negro en este mismo cuadro y recién después se suelte el fondo.
+			task.defer(function()
+				if pantallaActual == "esperando" then
+					mostrarPantalla("juego")
+				end
+			end)
+		end
+	end)
 	Net.obtener("MenuAction"):FireServer({ accion = "estado" })
 	-- Si el primer pedido llegó antes de que el servidor estuviera listo, se repite.
 	task.delay(2, function()
