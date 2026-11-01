@@ -1,0 +1,8 @@
+# Archivos temporales de pruebas
+.tmp/
+foto.sh
+
+# El lugar de Studio no se versiona: el código está en src/ y el mapa en build/videoclub.lua
+*.rbxl
+*.rbxlx
+*.rbxl.lock
