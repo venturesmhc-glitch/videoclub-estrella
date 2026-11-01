@@ -49,6 +49,17 @@ local function parpadear(linea: string)
 		end
 		local original = parte.Color
 		local cartel = crearCartel(parte)
+		-- Timbre: sonido 3D pegado al teléfono, se oye más fuerte cuanto más cerca.
+		local timbre = Instance.new("Sound")
+		timbre.Name = "Timbre"
+		timbre.SoundId = Config.Telefono.Sonido.Id
+		timbre.Volume = Config.Telefono.Sonido.Volumen
+		timbre.Looped = true
+		timbre.RollOffMode = Enum.RollOffMode.InverseTapered
+		timbre.RollOffMinDistance = 8
+		timbre.RollOffMaxDistance = Config.Telefono.Sonido.DistanciaMax
+		timbre.Parent = parte
+		timbre:Play()
 		local alterna = false
 		while sonando[linea] == token do
 			alterna = not alterna
@@ -57,6 +68,8 @@ local function parpadear(linea: string)
 		end
 		parte.Color = original
 		cartel:Destroy()
+		timbre:Stop()
+		timbre:Destroy()
 	end)
 end
 

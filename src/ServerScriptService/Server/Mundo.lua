@@ -56,6 +56,37 @@ function Mundo.parpadeo()
 	enviar("FLICKER", true)
 end
 
+--- Cambia de canal la tele del mostrador (E). Pasados todos los canales se apaga, y de apagada vuelve al canal 1.
+--- Es una distracción para los ratos tranquilos: los canales traen pistas y algún mensaje raro (Client/Tele).
+--- Apagarla es la trampa de la nota falsa F_TV (evento TV_APAGADA).
+function Mundo.cambiarCanal(jugador: Player)
+	local total = NightManager.obtenerEstado().noche >= 3 and 6 or 5
+	for _, pantalla in CollectionService:GetTagged("TV") do
+		local encendida = pantalla:GetAttribute("Encendida") ~= false
+		local canal = pantalla:GetAttribute("Canal") or 1
+		if not encendida then
+			canal, encendida = 1, true
+		else
+			canal += 1
+			if canal > total then
+				canal, encendida = 0, false
+			end
+		end
+		pantalla:SetAttribute("Canal", canal)
+		pantalla:SetAttribute("Encendida", encendida)
+		local luz = pantalla:FindFirstChildWhichIsA("SurfaceLight")
+		if luz then
+			luz.Enabled = encendida
+		end
+		if encendida then
+			Net.aviso(jugador, "Canal " .. canal)
+		else
+			Net.aviso(jugador, "Apagaste la tele.")
+			NightManager.emitir("TV_APAGADA", { jugador = jugador })
+		end
+	end
+end
+
 function Mundo.alternarTV(jugador: Player)
 	for _, pantalla in CollectionService:GetTagged("TV") do
 		local encendida = pantalla:GetAttribute("Encendida") ~= false
@@ -78,6 +109,7 @@ local function restablecer()
 	ponerDepositoLargo(false)
 	for _, pantalla in CollectionService:GetTagged("TV") do
 		pantalla:SetAttribute("Encendida", true)
+		pantalla:SetAttribute("Canal", 1)
 		local luz = pantalla:FindFirstChildWhichIsA("SurfaceLight")
 		if luz then
 			luz.Enabled = true
@@ -98,6 +130,10 @@ function Mundo.init()
 	NightManager.suscribir("DEPOSITO_LARGO", function()
 		ponerDepositoLargo(true)
 	end)
+	NightManager.suscribir("SUSTO_SUAVE", function(datos)
+		-- datos.tipo: "luces" (corte de luz con la criatura), "tele" (la tele dice MIRAME) o "ventana" (ojos en el vidrio)
+		enviar("SUSTO_SUAVE", datos and datos.tipo or "luces")
+	end)
 
 	-- Quien entra con el turno en marcha recibe el estado actual de la luz.
 	Players.PlayerAdded:Connect(function(jugador)
@@ -109,10 +145,10 @@ function Mundo.init()
 	for _, pantalla in CollectionService:GetTagged("TV") do
 		Prompts.crear(pantalla, {
 			clave = "tv",
-			accion = "Apagar / prender",
+			accion = "Cambiar canal",
 			objeto = "Tele del mostrador",
 			distancia = 4.5, -- corta, para que su botón no se mezcle con los de la videocasetera y el mostrador
-			alActivar = Mundo.alternarTV,
+			alActivar = Mundo.cambiarCanal,
 		})
 	end
 end

@@ -27,10 +27,62 @@ Config.Noche = {
 }
 
 -- Casetes (TapeItem): tamaño, cómo se llevan y por dónde entran al local.
+-- Susto suave de la noche 1 (Client/Sustos): un gancho para que los primeros minutos no sean todos tranquilos.
+Config.Sustos = {
+	DuracionSeg = 1.8, -- cuánto dura la oscuridad con la criatura
+	DistanciaCriatura = 16, -- a cuántos studs adelante aparece (si hay pared antes, más cerca)
+	DistanciaMinima = 6, -- si no hay lugar libre, el susto sigue sin criatura
+	PeligroTracking = 0.85, -- cuánto se deforma el filtro VHS mientras dura
+	-- Audio analógico, sin gritos: el ambiente se va como una cinta que se frena, queda casi silencio con un
+	-- zumbido grave apagado y estática de fondo, y al volver hay un chasquido de cinta.
+	FrenadoSeg = 0.5, -- lo que tarda el ambiente en frenarse y apagarse
+	ReanudarSeg = 1.1, -- lo que tarda en volver cuando se prende la luz
+	Glitch = { Id = "rbxassetid://109276224186592", Volumen = 0.14 }, -- chasquido de cinta (0,3 s)
+	Estatica = { Id = "rbxassetid://96891705634188", Volumen = 0.1 }, -- estática de TV, de fondo
+	Tension = { Id = "rbxassetid://9114353038", Volumen = 0.2, Velocidad = 0.8 }, -- zumbido grave que crece
+}
+
+-- La entidad que se ve a lo lejos, al costado del motel (Client/Calle): casi invisible en la oscuridad; solo se le
+-- ven los ojos brillantes, y únicamente si el jugador se acerca a la ventana. Es solo para dar miedo, no hace nada.
+Config.EntidadLejana = {
+	Posiciones = { Vector3.new(-66, 0, 104), Vector3.new(68, 0, 106), Vector3.new(-72, 0, 90), Vector3.new(74, 0, 92) },
+	IntervaloMin = 35, -- cada cuántos segundos aparece (al azar entre los dos)
+	IntervaloMax = 80,
+	VisibleSegMin = 6, -- cuánto tiempo se queda
+	VisibleSegMax = 12,
+	DistanciaVentana = 7, -- los ojos se ven cuando la cámara está a esta distancia (en z) de la ventana
+	TamanoOjo = Vector3.new(1.5, 0.75, 0.4), -- grandes: a ~90 studs de distancia tienen que verse como dos puntos
+}
+
+-- Sonidos de feedback (pequeñas recompensas): al completar una tarea suena un "ding" de caja registradora.
+Config.Feedback = {
+	DingId = "rbxassetid://18264787819",
+	DingVolumen = 0.35,
+}
+
+-- La calle de afuera (Calle): autos que pasan y neones del motel. Solo decorado.
+Config.Calle = {
+	CarrilZ = { 40.5, 48 }, -- z de cada carril: el primero va hacia +X, el segundo hacia -X
+	LargoRuta = 220, -- los autos aparecen y desaparecen fuera de la vista
+	IntervaloMin = 18,
+	IntervaloMax = 40,
+	MaxAutos = 2,
+	VelocidadMin = 24,
+	VelocidadMax = 40,
+	Volumen = 0.5,
+	Sonidos = { "rbxassetid://120099233898356" }, -- auto pasando, 9 s (Creator Store)
+	Colores = {
+		Color3.fromRGB(150, 30, 30), Color3.fromRGB(30, 50, 100), Color3.fromRGB(190, 190, 180),
+		Color3.fromRGB(40, 70, 50), Color3.fromRGB(200, 170, 60), Color3.fromRGB(30, 30, 34),
+	},
+}
+
 -- Menú de inicio y sala de espera (Partida / MenuUI).
 Config.Partida = {
 	MenuActivo = true, -- false: el turno arranca solo al entrar el primer jugador (útil para pruebas)
 	MaxJugadores = 4,
+	MenuAParejaSeg = 10, -- con 2 o más jugadores en el menú, pasa solo a la sala de espera tras este tiempo
+	LobbyAutoSeg = 30, -- en la sala con 2 o más jugadores, el turno arranca solo tras este tiempo
 }
 
 Config.Casetes = {
@@ -168,6 +220,8 @@ Config.OSD = {
 -- Tubos fluorescentes (parpadeo del lado del cliente).
 Config.Luces = {
 	ColorApagado = Color3.fromRGB(70, 75, 70),
+	SocioApagonRadio = 12, -- los tubos a esta distancia del Socio se apagan
+	SocioParpadeoRadio = 26, -- y hasta acá parpadean (más cuanto más cerca)
 	Normal = { IntervaloMin = 25, IntervaloMax = 70, RafagaMin = 1, RafagaMax = 3 },
 	Defectuoso = { IntervaloMin = 2, IntervaloMax = 6, RafagaMin = 3, RafagaMax = 8 },
 	ParpadeoMin = 0.03,
@@ -193,7 +247,17 @@ Config.Audio = {
 -- El Socio N° 0000 (SocioEntity). Solo se mueve cuando ningún jugador lo está mirando.
 Config.Socio = {
 	Color = Color3.fromRGB(10, 10, 12),
-	Escala = 1.2, -- más alto que un cliente
+	Escala = 1.45, -- mucho más alto que un cliente
+	Ancho = 0.78, -- y más flaco
+	Cabeza = 0.9,
+	Proporcion = 1, -- brazos y piernas largos
+	ColorOjos = Color3.fromRGB(235, 240, 225),
+	-- Cuerpo generado con IA en Studio (criatura encorvada con capucha, mira hacia -Z). Si no carga se usa el cuerpo humano.
+	MeshId = "rbxassetid://139106538467255",
+	TextureId = "rbxassetid://138757344705907",
+	AlturaMalla = 8.2, -- altura en studs
+	Tinte = Color3.fromRGB(58, 60, 66), -- oscurece la textura
+	PasoSeg = 0.3, -- avanza a tirones: cada tanto da un paso corto de golpe
 	VelocidadBase = 0.9, -- studs/seg con progreso 0
 	VelocidadPorProgreso = 4.2, -- se suma con progreso 1
 	DistanciaCaptura = 3.4,
@@ -240,13 +304,13 @@ Config.Cinta = {
 
 -- Anomalías por jugador (AnomalySystem). La cantidad por noche está en PorNoche.
 Config.Anomalias = {
-	PorNoche = { 0, 3, 4, 5, 6 },
-	MinutoDesde = 40,
+	PorNoche = { 0, 5, 6, 7, 8 }, -- más anomalías: menos tiempos muertos
+	MinutoDesde = 22,
 	MinutoHasta = 290,
 	DistanciaReporte = 35,
 	EstaticaDistancia = 28, -- una anomalía a esta distancia (y de frente) sube la estática del filtro
 	VidaFiguraSeg = 25,
-	MirarParaDesaparecerSeg = 1.2,
+	MirarParaDesaparecerSeg = 4, -- da tiempo a apuntarle y apretar Q antes de que se esfume
 	OffsetMovido = 1.4,
 	RotacionMovida = 28, -- grados
 	LimiteFalsosReportes = 4, -- por noche; pasado esto el jugador pierde progreso del equipo
@@ -256,6 +320,7 @@ Config.Telefono = {
 	SonarSeg = 18, -- cuánto suena antes de cortarse solo
 	MensajeSeg = 9, -- duración en pantalla de cada mensaje
 	LecturaExtraSeg = 1, -- segundos que se suman a cada línea del mensaje para poder leerla completa
+	Sonido = { Id = "rbxassetid://94426589952590", Volumen = 0.9, DistanciaMax = 70 }, -- timbre del teléfono (Creator Store)
 }
 
 Config.Final = {

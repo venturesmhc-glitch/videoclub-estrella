@@ -103,6 +103,12 @@ local NightData: { [number]: Noche } = {
 		evento(132, "AVISO", { texto = "Una cinta arrugada no se rebobina: va a la caja de dañadas." }),
 		cliente(30, "alquiler", "COMEDIA"),
 		cliente(60, "devolucion", "ACCION"),
+		-- Sustos analógicos de a poco desde el principio (cada tipo es distinto, ninguno hace daño):
+		evento(40, "SUSTO_SUAVE", { tipo = "tele" }),
+		evento(88, "SUSTO_SUAVE", { tipo = "luces" }), -- a los ~2.5 min reales: gancho temprano
+		evento(150, "SUSTO_SUAVE", { tipo = "ventana" }),
+		evento(215, "SUSTO_SUAVE", { tipo = "tele" }),
+		evento(285, "SUSTO_SUAVE", { tipo = "luces" }),
 		buzon(80, "COMEDIA"),
 		cliente(95, "alquiler", "TERROR"),
 		buzon(130, "DRAMA", { danado = true }),
@@ -120,7 +126,9 @@ local NightData: { [number]: Noche } = {
 
 	-- Noche 2: anomalías chicas. La cinta muestra a los jugadores trabajando esa misma noche.
 	[2] = noche("Anomalías", "Detectar anomalías", "normal", {
-		evento(30, "AVISO", { texto = "Si ves algo fuera de lugar, apuntale y apretá Q." }),
+		-- Don Ernesto llama y explica las anomalías (Q); suena hasta que alguien atiende.
+		evento(2, "TELEFONO", { linea = "mostrador", mensaje = "Anomalias", espera = true }),
+		evento(30, "AVISO", { texto = "Algo fuera de lugar: apuntale y apretá Q. Tu ficha cuenta las que encontraste." }),
 		cliente(10, "alquiler", "COMEDIA"),
 		buzon(25, "COMEDIA"),
 		cliente(40, "devolucion", "TERROR"),
@@ -136,6 +144,9 @@ local NightData: { [number]: Noche } = {
 		cliente(205, "devolucion", "INFANTIL", { danado = true }),
 		evento(70, "BASURA", { zonas = { "MOSTRADOR", "DEPOSITO" } }),
 		evento(140, "DERRAME", { zonas = { "LOCAL", "COCINA" } }),
+		evento(60, "SUSTO_SUAVE", { tipo = "tele" }),
+		evento(140, "SUSTO_SUAVE", { tipo = "ventana" }),
+		evento(230, "SUSTO_SUAVE", { tipo = "luces" }),
 		cliente(245, "alquiler", "TERROR"),
 		buzon(260, "COMEDIA"),
 	}),
@@ -162,6 +173,9 @@ local NightData: { [number]: Noche } = {
 		evento(90, "BASURA", { zonas = { "BANO", "COCINA" } }),
 		evento(120, "DERRAME", { zonas = { "BANO" } }),
 		evento(200, "DERRAME", { zonas = { "DEPOSITO" } }),
+		evento(70, "SUSTO_SUAVE", { tipo = "ventana" }),
+		evento(150, "SUSTO_SUAVE", { tipo = "tele" }),
+		evento(240, "SUSTO_SUAVE", { tipo = "luces" }),
 		cliente(245, "alquiler", "COMEDIA"),
 		buzon(270, "ACCION"),
 	}),
@@ -188,6 +202,9 @@ local NightData: { [number]: Noche } = {
 		evento(40, "BASURA", { zonas = { "LOCAL", "COCINA" } }),
 		evento(80, "DERRAME", { zonas = { "COCINA" } }),
 		evento(210, "DERRAME", { zonas = { "BANO", "LOCAL" } }),
+		evento(55, "SUSTO_SUAVE", { tipo = "tele" }),
+		evento(125, "SUSTO_SUAVE", { tipo = "ventana" }),
+		evento(245, "SUSTO_SUAVE", { tipo = "ventana" }),
 		cliente(275, "alquiler", "COMEDIA"),
 		buzon(290, "TERROR", { danado = true }),
 	}),
@@ -209,6 +226,9 @@ local NightData: { [number]: Noche } = {
 		evento(60, "BASURA", { zonas = { "BANO", "MOSTRADOR" } }),
 		evento(100, "DERRAME", { zonas = { "PATIO" } }),
 		evento(200, "DERRAME", { zonas = { "LOCAL" } }),
+		evento(80, "SUSTO_SUAVE", { tipo = "ventana" }),
+		evento(160, "SUSTO_SUAVE", { tipo = "tele" }),
+		evento(250, "SUSTO_SUAVE", { tipo = "ventana" }),
 		evento(330, "SOCIO_MOSTRADOR"),
 	}),
 }

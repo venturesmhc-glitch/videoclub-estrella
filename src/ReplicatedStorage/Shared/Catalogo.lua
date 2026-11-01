@@ -85,9 +85,20 @@ Catalogo.Telefono = {
 				"Si una cinta está arrugada, no se rebobina: va a la caja de dañadas. Lo mismo con las que caen por el buzón.",
 				"Cuando no haya clientes, hay laburo de limpieza. Las bolsas de basura van al contenedor del patio: puerta del fondo, a la derecha.",
 				"Y si ves una mancha en el piso, mantené E encima hasta que desaparezca. Lo que no hagas vos, que lo haga tu compañero.",
-				"Tu ficha de socio está a la izquierda: ahí figura todo lo que falta. Con Tab la mostrás o la ocultás.",
+				"Tu ficha de socio está a la izquierda: ahí figura todo lo que falta. Con Tab la mostrás o la ocultás. Y con G soltás lo que tengas en la mano.",
 				"Si alguna vez la luz se corta, F es la linterna. Y si ves algo fuera de lugar, apuntale y apretá Q. Después hablamos de eso.",
 				"Hasta las cuatro de la mañana. No me llamen, yo los llamo. Suerte, che.",
+			},
+		},
+		-- Noche 2: explica las anomalías y la tecla Q.
+		Anomalias = {
+			speaker = "Don Ernesto (por teléfono)",
+			lineas = {
+				"Soy Ernesto otra vez. Escuchame bien: desde anoche pasan cosas raras en el local.",
+				"A veces algo aparece cambiado: un título que no existe, una carátula rara, un objeto fuera de lugar, o una sombra parada al fondo de un pasillo.",
+				"Eso son anomalías. Cuando veas una, apuntale y apretá Q. Si acertás, queda registrada y el Socio se calma un poco. Si las dejás, se enoja.",
+				"En tu ficha, abajo de todo, figura cuántas encontraste. Cada uno ve las suyas, así que no se las puede copiar al compañero.",
+				"Ojo: la sombra quieta es una anomalía, no es él. El Socio es otra cosa: solo se mueve cuando nadie lo mira. A ese no se le apunta con la Q: se lo mira y no se le saca la vista de encima.",
 			},
 		},
 		[1] = {

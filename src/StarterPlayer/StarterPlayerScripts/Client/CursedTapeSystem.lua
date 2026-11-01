@@ -258,39 +258,7 @@ function CursedTapeSystem.init()
 		end
 	end)
 
-	-- La tele del mostrador: estática normal, o "reproduciendo" cuando alguien mira la cinta.
-	local function actualizarTV(pantalla)
-		local etiqueta
-		for _, d in pantalla:GetDescendants() do
-			if d:IsA("TextLabel") then
-				etiqueta = d
-				break
-			end
-		end
-		if not etiqueta then
-			return
-		end
-		if pantalla:GetAttribute("Encendida") == false then
-			etiqueta.Text = ""
-		elseif pantalla:GetAttribute("Modo") == "CINTA" then
-			etiqueta.Text = "▶ REPRODUCIENDO"
-		else
-			etiqueta.Text = "SIN SEÑAL"
-		end
-	end
-	local function vigilarTV(pantalla)
-		actualizarTV(pantalla)
-		pantalla:GetAttributeChangedSignal("Modo"):Connect(function()
-			actualizarTV(pantalla)
-		end)
-		pantalla:GetAttributeChangedSignal("Encendida"):Connect(function()
-			actualizarTV(pantalla)
-		end)
-	end
-	for _, pantalla in CollectionService:GetTagged("TV") do
-		vigilarTV(pantalla)
-	end
-	CollectionService:GetInstanceAddedSignal("TV"):Connect(vigilarTV)
+	-- La tele del mostrador (canales, estática y el modo "reproduciendo" de la cinta) la maneja Client/Tele.
 end
 
 return CursedTapeSystem

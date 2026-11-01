@@ -8,6 +8,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 
 local Catalogo = require(ReplicatedStorage.Shared.Catalogo)
@@ -19,6 +20,10 @@ local TaskCard = {}
 local cfg = Config.Ficha
 local marco
 local lineas = {} -- TextLabels de la ficha, de arriba hacia abajo
+local lineaAnomalias
+local botonSoltar
+local previos = {} -- id de tarea -> progreso anterior (para detectar que algo avanzó)
+local ding
 
 local function crearLinea(nombre, color)
 	local etiqueta = Instance.new("TextLabel")
@@ -58,6 +63,12 @@ local function actualizar(datos)
 		local etiqueta = lineas[2 + i]
 		local tarea = datos.tareas and datos.tareas[i]
 		if tarea then
+			-- Si la tarea avanzó respecto de la última vez, destello y "ding" (pequeña recompensa).
+			local antes = previos[tarea.id]
+			if antes and tarea.actual > antes then
+				TaskCard.celebrar(etiqueta, tarea.actual >= tarea.meta)
+			end
+			previos[tarea.id] = tarea.actual
 			local hecha = tarea.actual >= tarea.meta
 			etiqueta.Text = string.format("[%s] %s %d/%d", hecha and "x" or " ", tarea.texto, math.min(tarea.actual, tarea.meta), tarea.meta)
 			etiqueta.Visible = true
@@ -71,13 +82,16 @@ local function actualizar(datos)
 	local textoMano = "EN MANO: nada"
 	if mano then
 		if mano.sinEtiqueta then
-			textoMano = "EN MANO: casete sin etiqueta"
+			textoMano = "EN MANO: casete sin etiqueta (G: soltar)"
 		else
 			local estado = mano.estado == "danado" and "arrugada" or (mano.rebobinado and "rebobinada" or "sin rebobinar")
-			textoMano = string.format("EN MANO: %s (%s, %s)", mano.titulo, nombre(mano.genero), estado)
+			textoMano = string.format("EN MANO: %s (%s, %s) (G: soltar)", mano.titulo, nombre(mano.genero), estado)
 		end
 	end
 	lineas[3 + cfg.MaxTareas].Text = textoMano
+	if botonSoltar then
+		botonSoltar.Visible = mano ~= false and mano ~= nil
+	end
 
 	local pedido = datos.pedido
 	local textoPedido = ""
@@ -92,6 +106,25 @@ local function actualizar(datos)
 	end
 	lineas[4 + cfg.MaxTareas].Text = textoPedido
 	lineas[4 + cfg.MaxTareas].Visible = pedido ~= false and pedido ~= nil
+end
+
+--- Destello amarillo sobre una línea de la ficha y un "ding". completa = true: la tarea quedó terminada (más largo).
+function TaskCard.celebrar(etiqueta: TextLabel, completa: boolean)
+	if ding then
+		ding:Play()
+	end
+	etiqueta.BackgroundColor3 = completa and Color3.fromRGB(120, 200, 90) or Color3.fromRGB(255, 224, 120)
+	etiqueta.BackgroundTransparency = 0.25
+	TweenService:Create(etiqueta, TweenInfo.new(completa and 1.2 or 0.7), { BackgroundTransparency = 1 }):Play()
+end
+
+--- Cuántas anomalías marcó este jugador de las que le tocan esta noche (0 de 0: la línea se oculta).
+function TaskCard.setAnomalias(detectadas: number, total: number)
+	if not lineaAnomalias then
+		return
+	end
+	lineaAnomalias.Visible = total > 0
+	lineaAnomalias.Text = string.format("ANOMALÍAS (Q): %d/%d", detectadas, total)
 end
 
 function TaskCard.init()
@@ -136,6 +169,8 @@ function TaskCard.init()
 	end
 	crearLinea("EnMano", cfg.ColorTexto)
 	crearLinea("Pedido", cfg.ColorTitulo)
+	lineaAnomalias = crearLinea("Anomalias", cfg.ColorTitulo)
+	lineaAnomalias.Visible = false
 	for orden, etiqueta in lineas do
 		etiqueta.LayoutOrder = orden
 	end
@@ -145,6 +180,11 @@ function TaskCard.init()
 	if camara then
 		camara:GetPropertyChangedSignal("ViewportSize"):Connect(ajustarTamano)
 	end
+	ding = Instance.new("Sound")
+	ding.Name = "Ding"
+	ding.SoundId = Config.Feedback.DingId
+	ding.Volume = Config.Feedback.DingVolumen
+	ding.Parent = gui
 	actualizar({ tareas = {}, enMano = false, pedido = false })
 
 	Net.obtener("TaskUpdate").OnClientEvent:Connect(actualizar)
@@ -157,13 +197,32 @@ function TaskCard.init()
 		end
 	end)
 
-	UserInputService.InputBegan:Connect(function(entrada)
+	UserInputService.InputBegan:Connect(function(entrada, procesado)
 		if entrada.KeyCode == Enum.KeyCode.Tab then
 			marco.Visible = not marco.Visible
+		elseif entrada.KeyCode == Enum.KeyCode.G and not procesado then
+			Net.obtener("DropTape"):FireServer()
 		end
 	end)
 
 	if UserInputService.TouchEnabled then
+		-- En celulares no hay tecla G: botón para soltar el casete (solo se ve si llevás uno).
+		botonSoltar = Instance.new("TextButton")
+		botonSoltar.Name = "BotonSoltar"
+		botonSoltar.AnchorPoint = Vector2.new(1, 1)
+		botonSoltar.Position = UDim2.fromScale(0.98, 0.87)
+		botonSoltar.Size = UDim2.fromScale(0.12, 0.07)
+		botonSoltar.BackgroundColor3 = cfg.ColorFondo
+		botonSoltar.TextColor3 = cfg.ColorTexto
+		botonSoltar.Font = Enum.Font.Code
+		botonSoltar.TextScaled = true
+		botonSoltar.Text = "SOLTAR"
+		botonSoltar.Visible = false
+		botonSoltar.Parent = gui
+		botonSoltar.Activated:Connect(function()
+			Net.obtener("DropTape"):FireServer()
+		end)
+
 		local boton = Instance.new("TextButton")
 		boton.Name = "BotonFicha"
 		boton.AnchorPoint = Vector2.new(1, 1)

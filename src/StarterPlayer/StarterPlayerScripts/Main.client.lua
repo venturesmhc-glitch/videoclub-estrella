@@ -10,15 +10,19 @@ local ORDEN = {
 	"VHSEffects",
 	"OSD",
 	"AudioManager",
+	"Rendimiento",
 	"MenuUI",
 	"Linterna",
 	"LuzFluorescente",
 	"DialogUI",
 	"TaskCard",
 	"AnomalySystem",
+	"Tele",
 	"CursedTapeSystem",
 	"RulesUI",
 	"PhoneUI",
+	"Calle",
+	"Sustos",
 }
 
 local carpeta = script.Parent:WaitForChild("Client")

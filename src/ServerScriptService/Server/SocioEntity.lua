@@ -42,6 +42,9 @@ local animacion
 local alturaRaiz = 3 -- altura de la raíz del cuerpo sobre el piso (se mide al construirlo)
 local ultimaPosicion = Vector3.zero
 local ultimoPaso = 0
+local esMalla = false -- true si el cuerpo es la criatura generada con IA
+local temblor = CFrame.new()
+local pasoAcumulado = 0
 local activo = false
 local posicion = Vector3.new(0, 0, -16) -- a nivel del piso
 local rotacion = 0
@@ -65,13 +68,29 @@ local function construirModelo()
 	if modelo then
 		return
 	end
-	-- Cuerpo humano, alto y oscuro, sin cara ni Humanoid: la raíz anclada se mueve con PivotTo y las animaciones siguen andando.
+	-- Primero la criatura generada con IA (una sola malla, sin animaciones: se mueve a tirones y se congela cuando la miran).
+	local malla = Personajes.crearSocioMalla(cfg)
+	if modelo then
+		return -- otra llamada lo terminó de armar mientras se cargaba la malla
+	end
+	if malla then
+		modelo = malla
+		modelo.Name = "Socio0000"
+		esMalla = true
+		alturaRaiz = 0.02
+		return
+	end
+	-- Respaldo: cuerpo humano, alto y oscuro, sin cara ni Humanoid: la raíz anclada se mueve con PivotTo y las animaciones siguen andando.
 	modelo = Personajes.crear({
 		piel = cfg.Color,
 		ropa = cfg.Color,
 		pantalon = cfg.Color,
 		sinCara = true,
 		escala = cfg.Escala,
+		ancho = cfg.Ancho,
+		cabeza = cfg.Cabeza,
+		proporcion = cfg.Proporcion,
+		ojos = cfg.ColorOjos,
 	})
 	assert(modelo, "[SocioEntity] no se pudo crear el cuerpo")
 	modelo.Name = "Socio0000"
@@ -85,6 +104,15 @@ local function colocar()
 	if not modelo then
 		return
 	end
+	if esMalla then
+		-- Cada paso lo sacude un poco (tiritón).
+		if (posicion - ultimaPosicion).Magnitude > 0.01 then
+			ultimaPosicion = posicion
+			temblor = CFrame.Angles(math.rad(rng:NextNumber(-3, 3)), math.rad(rng:NextNumber(-9, 9)), math.rad(rng:NextNumber(-3, 3)))
+		end
+		modelo:PivotTo(CFrame.new(posicion.X, alturaRaiz, posicion.Z) * CFrame.Angles(0, rotacion, 0) * temblor)
+		return
+	end
 	modelo:PivotTo(CFrame.new(posicion.X, alturaRaiz, posicion.Z) * CFrame.Angles(0, rotacion, 0))
 	-- Camina mientras cambia de lugar; si no, queda quieto.
 	if animacion then
@@ -93,7 +121,7 @@ local function colocar()
 			ultimaPosicion = posicion
 			ultimoPaso = ahora
 			animacion.caminar(true)
-		elseif ahora - ultimoPaso > 0.25 then
+		elseif ahora - ultimoPaso > cfg.PasoSeg * 1.6 then
 			animacion.caminar(false)
 		end
 	end
@@ -441,6 +469,7 @@ end
 
 function SocioEntity.init()
 	construirGrafo()
+	task.spawn(construirModelo) -- precarga la malla (tarda un poco) para que activar() no espere
 
 	NightManager.suscribir("NOCHE_INICIA", function(datos)
 		SocioEntity.desactivar()
@@ -477,13 +506,22 @@ function SocioEntity.init()
 			local enTurno = NightManager.obtenerEstado().fase == "turno"
 			local observado = enTurno and activo and alguienLoMira()
 			ultimoObservado = observado
+			-- Mientras lo miran queda congelado en la pose del momento (a medio paso).
+			if animacion then
+				animacion.congelar(observado)
+			end
 
 			if enTurno and activo and not observado then
 				if os.clock() >= proximaRuta then
 					proximaRuta = os.clock() + cfg.RecalcularRutaSeg
 					actualizarRuta()
 				end
-				mover(cfg.TickSeg)
+				-- Avanza a tirones: acumula el tiempo y da un paso de golpe, no se desliza.
+				pasoAcumulado += cfg.TickSeg
+				if pasoAcumulado >= cfg.PasoSeg then
+					mover(pasoAcumulado)
+					pasoAcumulado = 0
+				end
 				for _, jugador in Players:GetPlayers() do
 					local raiz = raizDe(jugador)
 					if raiz and distanciaPlana(raiz.Position, posicion) < cfg.DistanciaCaptura then

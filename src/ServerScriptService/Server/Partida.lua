@@ -18,7 +18,9 @@ local NightManager = require(script.Parent.NightManager)
 
 local Partida = {}
 
-local estado = { fase = "menu", modo = nil, anfitrion = nil }
+local estado = { fase = "menu", modo = nil, anfitrion = nil, conteo = nil }
+local desdeMenu = nil -- desde cuándo hay 2 o más jugadores mirando el menú
+local desdeLobby = nil -- desde cuándo hay 2 o más jugadores en la sala
 
 local function nombres(): { string }
 	local lista = {}
@@ -36,6 +38,7 @@ local function paquete()
 		anfitrionId = estado.anfitrion and estado.anfitrion.UserId or nil,
 		jugadores = nombres(),
 		maximo = Config.Partida.MaxJugadores,
+		conteo = estado.conteo, -- segundos que faltan para que la sala arranque sola (nil si no hay cuenta)
 	}
 end
 
@@ -54,6 +57,8 @@ local function empezar(modo: string)
 	end
 	estado.fase = "jugando"
 	estado.modo = modo
+	estado.conteo = nil
+	desdeMenu, desdeLobby = nil, nil
 	difundir()
 	NightManager.iniciarPartida()
 end
@@ -99,8 +104,52 @@ function Partida.init()
 		end
 	end)
 
+	-- Entrada rápida: si hay 2 o más jugadores y nadie elige, se abre la sala sola; y en la sala, el turno arranca
+	-- con una cuenta regresiva (el anfitrión puede adelantarla). Así nadie queda esperando a que alguien apriete un botón.
+	task.spawn(function()
+		while true do
+			task.wait(1)
+			local cantidad = #Players:GetPlayers()
+			local ahora = os.clock()
+			if estado.fase == "menu" then
+				if cantidad >= 2 then
+					desdeMenu = desdeMenu or ahora
+					if ahora - desdeMenu >= Config.Partida.MenuAParejaSeg then
+						estado.fase, estado.modo, estado.anfitrion = "lobby", "multi", Players:GetPlayers()[1]
+						desdeMenu = nil
+						difundir()
+					end
+				else
+					desdeMenu = nil
+				end
+			elseif estado.fase == "lobby" then
+				if cantidad >= 2 then
+					desdeLobby = desdeLobby or ahora
+					local restante = math.max(0, math.ceil(Config.Partida.LobbyAutoSeg - (ahora - desdeLobby)))
+					estado.conteo = restante
+					if restante <= 0 then
+						empezar("multi")
+					else
+						difundir()
+					end
+				elseif estado.conteo then
+					estado.conteo, desdeLobby = nil, nil
+					difundir()
+				end
+			end
+		end
+	end)
+
 	Players.PlayerAdded:Connect(function(jugador)
 		task.delay(1, difundir, jugador)
+		if estado.fase == "jugando" then
+			-- Quien llega con el turno en marcha entra directo: se le avisa en qué noche está y dónde mirar.
+			task.delay(4, function()
+				if jugador.Parent then
+					Net.aviso(jugador, string.format("Te sumaste a la noche %d. Tu ficha (Tab) dice qué falta; el equipo ya está en el local.", NightManager.obtenerEstado().noche))
+				end
+			end)
+		end
 		if estado.fase == "lobby" then
 			difundir()
 			-- Con la sala llena, arranca sola.

@@ -153,6 +153,11 @@ local function alCambiarNoche(datos)
 	end
 end
 
+--- Muestra un aviso corto en pantalla (igual que los que manda el servidor), generado en el cliente.
+function DialogUI.aviso(texto: string)
+	mostrarAviso(texto)
+end
+
 --- Muestra un diálogo { speaker, texto } con efecto de máquina de escribir (espera a que termine).
 function DialogUI.mostrar(datos)
 	mostrarDialogo(datos)

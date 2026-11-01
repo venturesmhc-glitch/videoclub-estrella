@@ -9,6 +9,7 @@
 	  Personajes.convertirEnTitere(modelo, color?)         -- sin Humanoid: solo la raíz anclada, para mover a mano
 ]]
 
+local InsertService = game:GetService("InsertService")
 local Players = game:GetService("Players")
 
 local Personajes = {}
@@ -22,7 +23,10 @@ local function pintar(modelo: Model, color: Color3)
 	for _, d in modelo:GetDescendants() do
 		if d:IsA("BasePart") then
 			d.Color = color
-		elseif d:IsA("Decal") or d:IsA("Shirt") or d:IsA("Pants") or d:IsA("ShirtGraphic") then
+			if d:IsA("MeshPart") then
+				d.TextureID = "" -- la cabeza trae la cara pintada en la textura: sin esto el Color no la oscurece
+			end
+		elseif d:IsA("Decal") or d:IsA("Shirt") or d:IsA("Pants") or d:IsA("ShirtGraphic") or d:IsA("SurfaceAppearance") or d:IsA("FaceControls") then
 			d:Destroy()
 		end
 	end
@@ -68,6 +72,92 @@ function Personajes.agregarPelo(modelo: Model, color: Color3, estilo: string)
 	end
 end
 
+--- Dos rendijas claras y brillantes en lugar de cara: lo único que se ve del Socio en la oscuridad.
+function Personajes.agregarOjos(modelo: Model, color: Color3)
+	local cabeza = modelo:FindFirstChild("Head")
+	if not cabeza then
+		return
+	end
+	for _, lado in { -1, 1 } do
+		local ojo = Instance.new("Part")
+		ojo.Name = "Ojo"
+		ojo.Size = Vector3.new(cabeza.Size.X * 0.2, cabeza.Size.Y * 0.06, 0.06)
+		ojo.Color = color
+		ojo.Material = Enum.Material.Neon
+		ojo.CanCollide = false
+		ojo.CanTouch = false
+		ojo.CanQuery = false
+		ojo.Massless = true
+		ojo.CFrame = cabeza.CFrame * CFrame.new(lado * cabeza.Size.X * 0.2, cabeza.Size.Y * 0.08, -cabeza.Size.Z / 2 - 0.01)
+		ojo.Parent = modelo
+		local soldadura = Instance.new("WeldConstraint")
+		soldadura.Part0 = cabeza
+		soldadura.Part1 = ojo
+		soldadura.Parent = ojo
+	end
+end
+
+local plantillaSocio -- MeshPart ya cargado (false si falló): se clona para cada Socio
+
+--- Cuerpo del Socio: una criatura flaca y encorvada generada con IA (Config.Socio.MeshId / TextureId).
+--- Devuelve un Model con una sola MeshPart anclada, con el pivote en los pies (el frente de la malla es -Z, como un personaje).
+--- nil si no hay malla configurada o no se pudo cargar (quien llama usa el cuerpo humano de respaldo).
+function Personajes.crearSocioMalla(cfg): Model?
+	if cfg.MeshId == "" or plantillaSocio == false then
+		return nil
+	end
+	if not plantillaSocio then
+		local ok, parte = pcall(function()
+			return InsertService:CreateMeshPartAsync(cfg.MeshId, Enum.CollisionFidelity.Box, Enum.RenderFidelity.Automatic)
+		end)
+		if not ok or not parte then
+			warn("[Personajes] No se pudo cargar la malla del Socio, se usa el cuerpo humano: " .. tostring(parte))
+			plantillaSocio = false
+			return nil
+		end
+		parte.Name = "Cuerpo"
+		parte.TextureID = cfg.TextureId
+		parte.Color = cfg.Tinte
+		local nativo = parte.Size
+		parte.Size = nativo * (cfg.AlturaMalla / nativo.Y)
+		parte.Anchored = true
+		parte.CanCollide = false
+		parte.CanTouch = false
+		parte.Massless = true
+		plantillaSocio = parte
+	end
+	if not plantillaSocio then
+		return nil -- otra llamada falló mientras esperábamos
+	end
+	local parte = plantillaSocio:Clone()
+	-- Pivote en los pies: PivotTo la apoya en el piso. La malla ya mira hacia -Z, como un personaje.
+	parte.PivotOffset = CFrame.new(0, -parte.Size.Y / 2, 0)
+	local modelo = Instance.new("Model")
+	parte.Parent = modelo
+	modelo.PrimaryPart = parte
+	-- Ojos blancos en la abertura de la capucha (lo único que se ve en la oscuridad) y un resplandor frío muy tenue.
+	for _, lado in { -1, 1 } do
+		local ojo = Instance.new("Part")
+		ojo.Name = "Ojo"
+		ojo.Size = Vector3.new(0.2, 0.1, 0.1)
+		ojo.Color = cfg.ColorOjos
+		ojo.Material = Enum.Material.Neon
+		ojo.Anchored = true
+		ojo.CanCollide = false
+		ojo.CanTouch = false
+		ojo.CanQuery = false
+		ojo.CFrame = parte.CFrame * CFrame.new(lado * 0.22, parte.Size.Y * 0.378, -parte.Size.Z * 0.49)
+		ojo.Parent = modelo
+	end
+	local aura = Instance.new("PointLight")
+	aura.Range = 11
+	aura.Brightness = 0.5
+	aura.Color = Color3.fromRGB(170, 190, 215)
+	aura.Shadows = false
+	aura.Parent = parte
+	return modelo
+end
+
 function Personajes.crear(opciones): Model?
 	local descripcion = Instance.new("HumanoidDescription")
 	descripcion.HeadColor = opciones.piel
@@ -79,9 +169,10 @@ function Personajes.crear(opciones): Model?
 	descripcion.Face = opciones.sinCara and 0 or CARA_SONRISA
 	local escala = opciones.escala or 1
 	descripcion.HeightScale = escala
-	descripcion.WidthScale = 1
-	descripcion.DepthScale = 1
-	descripcion.HeadScale = 1
+	descripcion.WidthScale = opciones.ancho or 1
+	descripcion.DepthScale = opciones.ancho or 1
+	descripcion.HeadScale = opciones.cabeza or 1
+	descripcion.ProportionScale = opciones.proporcion or 0
 
 	local ok, modelo = pcall(function()
 		return Players:CreateHumanoidModelFromDescription(descripcion, Enum.HumanoidRigType.R15)
@@ -96,6 +187,9 @@ function Personajes.crear(opciones): Model?
 		if cara then
 			cara:Destroy()
 		end
+	end
+	if opciones.ojos then
+		Personajes.agregarOjos(modelo, opciones.ojos)
 	end
 	if opciones.pelo then
 		Personajes.agregarPelo(modelo, opciones.pelo, opciones.estilo or "corto")
@@ -139,6 +233,7 @@ function Personajes.animar(modelo: Model)
 
 	local controlador = {}
 	local caminando = false
+	local congelado = false
 	function controlador.caminar(valor: boolean)
 		if valor == caminando or not caminar then
 			return
@@ -146,10 +241,26 @@ function Personajes.animar(modelo: Model)
 		caminando = valor
 		if valor then
 			caminar:Play(0.15)
+			if congelado then
+				caminar:AdjustSpeed(0)
+			end
 		else
 			caminar:Stop(0.2)
 		end
 	end
+	--- Congela la pose en el cuadro actual (el Socio queda quieto, a medio paso, mientras lo miran).
+	function controlador.congelar(valor: boolean)
+		if valor == congelado then
+			return
+		end
+		congelado = valor
+		for _, pista in { quieto, caminar } do
+			if pista and pista.IsPlaying then
+				pista:AdjustSpeed(valor and 0 or 1)
+			end
+		end
+	end
+
 	function controlador.detener()
 		controlador.caminar(false)
 		if quieto then

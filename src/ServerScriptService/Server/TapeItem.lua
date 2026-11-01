@@ -305,6 +305,9 @@ function TapeItem.tomar(jugador: Player, casete): boolean
 
 	enMano[jugador] = casete
 	enMostrador[casete] = nil
+	if casete.sinEtiqueta then
+		Net.aviso(jugador, "Casete sin etiqueta: se reproduce en la videocasetera (mantené E). Con G lo soltás.")
+	end
 	casete.dueno = jugador
 	casete.prompt.Enabled = false
 
@@ -323,6 +326,31 @@ function TapeItem.tomar(jugador: Player, casete): boolean
 	parte.Parent = mundo()
 
 	notificarCambio()
+	return true
+end
+
+--- Suelta en el piso, delante del jugador, el casete que lleva en la mano (queda listo para volver a tomarse).
+function TapeItem.soltar(jugador: Player): boolean
+	local casete = enMano[jugador]
+	if not casete or not casete.vivo then
+		Net.aviso(jugador, "No tenés ningún casete en la mano.")
+		return false
+	end
+	local personaje = jugador.Character
+	local raiz = personaje and personaje:FindFirstChild("HumanoidRootPart")
+	if not raiz then
+		return false
+	end
+	-- Un poco hacia adelante y apoyado en el piso (raycast hacia abajo).
+	local adelante = raiz.Position + raiz.CFrame.LookVector * 3
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = { personaje, mundo() }
+	local suelo = workspace:Raycast(adelante + Vector3.new(0, 3, 0), Vector3.new(0, -10, 0), params)
+	local y = (suelo and suelo.Position.Y or 0) + cfg.Tamano.Z / 2 + 0.02
+	local giro = CFrame.Angles(0, rng:NextNumber(0, math.pi * 2), 0)
+	TapeItem.colocar(casete, CFrame.new(adelante.X, y, adelante.Z) * giro * CFrame.Angles(math.rad(90), 0, 0))
+	Net.aviso(jugador, "Soltaste el casete.")
 	return true
 end
 
@@ -385,6 +413,12 @@ local function alSalirElPersonaje(jugador: Player)
 end
 
 function TapeItem.init()
+	Net.obtener("DropTape").OnServerEvent:Connect(function(jugador)
+		if Net.limitar(jugador, "soltar", 0.4) then
+			TapeItem.soltar(jugador)
+		end
+	end)
+
 	NightManager.suscribir("NOCHE_INICIA", function()
 		TapeItem.limpiarTodo()
 		llegoCintaSinEtiqueta = false

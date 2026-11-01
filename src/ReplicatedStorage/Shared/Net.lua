@@ -36,6 +36,7 @@ local DEFINICIONES: { [string]: string } = {
 	Scare = "RemoteEvent", -- s>c: el susto fuerte de la noche (máximo uno por noche)
 	EndingTrigger = "RemoteEvent", -- s>c: final alcanzado { id, lineas }
 	ProfileLoaded = "RemoteEvent", -- s>c: noche y finales guardados
+	DropTape = "RemoteEvent", -- c>s: soltar el casete que se lleva en la mano (tecla G)
 	MenuAction = "RemoteEvent", -- c>s: { accion = "solo" | "multi" | "empezar" | "cancelar" } desde el menú de inicio
 	PartidaState = "RemoteEvent", -- s>c: { fase = "menu" | "lobby" | "jugando", modo, anfitrion, jugadores }
 }

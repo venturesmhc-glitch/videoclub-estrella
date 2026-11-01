@@ -20,6 +20,7 @@ local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Net = require(ReplicatedStorage.Shared.Net)
+local AudioManager = require(script.Parent.AudioManager)
 local Linterna = require(script.Parent.Linterna)
 
 local LuzFluorescente = {}
@@ -30,10 +31,11 @@ local tubos = {} -- tubo -> { perfil, encendido, siguiente, pendientes, colorEnc
 local cortadoBase = false -- el corte de luz "de verdad"
 local cortado = false -- lo que se está mostrando ahora (el parpadeo fuerte lo altera un instante)
 local ambienteNormal
+local proximoApagon = 0
 
 local function aplicar(tubo, datos, encendido)
 	datos.encendido = encendido
-	local visible = encendido and not cortado
+	local visible = encendido and not cortado and not datos.apagonSocio
 	tubo.Material = visible and datos.materialEncendido or Enum.Material.SmoothPlastic
 	tubo.Color = visible and datos.colorEncendido or cfg.ColorApagado
 	for _, hijo in tubo:GetChildren() do
@@ -105,6 +107,13 @@ function LuzFluorescente.init()
 		end
 		if datos.id == "CORTE_LUZ" then
 			LuzFluorescente.cortarTodo(datos.valor == true)
+			-- Sin corriente se va el zumbido de los tubos y la radio, como una cinta que se frena; el resto del ambiente sigue.
+			local depende = { Presencia = true, Beta = true, Hiss = true }
+			if datos.valor == true then
+				AudioManager.cintaSeDetiene(0.8, depende)
+			else
+				AudioManager.cintaArranca(1.4, depende)
+			end
 		elseif datos.id == "FLICKER" then
 			LuzFluorescente.parpadeoFuerte()
 		end
@@ -112,6 +121,31 @@ function LuzFluorescente.init()
 
 	RunService.Heartbeat:Connect(function()
 		local ahora = os.clock()
+		-- Donde está el Socio la luz se va: los tubos cercanos se apagan y los de alrededor parpadean con ganas.
+		local socio = workspace:FindFirstChild("Socio0000")
+		local posSocio = socio and socio:IsA("Model") and socio.Parent == workspace and socio:GetPivot().Position or nil
+		local reevaluar = ahora >= proximoApagon
+		if reevaluar then
+			proximoApagon = ahora + 0.12 -- unas 8 veces por segundo: parpadeo nervioso, no estroboscópico
+		end
+		for tubo, datos in tubos do
+			if not reevaluar then
+				break
+			end
+			local apagon = false
+			if posSocio then
+				local d = (Vector3.new(tubo.Position.X, 0, tubo.Position.Z) - Vector3.new(posSocio.X, 0, posSocio.Z)).Magnitude
+				if d < cfg.SocioApagonRadio then
+					apagon = rng:NextNumber() > 0.06 -- casi siempre apagado, con un destello de vez en cuando
+				elseif d < cfg.SocioParpadeoRadio then
+					apagon = rng:NextNumber() < 0.3 * (1 - (d - cfg.SocioApagonRadio) / (cfg.SocioParpadeoRadio - cfg.SocioApagonRadio))
+				end
+			end
+			if apagon ~= (datos.apagonSocio == true) then
+				datos.apagonSocio = apagon
+				aplicar(tubo, datos, datos.encendido)
+			end
+		end
 		for tubo, datos in tubos do
 			if ahora < datos.siguiente then
 				continue

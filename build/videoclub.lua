@@ -44,6 +44,11 @@ local function parte(nombre, tam, pos, color, material, padre, extra)
 	p.BottomSurface = Enum.SurfaceType.Smooth
 	p.Color = color
 	p.Material = material or Enum.Material.SmoothPlastic
+	-- Materiales PBR generados (MaterialService.AssistantMaterials): madera vieja en todo lo que era Wood.
+	if p.Material == Enum.Material.Wood then
+		p.Material = Enum.Material.WoodPlanks
+		p.MaterialVariant = "MaderaVieja"
+	end
 	p.CFrame = typeof(pos) == "CFrame" and pos or CFrame.new(pos)
 	if extra then
 		for k, v in extra do
@@ -117,7 +122,8 @@ end
 
 -- Muro con aberraciones. eje "X": corre a lo largo de x en z = fijo; eje "Z": a lo largo de z en x = fijo.
 -- aberturas: { {a, b, y0, y1}, ... } ordenadas por a.
-local function muro(nombre, eje, fijo, desde, hasta, aberturas, color, padre)
+-- variante: material PBR de la pared (por defecto pintura prolija; el cerco del patio usa el yeso viejo).
+local function muro(nombre, eje, fijo, desde, hasta, aberturas, color, padre, variante)
 	local function seg(a, b, y0, y1)
 		if b - a <= 0.001 or y1 - y0 <= 0.001 then
 			return
@@ -130,7 +136,7 @@ local function muro(nombre, eje, fijo, desde, hasta, aberturas, color, padre)
 			tam = V3(GROSOR, y1 - y0, b - a)
 			pos = V3(fijo, (y0 + y1) / 2, (a + b) / 2)
 		end
-		parte(nombre, tam, pos, color, Enum.Material.Concrete, padre)
+		parte(nombre, tam, pos, color, Enum.Material.Plaster, padre, { MaterialVariant = variante or "ParedLimpia" })
 	end
 	local cursor = desde
 	for _, o in aberturas do
@@ -159,10 +165,10 @@ local function tubo(nombre, x, z, encendida, defectuoso, padre)
 		local luz = Instance.new("SurfaceLight")
 		luz.Face = Enum.NormalId.Bottom
 		luz.Angle = 160
-		luz.Range = 14
-		luz.Brightness = 0.75
+		luz.Range = 18
+		luz.Brightness = 1.7
 		luz.Color = C3(225, 255, 235)
-		luz.Shadows = false
+		luz.Shadows = true -- las góndolas y el mostrador proyectan sombra
 		luz.Parent = t
 	end
 	return t
@@ -170,8 +176,8 @@ end
 
 -- ===== Paleta =====
 
-local COL_PARED = C3(176, 168, 150)
-local COL_PARED_FONDO = C3(150, 156, 152)
+local COL_PARED = C3(222, 212, 190)
+local COL_PARED_FONDO = C3(196, 202, 196)
 local COL_MADERA = C3(96, 66, 42)
 local COL_MADERA_OSC = C3(64, 44, 30)
 
@@ -201,11 +207,11 @@ for ix = 0, 11 do
 		local claro = (ix + iz) % 2 == 0
 		local color
 		if fondo then
-			color = claro and C3(98, 100, 96) or C3(82, 84, 80)
+			color = claro and C3(150, 152, 146) or C3(120, 122, 116)
 		else
-			color = claro and C3(96, 108, 98) or C3(70, 82, 74)
+			color = claro and C3(160, 178, 164) or C3(116, 134, 122)
 		end
-		parte("Baldosa", V3(4, 1, 4), V3(x, -0.5, z), color, Enum.Material.SmoothPlastic, pisos)
+		parte("Baldosa", V3(4, 1, 4), V3(x, -0.5, z), color, Enum.Material.CeramicTiles, pisos, { MaterialVariant = "SueloBaldosas" })
 	end
 	-- Última fila (z 24..26): baldosas de 4x2 para llegar justo a la pared del frente.
 	local claro = (ix + 11) % 2 == 0
@@ -315,7 +321,7 @@ luzTV.Range = 14
 luzTV.Brightness = 0.9
 luzTV.Angle = 120
 luzTV.Color = C3(150, 190, 220)
-luzTV.Shadows = false
+luzTV.Shadows = true
 luzTV.Parent = pantalla
 
 -- Videocasetera al lado de la tele (estación de rebobinado).
@@ -595,7 +601,6 @@ movible(pila2)
 -- (La banqueta cilíndrica que hacía de silla se eliminó.)
 movible(parte("Planta", V3(2.3, 2.6, 2.3), V3(21.5, 1.5, 23.5), C3(52, 96, 56), Enum.Material.Grass, props, { Shape = Enum.PartType.Ball }))
 parte("MacetaPlanta", V3(1.3, 0.9, 1.3), V3(21.5, 0.45, 23.5), C3(140, 74, 52), Enum.Material.Concrete, props, DECO)
-movible(cilindro("Tacho", 1.3, 1.9, V3(-21.5, 0.95, 23.5), C3(60, 66, 70), Enum.Material.Metal, props))
 
 -- Cartel de oferta: de cartón, finito, contra la pared (no estorba el paso) y con diseño propio.
 local standee = movible(parte("CartelOferta", V3(2, 3.6, 0.12), V3(20.2, 1.9, 19.5), C3(210, 60, 50), Enum.Material.SmoothPlastic, props))
@@ -632,10 +637,6 @@ for _, cara in { Enum.NormalId.Front, Enum.NormalId.Back } do
 	linea("en alquileres", 0.82, 0.07, C3(250, 236, 200), Enum.Font.Code)
 end
 
-movible(parte("Carrito", V3(1.8, 2, 1.1), V3(19.4, 1, 12.5), C3(120, 126, 130), Enum.Material.Metal, props))
-parte("CarritoRuedaA", V3(0.3, 0.3, 0.3), V3(18.7, 0.15, 12.2), C3(30, 30, 30), Enum.Material.Plastic, props, DECO)
-parte("CarritoRuedaB", V3(0.3, 0.3, 0.3), V3(20.1, 0.15, 12.8), C3(30, 30, 30), Enum.Material.Plastic, props, DECO)
-movible(cilindro("Balde", 1.2, 1.5, V3(-1, 0.75, -15), C3(70, 110, 160), Enum.Material.Plastic, props))
 
 -- ===== Anexos: cocina (a la izquierda) y patio (a la derecha) =====
 -- Se entra por una puerta en cada pared lateral (z -11.5..-8), al fondo del local de ventas.
@@ -763,9 +764,9 @@ for i = 1, 14 do
 end
 -- Cerco de ladrillo alrededor (alto: nadie sale a la calle).
 local LADRILLO = C3(112, 70, 60)
-muro("CercoNorte", "X", PZ0 - 0.5, PX0 - 0.5, PX1 + 1, {}, LADRILLO, patio)
-muro("CercoSur", "X", PZ1 + 0.5, PX0 - 0.5, PX1 + 1, {}, LADRILLO, patio)
-muro("CercoEste", "Z", PX1 + 0.5, PZ0 - 0.5, PZ1 + 0.5, {}, LADRILLO, patio)
+muro("CercoNorte", "X", PZ0 - 0.5, PX0 - 0.5, PX1 + 1, {}, LADRILLO, patio, "ParedYeso")
+muro("CercoSur", "X", PZ1 + 0.5, PX0 - 0.5, PX1 + 1, {}, LADRILLO, patio, "ParedYeso")
+muro("CercoEste", "Z", PX1 + 0.5, PZ0 - 0.5, PZ1 + 0.5, {}, LADRILLO, patio, "ParedYeso")
 marcoPuerta(24.5, patio)
 -- Tapa de ladrillos arriba del cerco.
 parte("CercoRemateN", V3(PX1 - PX0 + 2, 0.4, 1.5), V3(patCentroX, ALTURA + 0.2, PZ0 - 0.5), C3(80, 52, 44), Enum.Material.Brick, patio, DECO)
@@ -949,6 +950,303 @@ for _, zz in { -27, -34, -41 } do
 end
 largo.Parent = game.ServerStorage
 
+-- ===== La calle y el motel de enfrente (decorado: se ve por las ventanas y la puerta) =====
+-- Vereda (z 27..35), ruta de dos carriles (z 35..53, con autos que pasan: ver Client/Calle), banquina de tierra,
+-- guardarraíl, campo con alambrado y, bien al fondo, el motel con sus neones de los 90.
+-- Entre la ruta y los edificios queda una franja de campo: la sensación es de ruta argentina, no de calle de ciudad.
+
+local calle = carpeta("CalleDeAfuera")
+local ASFALTO = C3(34, 36, 38)
+
+parte("Vereda", V3(220, 1, 8), V3(0, -0.5, 31), C3(118, 116, 110), Enum.Material.Concrete, calle)
+parte("Cordon", V3(220, 0.5, 0.5), V3(0, -0.25, 35.25), C3(150, 148, 140), Enum.Material.Concrete, calle)
+parte("Calzada", V3(260, 0.2, 18), V3(0, -0.55, 44), ASFALTO, Enum.Material.Asphalt, calle)
+-- Banquina de tierra y campo de pasto entre la ruta y el motel.
+parte("Banquina", V3(260, 0.3, 8), V3(0, -0.6, 57), C3(96, 82, 62), Enum.Material.Ground, calle)
+parte("Pasto", V3(260, 0.3, 36), V3(0, -0.6, 79), C3(40, 54, 34), Enum.Material.Grass, calle)
+parte("Estacionamiento", V3(100, 0.2, 16), V3(0, -0.45, 97), ASFALTO, Enum.Material.Asphalt, calle)
+-- Camino de entrada al motel: ripio que sale de la ruta.
+parte("CaminoMotel", V3(12, 0.25, 42), V3(0, -0.55, 74), C3(120, 108, 90), Enum.Material.Pebble, calle)
+-- Pintura de la ruta: doble línea amarilla al medio y líneas blancas en los bordes.
+for _, dz in { -0.25, 0.25 } do
+	parte("LineaAmarilla", V3(220, 0.03, 0.15), V3(0, -0.43, 44 + dz), C3(224, 180, 40), Enum.Material.SmoothPlastic, calle, DECO)
+end
+for _, z in { 36, 52.2 } do
+	parte("LineaBorde", V3(220, 0.03, 0.2), V3(0, -0.43, z), C3(220, 220, 214), Enum.Material.SmoothPlastic, calle, DECO)
+end
+-- Rayas del estacionamiento.
+for i = -5, 5 do
+	parte("RayaEstacionamiento", V3(0.2, 0.03, 8), V3(i * 8, -0.33, 97.5), C3(220, 220, 214), Enum.Material.SmoothPlastic, calle, DECO)
+end
+
+-- Luminarias de ruta: poste alto con brazo y un tubo amarillo (como las de sodio de las rutas nacionales).
+local AMARILLO_RUTA = C3(255, 206, 84)
+local function luminaria(x, zPoste, sentido)
+	parte("FarolPoste", V3(0.5, 16, 0.5), V3(x, 8, zPoste), C3(70, 72, 74), Enum.Material.Metal, calle, DECO)
+	parte("FarolBrazo", V3(0.35, 0.35, 5), V3(x, 16, zPoste + sentido * 2.5), C3(70, 72, 74), Enum.Material.Metal, calle, DECO)
+	local tubo = parte("FarolTubo", V3(5, 0.35, 1.1), V3(x, 15.6, zPoste + sentido * 4.6), AMARILLO_RUTA, Enum.Material.Neon, calle, DECO)
+	local foco = Instance.new("SpotLight")
+	foco.Face = Enum.NormalId.Bottom
+	foco.Angle = 130
+	foco.Range = 42
+	foco.Brightness = 1.2
+	foco.Color = AMARILLO_RUTA
+	foco.Shadows = false
+	foco.Parent = tubo
+end
+for _, x in { -90, -60, -30, 0, 30, 60, 90 } do
+	luminaria(x, 34, 1) -- lado del local
+	luminaria(x + 15, 54.5, -1) -- lado de enfrente (entre la ruta y el campo)
+end
+
+-- Guardarraíl a lo largo de la banquina (con un hueco donde sale el camino al motel).
+for _, x in { -100, -80, -60, -40, -22, 22, 40, 60, 80, 100 } do
+	parte("Guardarrail", V3(14, 0.9, 0.25), V3(x, 1.7, 54), C3(168, 172, 170), Enum.Material.CorrodedMetal, calle, DECO)
+	for dx = -6, 6, 6 do
+		parte("GuardarrailPoste", V3(0.25, 1.9, 0.25), V3(x + dx, 0.95, 54), C3(120, 124, 124), Enum.Material.Metal, calle, DECO)
+	end
+end
+
+-- Mojón de kilometraje (blanco con tope rojo) y cartel de ruta (chapa verde con letras blancas).
+local mojon = parte("Mojon", V3(0.9, 2.6, 0.9), V3(-48, 1.3, 55.5), C3(236, 232, 220), Enum.Material.Concrete, calle, DECO)
+parte("MojonTope", V3(0.95, 0.7, 0.95), V3(-48, 2.55, 55.5), C3(190, 40, 36), Enum.Material.Concrete, calle, DECO)
+local sgMojon = Instance.new("SurfaceGui")
+sgMojon.Face = Enum.NormalId.Front
+sgMojon.MaxDistance = 400
+sgMojon.Parent = mojon
+local tMojon = Instance.new("TextLabel")
+tMojon.Size = UDim2.fromScale(1, 0.5)
+tMojon.Position = UDim2.fromScale(0, 0.25)
+tMojon.BackgroundTransparency = 1
+tMojon.TextScaled = true
+tMojon.Font = Enum.Font.Arcade
+tMojon.TextColor3 = C3(20, 20, 20)
+tMojon.Text = "143"
+tMojon.Parent = sgMojon
+parte("CartelRutaPata", V3(0.3, 7, 0.3), V3(40, 3.5, 55.5), C3(80, 82, 84), Enum.Material.Metal, calle, DECO)
+local cartelRuta = parte("CartelRuta", V3(8, 3, 0.2), V3(40, 7.5, 55.5), C3(18, 90, 56), Enum.Material.SmoothPlastic, calle, DECO)
+local sgRuta = Instance.new("SurfaceGui")
+sgRuta.Face = Enum.NormalId.Front
+sgRuta.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+sgRuta.PixelsPerStud = 40
+sgRuta.MaxDistance = 400
+sgRuta.Parent = cartelRuta
+local tRuta = Instance.new("TextLabel")
+tRuta.Size = UDim2.fromScale(0.94, 0.8)
+tRuta.Position = UDim2.fromScale(0.03, 0.1)
+tRuta.BackgroundTransparency = 1
+tRuta.TextScaled = true
+tRuta.Font = Enum.Font.SourceSansBold
+tRuta.TextColor3 = C3(240, 240, 235)
+tRuta.Text = "RUTA 8\nSALDÁS 12 KM"
+tRuta.Parent = sgRuta
+
+-- Alambrado que separa el campo de la banquina (con el hueco del camino al motel).
+for x = -110, 110, 4 do
+	if math.abs(x) > 8 then
+		parte("AlambradoPoste", V3(0.2, 3.4, 0.2), V3(x, 1.7, 61), C3(110, 96, 78), Enum.Material.Wood, calle, DECO)
+	end
+end
+for _, y in { 0.9, 1.8, 2.7 } do
+	parte("AlambradoHilo", V3(100, 0.05, 0.05), V3(-58, y, 61), C3(180, 180, 176), Enum.Material.Metal, calle, DECO)
+	parte("AlambradoHilo", V3(100, 0.05, 0.05), V3(58, y, 61), C3(180, 180, 176), Enum.Material.Metal, calle, DECO)
+end
+-- Álamos oscuros en el campo (de lejos son una silueta).
+for _, pos in { V3(-62, 0, 70), V3(-50, 0, 82), V3(50, 0, 72), V3(66, 0, 84), V3(-78, 0, 88), V3(80, 0, 92) } do
+	parte("AlamoTronco", V3(1.2, 20, 1.2), V3(pos.X, 10, pos.Z), C3(70, 56, 44), Enum.Material.Wood, calle, DECO)
+	parte("AlamoCopa", V3(6, 22, 6), V3(pos.X, 21, pos.Z), C3(24, 40, 28), Enum.Material.Grass, calle, DECO).Shape = Enum.PartType.Ball
+end
+
+-- Matorrales secos en el campo y la banquina, y una serranía lejana (silueta azul oscura contra el cielo estrellado).
+for i = 1, 34 do
+	local x = rng:NextNumber(-120, 120)
+	local z = rng:NextNumber(56, 94)
+	if math.abs(x) > 9 then
+		local d = rng:NextNumber(1.6, 3.4)
+		local m = parte("Matorral", V3(d * 1.7, d * 0.55, d * 1.7), V3(x, d * 0.2, z), C3(rng:NextInteger(70, 92), rng:NextInteger(64, 76), rng:NextInteger(44, 54)), Enum.Material.Grass, calle, DECO)
+		m.Shape = Enum.PartType.Ball
+	end
+end
+for i, x in { -520, -330, -150, 40, 210, 380, 560 } do
+	local alto = 120 + (i % 3) * 40
+	local sierra = parte("Sierra", V3(300 + (i % 2) * 80, alto, 220), V3(x, alto / 2 - 40, 560), C3(14, 20, 34), Enum.Material.Rock, calle, DECO)
+	sierra.Shape = Enum.PartType.Ball
+end
+
+-- Cielo estrellado: una cúpula de puntos de luz lejanos y una luna (el Sky sin texturas no dibuja estrellas).
+local cielo = carpeta("Estrellas", calle)
+local estrellas = Random.new(1997)
+for i = 1, 900 do
+	local elevacion = math.rad(estrellas:NextNumber(6, 88))
+	local azimut = math.rad(estrellas:NextNumber(0, 360))
+	local radio = 640
+	local pos = V3(math.cos(elevacion) * math.cos(azimut) * radio, math.sin(elevacion) * radio - 20, math.cos(elevacion) * math.sin(azimut) * radio)
+	local grande = estrellas:NextNumber() < 0.07
+	local tam = grande and estrellas:NextNumber(3, 4.6) or estrellas:NextNumber(1.2, 2.6)
+	local tono = estrellas:NextNumber()
+	local color = tono < 0.6 and C3(240, 244, 255) or (tono < 0.85 and C3(255, 236, 200) or C3(190, 210, 255))
+	local e = parte("Estrella", V3(tam, tam, tam), pos, color, Enum.Material.Neon, cielo, { CanCollide = false, CanTouch = false, CanQuery = false, CastShadow = false })
+	e.Shape = Enum.PartType.Ball
+end
+local luna = parte("Luna", V3(46, 46, 46), V3(-260, 300, 520), C3(214, 226, 245), Enum.Material.Neon, cielo, { CanCollide = false, CanTouch = false, CanQuery = false, CastShadow = false })
+luna.Shape = Enum.PartType.Ball
+
+-- ----- Motel -----
+
+local motel = carpeta("Motel", calle)
+local Z_MOTEL = 105 -- cara del frente del edificio (lejos de la ruta: se ve chico y brillante)
+local COL_MOTEL = C3(172, 128, 132)
+-- Paleta de ruta nostálgica: neón rojo anaranjado, verde de la estrella y amarillo (ROSA y CELESTE son los nombres viejos)
+local ROSA, CELESTE, ROJO, AMARILLO = C3(255, 74, 38), C3(70, 255, 160), C3(255, 40, 50), C3(255, 200, 70)
+
+-- Neón: parte brillante que parpadea (tag NeonParpadeo, atributo Periodo) y tiñe de color lo que tiene cerca.
+local function neon(nombre, tam, pos, color, periodo, rango)
+	local p = parte(nombre, tam, pos, color, Enum.Material.Neon, motel, DECO)
+	if periodo then
+		p:SetAttribute("Periodo", periodo)
+		CollectionService:AddTag(p, "NeonParpadeo")
+	end
+	if rango then
+		local luz = Instance.new("PointLight")
+		luz.Range = rango
+		luz.Brightness = 1.1
+		luz.Color = color
+		luz.Shadows = false
+		luz.Parent = p
+	end
+	return p
+end
+
+-- Letrero luminoso: panel oscuro con texto que brilla (SurfaceGui sin influencia de la luz).
+local function letrero(nombre, tam, pos, lineas, cara)
+	local panel = parte(nombre, tam, pos, C3(14, 12, 18), Enum.Material.SmoothPlastic, motel, DECO)
+	local sg = Instance.new("SurfaceGui")
+	sg.Face = cara or Enum.NormalId.Front
+	sg.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	sg.PixelsPerStud = 40
+	sg.LightInfluence = 0
+	sg.Brightness = 4
+	sg.Parent = panel
+	local total = 0
+	for _, l in lineas do
+		total += l.alto
+	end
+	local y = 0
+	for _, l in lineas do
+		local t = Instance.new("TextLabel")
+		t.BackgroundTransparency = 1
+		t.Size = UDim2.fromScale(0.94, l.alto / total)
+		t.Position = UDim2.fromScale(0.03, y / total)
+		t.TextScaled = true
+		t.Font = l.fuente or Enum.Font.Arcade
+		t.TextColor3 = l.color
+		t.Text = l.texto
+		t.Parent = sg
+		local borde = Instance.new("UIStroke")
+		borde.Color = l.borde or l.color
+		borde.Thickness = 2
+		borde.Transparency = 0.35
+		borde.Parent = t
+		y += l.alto
+	end
+	return panel
+end
+
+-- Edificio: cuerpo, techo y cornisa.
+parte("MotelCuerpo", V3(76, 9, 14), V3(0, 4.5, Z_MOTEL + 7), COL_MOTEL, Enum.Material.Concrete, motel)
+parte("MotelTecho", V3(78, 0.6, 16), V3(0, 9.3, Z_MOTEL + 7), C3(60, 44, 50), Enum.Material.Concrete, motel)
+parte("MotelAlero", V3(76, 0.4, 3.2), V3(0, 7.4, Z_MOTEL - 1.6), C3(70, 50, 58), Enum.Material.Concrete, motel)
+-- Ocho habitaciones con puerta numerada, ventana con cortina y lámpara sobre la puerta.
+local COL_PUERTA = { C3(40, 96, 128), C3(120, 40, 76) }
+for i = 0, 7 do
+	local x = -31.5 + i * 9
+	local puerta = parte("MotelPuerta", V3(2.4, 6, 0.2), V3(x, 3, Z_MOTEL - 0.1), COL_PUERTA[i % 2 + 1], Enum.Material.Wood, motel, DECO)
+	local num = parte("MotelNumero", V3(1.1, 0.7, 0.05), V3(x, 5.4, Z_MOTEL - 0.24), C3(236, 232, 216), Enum.Material.SmoothPlastic, motel, DECO)
+	local sg = Instance.new("SurfaceGui")
+	sg.Face = Enum.NormalId.Front
+	sg.Parent = num
+	local t = Instance.new("TextLabel")
+	t.Size = UDim2.fromScale(1, 1)
+	t.BackgroundTransparency = 1
+	t.TextScaled = true
+	t.Font = Enum.Font.Arcade
+	t.TextColor3 = C3(40, 30, 30)
+	t.Text = tostring(101 + i)
+	t.Parent = sg
+	-- Ventana: unas con luz cálida de adentro, otras apagadas.
+	local encendida = (i % 3 ~= 1)
+	parte("MotelVentana", V3(2.6, 2.6, 0.15), V3(x + 4, 4, Z_MOTEL - 0.08), encendida and C3(255, 190, 110) or C3(20, 24, 30), encendida and Enum.Material.Neon or Enum.Material.Glass, motel, DECO)
+	parte("MotelCortina", V3(0.9, 2.6, 0.12), V3(x + 3.2, 4, Z_MOTEL - 0.2), C3(120, 40, 60), Enum.Material.Fabric, motel, DECO)
+	local lampara = parte("MotelLampara", V3(0.7, 0.5, 0.5), V3(x, 6.6, Z_MOTEL - 0.5), C3(255, 214, 150), Enum.Material.Neon, motel, DECO)
+	local luz = Instance.new("PointLight")
+	luz.Range = 14
+	luz.Brightness = 1
+	luz.Color = C3(255, 200, 140)
+	luz.Shadows = false
+	luz.Parent = lampara
+end
+
+-- Franja de neón en el alero (rosa y celeste, parpadean distinto) y cartel grande en el techo.
+neon("NeonAleroRosa", V3(72, 0.25, 0.25), V3(0, 7.7, Z_MOTEL - 3.1), ROSA, 9, 40)
+neon("NeonAleroCeleste", V3(72, 0.25, 0.25), V3(0, 7.2, Z_MOTEL - 3.1), CELESTE, 14, 40)
+for _, x in { -12, 12 } do
+	parte("CartelTechoPata", V3(0.5, 3, 0.5), V3(x, 10.8, Z_MOTEL + 1), C3(40, 40, 44), Enum.Material.Metal, motel, DECO)
+end
+letrero("CartelTecho", V3(30, 6.2, 0.5), V3(0, 14.5, Z_MOTEL + 1), {
+	{ texto = "MOTEL LUNA", alto = 3, color = ROSA, borde = CELESTE },
+	{ texto = "HABITACIONES · TV COLOR", alto = 1.4, color = AMARILLO, fuente = Enum.Font.Code },
+})
+neon("CartelTechoMarcoA", V3(31, 0.3, 0.3), V3(0, 17.75, Z_MOTEL + 0.7), CELESTE, 7, 45)
+neon("CartelTechoMarcoB", V3(31, 0.3, 0.3), V3(0, 11.25, Z_MOTEL + 0.7), CELESTE, 7)
+
+-- Poste con letrero vertical frente a la ruta ("VACANTE" parpadea).
+parte("PosteLetrero", V3(1, 26, 1), V3(-12, 13, 66), C3(40, 40, 44), Enum.Material.Metal, motel, DECO)
+letrero("LetreroPoste", V3(10, 14, 0.7), V3(-12, 24, 66), {
+	{ texto = "MOTEL", alto = 2.6, color = ROSA, borde = CELESTE },
+	{ texto = "LUNA", alto = 2.2, color = CELESTE, borde = ROSA },
+	{ texto = "24 HS", alto = 1.6, color = AMARILLO },
+	{ texto = "TV COLOR", alto = 1.2, color = C3(240, 240, 235), fuente = Enum.Font.Code },
+})
+neon("LetreroPosteMarco", V3(10.4, 0.35, 0.35), V3(-12, 31.15, 65.6), ROSA, 6, 55)
+neon("LetreroPosteBase", V3(10.4, 0.35, 0.35), V3(-12, 16.85, 65.6), CELESTE, 11, 35)
+local vacante = letrero("LetreroVacante", V3(8, 2, 0.5), V3(-12, 14.6, 66), {
+	{ texto = "VACANTE", alto = 1, color = ROJO },
+})
+vacante:SetAttribute("Periodo", 4)
+CollectionService:AddTag(vacante, "NeonParpadeo")
+-- Estrella de neón arriba del letrero (un pentagrama de barras verdes, como los carteles de ruta de las fotos de referencia).
+do
+	local cx, cy, zEstrella, radio = -12, 35, 65.5, 3.4
+	local puntos = {}
+	for k = 0, 4 do
+		local ang = math.rad(90 + 72 * k)
+		puntos[k] = V3(cx + math.cos(ang) * radio, cy + math.sin(ang) * radio, zEstrella)
+	end
+	for k = 0, 4 do
+		local a, b = puntos[k], puntos[(k + 2) % 5]
+		local largo = (b - a).Magnitude
+		local medio = (a + b) / 2
+		local giro = math.atan2(b.Y - a.Y, b.X - a.X)
+		local barra = parte("NeonEstrella", V3(largo, 0.3, 0.3), CFrame.new(medio) * CFrame.Angles(0, 0, giro), CELESTE, Enum.Material.Neon, motel, DECO)
+		barra:SetAttribute("Periodo", 12)
+		CollectionService:AddTag(barra, "NeonParpadeo")
+	end
+	-- Un resplandor rojizo que tiñe la ruta, como en las fotos.
+	local brillo = parte("BrilloRuta", V3(1, 1, 1), V3(cx, 24, 62), ROSA, Enum.Material.SmoothPlastic, motel, { Transparency = 1, CanCollide = false, CanTouch = false, CanQuery = false })
+	local luzRoja = Instance.new("PointLight")
+	luzRoja.Range = 80
+	luzRoja.Brightness = 0.9
+	luzRoja.Color = C3(255, 70, 40)
+	luzRoja.Shadows = false
+	luzRoja.Parent = brillo
+end
+
+-- Auto estacionado frente a una habitación.
+local Autos = require(game.ReplicatedStorage.Shared.Autos)
+local estacionado = Autos.crear(C3(120, 30, 40), { conFaros = false })
+estacionado:PivotTo(CFrame.new(-22, 0, 98.5) * CFrame.Angles(0, math.rad(90), 0))
+estacionado.Parent = motel
+
 -- ===== Spawn (detrás del mostrador) =====
 
 local spawn = workspace:FindFirstChild("SpawnLocation")
@@ -1000,15 +1298,23 @@ local function fijar(prop, valor)
 end
 fijar("ClockTime", 0)
 fijar("Brightness", 0)
-fijar("Ambient", C3(22, 26, 25))
+fijar("Ambient", C3(40, 46, 44))
 fijar("OutdoorAmbient", C3(12, 14, 14))
 fijar("ExposureCompensation", 0)
 fijar("EnvironmentDiffuseScale", 0.2)
 fijar("EnvironmentSpecularScale", 0)
-fijar("FogColor", C3(10, 12, 12))
-fijar("FogStart", 60)
-fijar("FogEnd", 220)
+fijar("FogColor", C3(14, 22, 40))
+fijar("FogStart", 120)
+fijar("FogEnd", 800)
 fijar("GlobalShadows", true)
+fijar("LightingStyle", Enum.LightingStyle.Realistic) -- reflejos y brillos más reales
+fijar("PrioritizeLightingQuality", true)
+
+-- Sin Atmosphere: con el motel y la ruta lejos, cualquier bruma lavaba la imagen y apagaba las estrellas.
+local atm = L:FindFirstChildOfClass("Atmosphere")
+if atm then
+	atm:Destroy()
+end
 
 if not L:FindFirstChild("CieloNegro") then
 	local cielo = Instance.new("Sky")
@@ -1016,10 +1322,11 @@ if not L:FindFirstChild("CieloNegro") then
 	for _, cara in { "SkyboxBk", "SkyboxDn", "SkyboxFt", "SkyboxLf", "SkyboxRt", "SkyboxUp" } do
 		cielo[cara] = ""
 	end
-	cielo.StarCount = 0
-	cielo.CelestialBodiesShown = false
 	cielo.Parent = L
 end
+local cieloNoche = L:FindFirstChild("CieloNegro")
+cieloNoche.StarCount = 4000 -- cielo estrellado de ruta
+cieloNoche.CelestialBodiesShown = true
 
 local partes = 0
 for _, d in raiz:GetDescendants() do

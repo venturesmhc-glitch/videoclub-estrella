@@ -20,6 +20,9 @@ local Catalogo = require(ReplicatedStorage.Shared.Catalogo)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Silueta = require(script.Parent.Silueta)
+local AudioManager = require(script.Parent.AudioManager)
+local DialogUI = require(script.Parent.DialogUI)
+local TaskCard = require(script.Parent.TaskCard)
 local VHSEffects = require(script.Parent.VHSEffects)
 
 local AnomalySystem = {}
@@ -30,6 +33,7 @@ local escena
 local lista = {} -- anomalías de la noche
 local activas = {} -- id -> { restaurar, modelo?, inicio, mirando }
 local resueltas = {}
+local detectadas = 0 -- anomalías que este jugador ya marcó esta noche
 local sincro = { minuto = 0, t = os.clock(), fase = "espera" }
 
 local function minutoActual(): number
@@ -93,7 +97,10 @@ local function aplicarFigura(a, registro)
 	if not punto then
 		return nil
 	end
-	local modelo = Silueta.crear(true)
+	local modelo = Silueta.crear(true, true) -- sombra humana quieta: NO es el Socio
+	-- Aparece sin aviso: el zumbido se corta un instante y suena un chasquido bajito (sin música ni grito).
+	AudioManager.cortar("Zumbido", 1.1)
+	AudioManager.efecto(Config.Sustos.Glitch.Id, { volumen = Config.Sustos.Glitch.Volumen * 0.7, retardo = 0.05 })
 	for _, p in modelo:GetChildren() do
 		p:SetAttribute("AnomaliaRef", a.id)
 	end
@@ -121,6 +128,7 @@ local function restaurarTodo()
 		end
 	end
 	activas, resueltas = {}, {}
+	detectadas = 0
 end
 
 local function activar(a)
@@ -132,6 +140,8 @@ end
 
 local function resolver(id)
 	resueltas[id] = true
+	detectadas += 1
+	TaskCard.setAnomalias(detectadas, #lista)
 	local registro = activas[id]
 	if registro and registro.restaurar then
 		registro.restaurar()
@@ -151,6 +161,12 @@ local function reportar()
 	local id
 	if resultado then
 		local instancia = resultado.Instance
+		-- El Socio de verdad no es una anomalía: no se lo marca, se lo mira.
+		local socio = workspace:FindFirstChild("Socio0000")
+		if socio and instancia:IsDescendantOf(socio) then
+			DialogUI.aviso("Ese no es un recuerdo de la cinta: es el Socio. Con la Q no se lo marca: hay que mirarlo, porque solo se mueve cuando nadie lo ve.")
+			return
+		end
 		local portadaId = instancia:GetAttribute("PortadaId")
 		local movibleId = instancia:GetAttribute("AnomaliaId")
 		local ref = instancia:GetAttribute("AnomaliaRef")
@@ -168,6 +184,8 @@ local function nuevaSemilla(datos)
 	restaurarTodo()
 	escena = AnomalyCatalog.escena()
 	lista = AnomalyCatalog.generar(datos.semilla, datos.noche, escena)
+	detectadas = 0
+	TaskCard.setAnomalias(0, #lista)
 end
 
 function AnomalySystem.init()

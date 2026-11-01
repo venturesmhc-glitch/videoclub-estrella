@@ -17,6 +17,7 @@ local UserInputService = game:GetService("UserInputService")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Net = require(ReplicatedStorage.Shared.Net)
 local AudioManager = require(script.Parent.AudioManager)
+local Rendimiento = require(script.Parent.Rendimiento)
 local VHSEffects = require(script.Parent.VHSEffects)
 
 local MenuUI = {}
@@ -40,12 +41,14 @@ local TEXTOS = {
 	volAmbiente = "Sonido ambiente",
 	estatica = "Estática del filtro VHS",
 	idioma = "Idioma: Español (más idiomas pronto)",
+	calidad = "Calidad gráfica: %s",
+	salaConteo = "\nEl turno arranca solo en %d s.",
 	ayudaTitulo = "CÓMO JUGAR",
 	ayudaTexto = table.concat({
 		"WASD  moverte",
 		"E  interactuar  (mantené E donde lo pida)",
 		"R (mantener)  segunda acción: rechazar, grabar encima",
-		"Tab  mostrar u ocultar tu ficha de socio",
+		"Tab  mostrar u ocultar tu ficha de socio      G  soltar lo que llevás en la mano",
 		"Q  marcar algo fuera de lugar (apuntale)",
 		"F  linterna      M  ajustes",
 		"",
@@ -286,8 +289,18 @@ local function construirAjustes()
 		ajustes.Estatica = v
 		VHSEffects.setAjusteEstatica(v)
 	end)
-	texto(p, { texto = TEXTOS.idioma, tamano = UDim2.fromScale(0.7, 0.045), posicion = UDim2.fromScale(0.5, 0.67), ancla = Vector2.new(0.5, 0.5), color = COLOR_APAGADO })
-	boton(p, TEXTOS.volver, UDim2.fromScale(0.5, 0.8), function()
+	-- Calidad gráfica: cada toque pasa al siguiente nivel (Auto / Alta / Media / Baja). En celulares, Auto usa Media.
+	local botonCalidad = boton(p, string.format(TEXTOS.calidad, Rendimiento.nivel()), UDim2.fromScale(0.5, 0.66), function() end)
+	botonCalidad.Activated:Connect(function()
+		local nivel = Rendimiento.siguiente()
+		botonCalidad.Text = string.format(TEXTOS.calidad, nivel)
+		botonCalidad.MouseLeave:Once(function() end)
+	end)
+	botonCalidad.MouseLeave:Connect(function()
+		botonCalidad.Text = string.format(TEXTOS.calidad, Rendimiento.nivel())
+	end)
+	texto(p, { texto = TEXTOS.idioma, tamano = UDim2.fromScale(0.7, 0.045), posicion = UDim2.fromScale(0.5, 0.75), ancla = Vector2.new(0.5, 0.5), color = COLOR_APAGADO })
+	boton(p, TEXTOS.volver, UDim2.fromScale(0.5, 0.86), function()
 		mostrarPantalla(destinoVolver())
 	end, UDim2.fromScale(0.25, 0.07))
 end
@@ -305,6 +318,9 @@ local function actualizarLobby()
 	lobbyLista.Text = table.concat(lineas, "\n")
 	local soyAnfitrion = estadoPartida.anfitrionId == Players.LocalPlayer.UserId
 	lobbyEstado.Text = soyAnfitrion and TEXTOS.salaAnfitrion or string.format(TEXTOS.salaEspera, estadoPartida.anfitrion or "el anfitrión")
+	if estadoPartida.conteo then
+		lobbyEstado.Text ..= string.format(TEXTOS.salaConteo, estadoPartida.conteo)
+	end
 	lobbyBotonEmpezar.Visible = soyAnfitrion
 	lobbyBotonVolver.Visible = soyAnfitrion
 end
