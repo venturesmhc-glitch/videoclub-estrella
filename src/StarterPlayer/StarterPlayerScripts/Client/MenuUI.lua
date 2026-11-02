@@ -1,7 +1,7 @@
 --!nonstrict
 --[[
 	MenuUI (cliente): menú de inicio, salas de multijugador y ajustes.
-	  - Al entrar se ve el menú: UN JUGADOR (arranca el turno), MULTIJUGADOR, AJUSTES y CÓMO JUGAR.
+	  - Al entrar se ve el menú: UN JUGADOR (arranca el turno), MULTIJUGADOR, LOGROS (insignias desbloqueadas y por desbloquear), AJUSTES y CÓMO JUGAR.
 	  - MULTIJUGADOR lista las salas públicas y abajo ofrece CREAR (pública o privada, de 2 a 4 jugadores) y UNIRSE POR
 	    CÓDIGO. Una vez dentro de una sala se ve su código, quiénes están, y el anfitrión la inicia con INICIAR.
 	  - Durante el turno, la tecla M abre los ajustes (el juego no se pausa: es cooperativo en vivo).
@@ -17,6 +17,7 @@ local UserInputService = game:GetService("UserInputService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Net = require(ReplicatedStorage.Shared.Net)
+local Catalogo = require(ReplicatedStorage.Shared.Catalogo)
 local AudioManager = require(script.Parent.AudioManager)
 local Rendimiento = require(script.Parent.Rendimiento)
 local VHSEffects = require(script.Parent.VHSEffects)
@@ -35,6 +36,11 @@ local TEXTOS = {
 	modoLobbyHistoria = "MODO: HISTORIA",
 	modoLobbySinFin = "MODO: SIN FIN",
 	ajustes = "AJUSTES",
+	logros = "LOGROS",
+	logrosConteo = "%d / %d desbloqueados",
+	logrosRecord = "Récord en Sin fin: %d noches",
+	logroSi = "DESBLOQUEADO",
+	logroNo = "BLOQUEADO",
 	ayuda = "CÓMO JUGAR",
 	volver = "VOLVER",
 	cargando = "CARGANDO...",
@@ -104,6 +110,8 @@ local ajustes = { Musica = 1, Ambiente = 1, Estatica = 1 } -- guardados solo en 
 local modoElegido = "historia" -- "historia" | "sinfin": lo que se manda al elegir UN JUGADOR o CREAR una sala
 local sinFinListo = false -- el servidor avisó que ya alcanzó un final (perfil)
 local actualizarModo -- (se define con la pantalla principal)
+local perfilInsignias, mejorSinFin = {}, 0 -- logros desbloqueados y récord del modo Sin fin (perfil)
+local actualizarLogros -- (se define con la pantalla de logros)
 
 -- ===== Utilidades de interfaz =====
 
@@ -336,14 +344,19 @@ local function construirPrincipal()
 	boton(p, TEXTOS.solo, UDim2.fromScale(0.5, 0.46), function()
 		enviar("solo", { modo = modoElegido })
 	end, TAM_BOTON)
-	boton(p, TEXTOS.multi, UDim2.fromScale(0.5, 0.59), function()
+	boton(p, TEXTOS.multi, UDim2.fromScale(0.5, 0.56), function()
 		mostrarPantalla("salas")
 		enviar("salas")
 	end, TAM_BOTON)
-	boton(p, TEXTOS.ajustes, UDim2.fromScale(0.5, 0.71), function()
+	boton(p, TEXTOS.logros, UDim2.fromScale(0.5, 0.66), function()
+		enviar("perfil") -- por si el perfil cambió desde que se abrió el menú
+		actualizarLogros()
+		mostrarPantalla("logros")
+	end, TAM_BOTON)
+	boton(p, TEXTOS.ajustes, UDim2.fromScale(0.5, 0.76), function()
 		mostrarPantalla("ajustes")
 	end, TAM_BOTON)
-	boton(p, TEXTOS.ayuda, UDim2.fromScale(0.5, 0.84), function()
+	boton(p, TEXTOS.ayuda, UDim2.fromScale(0.5, 0.86), function()
 		mostrarPantalla("ayuda")
 	end, TAM_BOTON)
 	table.insert(mensajes, texto(p, { texto = "", tamano = UDim2.fromScale(0.5, 0.04), posicion = UDim2.fromScale(0.5, 0.93), ancla = Vector2.new(0.5, 0.5), color = COLOR_APAGADO }))
@@ -558,6 +571,108 @@ local function construirAyuda()
 	end, UDim2.fromScale(0.25, 0.07))
 end
 
+-- Logros: una fila por insignia de Catalogo.Insignias, con su estado (desbloqueado o bloqueado).
+local logrosLista, logrosConteo, logrosRecord
+
+local COLOR_LOGRO_SI = Color3.fromRGB(150, 220, 140)
+
+local function construirLogros()
+	local p = nuevaPantalla("logros")
+	texto(p, { texto = TEXTOS.logros, fuente = FUENTE_TITULO, color = COLOR_ACENTO, tamano = UDim2.fromScale(0.7, 0.1), posicion = UDim2.fromScale(0.5, 0.11), ancla = Vector2.new(0.5, 0.5) })
+	logrosConteo = texto(p, { texto = "", tamano = UDim2.fromScale(0.4, 0.04), posicion = UDim2.fromScale(0.5, 0.18), ancla = Vector2.new(0.5, 0.5), color = COLOR_APAGADO })
+	logrosLista = Instance.new("ScrollingFrame")
+	logrosLista.Size = UDim2.fromScale(0.7, 0.65)
+	logrosLista.AnchorPoint = Vector2.new(0.5, 0)
+	logrosLista.Position = UDim2.fromScale(0.5, 0.21)
+	logrosLista.BackgroundTransparency = 1
+	logrosLista.BorderSizePixel = 0
+	logrosLista.ScrollBarThickness = 6
+	logrosLista.CanvasSize = UDim2.new(0, 0, 0, 0)
+	logrosLista.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	logrosLista.Parent = p
+	local marco = Instance.new("UIStroke")
+	marco.Color = COLOR_TEXTO
+	marco.Transparency = 0.7
+	marco.Parent = logrosLista
+	local orden = Instance.new("UIListLayout")
+	orden.Padding = UDim.new(0, 6)
+	orden.SortOrder = Enum.SortOrder.LayoutOrder
+	orden.Parent = logrosLista
+	local relleno = Instance.new("UIPadding")
+	relleno.PaddingTop, relleno.PaddingBottom = UDim.new(0, 6), UDim.new(0, 6)
+	relleno.PaddingLeft, relleno.PaddingRight = UDim.new(0, 8), UDim.new(0, 8)
+	relleno.Parent = logrosLista
+	for i, logro in Catalogo.Insignias do
+		local fila = Instance.new("Frame")
+		fila.Name = logro.clave
+		fila.LayoutOrder = i
+		fila.Size = UDim2.new(1, -4, 0, 58)
+		fila.BackgroundColor3 = COLOR_TEXTO
+		fila.BackgroundTransparency = 0.94
+		fila.BorderSizePixel = 0
+		fila.Parent = logrosLista
+		local nombre = Instance.new("TextLabel")
+		nombre.Name = "Nombre"
+		nombre.BackgroundTransparency = 1
+		nombre.Font = FUENTE
+		nombre.TextSize = 22
+		nombre.TextXAlignment = Enum.TextXAlignment.Left
+		nombre.Position = UDim2.new(0, 12, 0, 4)
+		nombre.Size = UDim2.new(0.6, 0, 0, 26)
+		nombre.Text = logro.nombre
+		nombre.Parent = fila
+		local estado = Instance.new("TextLabel")
+		estado.Name = "Estado"
+		estado.BackgroundTransparency = 1
+		estado.Font = FUENTE
+		estado.TextSize = 18
+		estado.TextXAlignment = Enum.TextXAlignment.Right
+		estado.AnchorPoint = Vector2.new(1, 0)
+		estado.Position = UDim2.new(1, -12, 0, 6)
+		estado.Size = UDim2.new(0.34, 0, 0, 22)
+		estado.Parent = fila
+		local descripcion = Instance.new("TextLabel")
+		descripcion.Name = "Descripcion"
+		descripcion.BackgroundTransparency = 1
+		descripcion.Font = FUENTE
+		descripcion.TextSize = 16
+		descripcion.TextXAlignment = Enum.TextXAlignment.Left
+		descripcion.TextWrapped = true
+		descripcion.Position = UDim2.new(0, 12, 0, 32)
+		descripcion.Size = UDim2.new(1, -24, 0, 22)
+		descripcion.Text = logro.descripcion
+		descripcion.Parent = fila
+	end
+	logrosRecord = texto(p, { texto = "", tamano = UDim2.fromScale(0.5, 0.04), posicion = UDim2.fromScale(0.5, 0.895), ancla = Vector2.new(0.5, 0.5), color = COLOR_ACENTO })
+	boton(p, TEXTOS.volver, UDim2.fromScale(0.5, 0.955), function()
+		mostrarPantalla("principal")
+	end, UDim2.fromScale(0.25, 0.07))
+end
+
+function actualizarLogros()
+	if not logrosLista then
+		return
+	end
+	local total, desbloqueados = 0, 0
+	for _, logro in Catalogo.Insignias do
+		total += 1
+		local fila = logrosLista:FindFirstChild(logro.clave)
+		local tiene = perfilInsignias[logro.clave] == true
+		if tiene then
+			desbloqueados += 1
+		end
+		if fila then
+			fila.Nombre.TextColor3 = tiene and COLOR_ACENTO or COLOR_APAGADO
+			fila.Descripcion.TextColor3 = tiene and COLOR_TEXTO or COLOR_APAGADO
+			fila.Estado.Text = tiene and TEXTOS.logroSi or TEXTOS.logroNo
+			fila.Estado.TextColor3 = tiene and COLOR_LOGRO_SI or COLOR_APAGADO
+			fila.BackgroundTransparency = tiene and 0.88 or 0.96
+		end
+	end
+	logrosConteo.Text = string.format(TEXTOS.logrosConteo, desbloqueados, total)
+	logrosRecord.Text = mejorSinFin > 0 and string.format(TEXTOS.logrosRecord, mejorSinFin) or ""
+end
+
 local botonSalirAlMenu
 
 local function construirAjustes()
@@ -755,6 +870,8 @@ function MenuUI.init()
 	construirCrear()
 	construirUnirse()
 	construirLobby()
+	construirLogros()
+	actualizarLogros()
 	construirAyuda()
 	construirAjustes()
 	mostrarPantalla("cargando")
@@ -808,7 +925,10 @@ function MenuUI.init()
 	Net.obtener("ProfileLoaded").OnClientEvent:Connect(function(perfil)
 		if typeof(perfil) == "table" then
 			sinFinListo = perfil.sinFinDesbloqueado == true
+			perfilInsignias = typeof(perfil.insignias) == "table" and perfil.insignias or {}
+			mejorSinFin = tonumber(perfil.mejorSinFin) or 0
 			actualizarModo()
+			actualizarLogros()
 		end
 	end)
 

@@ -20,7 +20,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Catalogo = require(ReplicatedStorage.Shared.Catalogo)
 local Config = require(ReplicatedStorage.Shared.Config)
-local Net = require(ReplicatedStorage.Shared.Net)
 local NightManager = require(script.Parent.NightManager)
 local Persistencia = require(script.Parent.Persistencia)
 
@@ -51,7 +50,7 @@ function Insignias.otorgar(jugador: Player, clave: string): boolean
 	if not Persistencia.marcarInsignia(jugador, clave) then
 		return false -- ya la tenía (o su perfil todavía no cargó)
 	end
-	Net.aviso(jugador, "Insignia obtenida: " .. insignia.nombre)
+	-- El aviso en pantalla lo muestra Roblox con el emblema (BadgeService); acá no se escribe ningún texto.
 	local id = Config.Insignias.Ids[clave]
 	if id and id ~= 0 then
 		task.spawn(otorgarEnRoblox, jugador, id)

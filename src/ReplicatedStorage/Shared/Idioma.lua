@@ -281,6 +281,16 @@ local EN = {
 	-- Insignias
 	["Grabar encima"] = "Record Over", ["Cuenta cerrada"] = "Account Closed",
 	["Hasta el final"] = "To the End", ["Cinta completa"] = "Complete Tape", ["Insomnio"] = "Insomnia", ["Turno eterno"] = "Eternal Shift",
+	-- Logros (menú)
+	["LOGROS"] = "ACHIEVEMENTS", ["DESBLOQUEADO"] = "UNLOCKED", ["BLOQUEADO"] = "LOCKED",
+	["Sobreviví tu primera noche en el Videoclub Estrella."] = "Survive your first night at Videoclub Estrella.",
+	["Llegá a la quinta noche, cuando el Socio ya está adentro."] = "Reach the fifth night, when the Member is already inside.",
+	["Alcanzá el final REBOBINAR."] = "Reach the REWIND ending.",
+	["Alcanzá el final verdadero: DEVOLVER."] = "Reach the true ending: RETURN.",
+	["Alcanzá el final MIRAR HASTA EL FINAL."] = "Reach the WATCH TO THE END ending.",
+	["Alcanzá los tres finales del Videoclub Estrella."] = "Reach all three endings of Videoclub Estrella.",
+	["Sobreviví 5 noches seguidas en el modo Sin fin."] = "Survive 5 nights in a row in Endless mode.",
+	["Sobreviví 10 noches seguidas en el modo Sin fin."] = "Survive 10 nights in a row in Endless mode.",
 	-- Modo Sin fin
 	["HISTORIA"] = "STORY", ["SIN FIN"] = "ENDLESS", ["SIN FIN (BLOQUEADO)"] = "ENDLESS (LOCKED)",
 	["MODO: HISTORIA"] = "MODE: STORY", ["MODO: SIN FIN"] = "MODE: ENDLESS",
@@ -303,7 +313,8 @@ local PATRONES = {
 	{ "^¿Me recomendás una de (.+)%?$", function(g) return "Can you recommend a " .. t(g) .. " one?" end },
 	{ "^Notas de Darío mal interpretadas: (%d+)$", function(n) return "Darío's notes misread: " .. n end },
 	{ "^Máscara · R%$ (%d+)$", function(n) return "Mask · R$ " .. n end },
-	{ "^Insignia obtenida: (.+)$", function(x) return "Badge earned: " .. t(x) end },
+	{ "^(%d+) / (%d+) desbloqueados$", function(a, b) return a .. " / " .. b .. " unlocked" end },
+	{ "^Récord en Sin fin: (%d+) noches$", function(n) return "Endless record: " .. n .. " nights" end },
 	{ "^Noches superadas: (%d+)$", function(n) return "Nights survived: " .. n end },
 	{ "^Récord: (%d+)$", function(n) return "Record: " .. n end },
 	{ "^Canal (%d+)$", function(n) return "Channel " .. n end },
