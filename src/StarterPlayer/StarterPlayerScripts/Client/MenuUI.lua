@@ -18,6 +18,7 @@ local UserInputService = game:GetService("UserInputService")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Catalogo = require(ReplicatedStorage.Shared.Catalogo)
+local Idioma = require(ReplicatedStorage.Shared.Idioma)
 local AudioManager = require(script.Parent.AudioManager)
 local Rendimiento = require(script.Parent.Rendimiento)
 local VHSEffects = require(script.Parent.VHSEffects)
@@ -664,13 +665,13 @@ function actualizarLogros()
 		if fila then
 			fila.Nombre.TextColor3 = tiene and COLOR_ACENTO or COLOR_APAGADO
 			fila.Descripcion.TextColor3 = tiene and COLOR_TEXTO or COLOR_APAGADO
-			fila.Estado.Text = tiene and TEXTOS.logroSi or TEXTOS.logroNo
+			fila.Estado.Text = Idioma.t(tiene and TEXTOS.logroSi or TEXTOS.logroNo) -- (el texto base es español; Idioma lo pasa al idioma de Roblox)
 			fila.Estado.TextColor3 = tiene and COLOR_LOGRO_SI or COLOR_APAGADO
 			fila.BackgroundTransparency = tiene and 0.88 or 0.96
 		end
 	end
-	logrosConteo.Text = string.format(TEXTOS.logrosConteo, desbloqueados, total)
-	logrosRecord.Text = mejorSinFin > 0 and string.format(TEXTOS.logrosRecord, mejorSinFin) or ""
+	logrosConteo.Text = Idioma.t(string.format(TEXTOS.logrosConteo, desbloqueados, total))
+	logrosRecord.Text = mejorSinFin > 0 and Idioma.t(string.format(TEXTOS.logrosRecord, mejorSinFin)) or ""
 end
 
 local botonSalirAlMenu

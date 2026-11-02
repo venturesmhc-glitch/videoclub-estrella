@@ -17,6 +17,9 @@ local Idioma = require(ReplicatedStorage.Shared.Idioma)
 local Traductor = {}
 
 local aplicando = {} -- instancias que estamos tocando (para no reaccionar a nuestro propio cambio)
+local vigiladas = {} -- instancia -> { propiedades }: se repasan cada tanto por si un cambio de texto se les escapó
+setmetatable(vigiladas, { __mode = "k" })
+local REPASO_SEG = 1.5
 
 function Traductor.traducir(texto: string): string
 	return Idioma.t(texto)
@@ -36,6 +39,7 @@ local function traducirPropiedad(instancia: Instance, propiedad: string)
 end
 
 local function vigilar(instancia: Instance, propiedades: { string })
+	vigiladas[instancia] = propiedades
 	for _, propiedad in propiedades do
 		traducirPropiedad(instancia, propiedad)
 		instancia:GetPropertyChangedSignal(propiedad):Connect(function()
@@ -70,6 +74,20 @@ function Traductor.init()
 	end
 	observar(Players.LocalPlayer:WaitForChild("PlayerGui"))
 	observar(workspace)
+	-- Red de seguridad: un texto en español que se escapó (por ejemplo, uno que se escribió justo antes de que el
+	-- observador estuviera listo) se traduce en el próximo repaso.
+	task.spawn(function()
+		while true do
+			task.wait(REPASO_SEG)
+			for instancia, propiedades in vigiladas do
+				if instancia.Parent then
+					for _, propiedad in propiedades do
+						traducirPropiedad(instancia, propiedad)
+					end
+				end
+			end
+		end
+	end)
 end
 
 return Traductor
