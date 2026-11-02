@@ -92,7 +92,7 @@ local function objetivosDe(eventos: { Evento }): { Objetivo }
 		table.insert(lista, { id = "basura", texto = "Tirar la basura (patio)", meta = basura })
 	end
 	if manchas > 0 then
-		table.insert(lista, { id = "limpiar", texto = "Limpiar manchas", meta = manchas })
+		table.insert(lista, { id = "limpiar", texto = "Limpiar manchas (cepillo del baño)", meta = manchas })
 	end
 	if menores > 0 then
 		table.insert(lista, { id = "menores", texto = "Cuidar el local", meta = menores })
@@ -301,16 +301,8 @@ local ZONAS_DERRAME = { "MOSTRADOR", "LOCAL", "COCINA", "BANO", "DEPOSITO", "PAT
 local TAREAS_MENORES = { "PLANTA", "FICHAS", "CARTEL", "VIDRIO", "CAJA" }
 local porJugadores: { [string]: Noche } = {}
 
-function NightData.paraJugadores(numero: number, cantidad: number): Noche?
-	local base = NightData[numero]
-	if not base or cantidad <= 1 then
-		return base
-	end
-	cantidad = math.min(cantidad, 4)
-	local clave = numero .. ":" .. cantidad
-	if porJugadores[clave] then
-		return porJugadores[clave]
-	end
+-- Suma a una noche las tareas de los jugadores de más (cantidad >= 2) y recalcula sus objetivos.
+local function conJugadores(base: Noche, numero: number, cantidad: number): Noche
 	local eventos: { Evento } = table.clone(base.eventos)
 	for p = 1, cantidad - 1 do
 		local corrimiento = (p * 17) % 41 -- cada jugador extra desplaza sus tareas para que no caigan todas juntas
@@ -331,8 +323,142 @@ function NightData.paraJugadores(numero: number, cantidad: number): Noche?
 		objetivos = objetivosDe(eventos),
 		eventos = eventos,
 	}
-	porJugadores[clave] = noche
 	return noche
+end
+
+function NightData.paraJugadores(numero: number, cantidad: number): Noche?
+	local base = NightData[numero]
+	if not base or cantidad <= 1 then
+		return base
+	end
+	cantidad = math.min(cantidad, 4)
+	local clave = numero .. ":" .. cantidad
+	if not porJugadores[clave] then
+		porJugadores[clave] = conJugadores(base, numero, cantidad)
+	end
+	return porJugadores[clave]
+end
+
+-- ===== Modo Sin fin =====
+-- Las noches se arman solas con la misma receta (clientes, cintas, basura, manchas, tareas del local, sustos, Socio) y
+-- van subiendo de dificultad hasta la noche Config.SinFin.NocheTopeDificultad. No hay final ni cinta final: la
+-- cinta sin etiqueta sigue llegando, pero ver la cinta no termina nada.
+local MODOS_CLIENTES = { "normal", "repetir", "mismo" }
+local TIPOS_SUSTO = { "tele", "luces", "ventana" }
+local sinFinCache: { [string]: Noche } = {}
+
+local function generarSinFin(n: number): Noche
+	local rng = Random.new(n * 7919 + 13)
+	local d = math.min(n, Config.SinFin.NocheTopeDificultad)
+	local eventos: { Evento } = {}
+
+	-- Reparte 'cantidad' minutos entre 'desde' y 'hasta' con un poco de desorden.
+	local function repartir(cantidad: number, desde: number, hasta: number): { number }
+		local lista = {}
+		local paso = (hasta - desde) / cantidad
+		for i = 1, cantidad do
+			table.insert(lista, math.floor(desde + (i - 1) * paso + rng:NextNumber(0, paso * 0.6)))
+		end
+		return lista
+	end
+	local function genero(): string
+		return GENEROS[rng:NextInteger(1, #GENEROS)]
+	end
+
+	-- Clientes (alquilan y devuelven, de a uno) y cintas por el buzón.
+	local probDanada = math.min(0.12 + 0.02 * d, 0.32)
+	local probAnomala = if n >= 2 then math.min(0.08 + 0.03 * d, 0.34) else 0
+	local function estadoDeCinta(): any?
+		local x = rng:NextNumber()
+		if x < probDanada then
+			return { danado = true }
+		elseif x < probDanada + probAnomala then
+			return { anomalo = true }
+		end
+		return nil
+	end
+	for i, minuto in repartir(math.min(7 + d // 2, 13), 10, 285) do
+		if i % 2 == 0 then
+			table.insert(eventos, cliente(minuto, "devolucion", genero(), estadoDeCinta()))
+		else
+			table.insert(eventos, cliente(minuto, "alquiler", genero()))
+		end
+	end
+	for _, minuto in repartir(math.min(5 + d // 3, 9), 20, 295) do
+		table.insert(eventos, buzon(minuto, genero(), estadoDeCinta()))
+	end
+	local modoClientes = MODOS_CLIENTES[(n - 1) % #MODOS_CLIENTES + 1]
+	if modoClientes == "mismo" then
+		table.insert(eventos, cliente(rng:NextInteger(190, 230), "alquiler", "ACCION", { socio = true }))
+	end
+
+	-- Trabajo extra del local.
+	local cantidadExtra = math.min(2 + d // 2, 6)
+	for _, minuto in repartir(cantidadExtra, 25, 280) do
+		table.insert(eventos, evento(minuto, "BASURA", { zonas = { ZONAS_BASURA[rng:NextInteger(1, #ZONAS_BASURA)] } }))
+	end
+	for _, minuto in repartir(cantidadExtra, 40, 290) do
+		table.insert(eventos, evento(minuto, "DERRAME", { zonas = { ZONAS_DERRAME[rng:NextInteger(1, #ZONAS_DERRAME)] } }))
+	end
+	for _, minuto in repartir(math.min(2 + d // 3, 5), 20, 285) do
+		table.insert(eventos, evento(minuto, "TAREA_MENOR", { ids = { TAREAS_MENORES[rng:NextInteger(1, #TAREAS_MENORES)] } }))
+	end
+
+	-- Sustos: los suaves de siempre y screamers separados por más que el enfriamiento (Config.Screamer.EntreAutomaticosSeg).
+	for _, minuto in repartir(3, 30, 300) do
+		table.insert(eventos, evento(minuto, "SUSTO_SUAVE", { tipo = TIPOS_SUSTO[rng:NextInteger(1, #TIPOS_SUSTO)] }))
+	end
+	for i = 1, math.min(1 + d // 3, 4) do
+		table.insert(eventos, evento(70 + (i - 1) * 75 + rng:NextInteger(0, 15), "SCREAMER"))
+	end
+
+	-- El Socio se activa cada vez más temprano; la cinta llega siempre.
+	table.insert(eventos, evento(math.max(15, 110 - d * 9) + rng:NextInteger(0, 10), "SOCIO_ACTIVA"))
+	table.insert(eventos, evento(35 + rng:NextInteger(0, 40), "CINTA_LLEGA"))
+
+	-- Reglas de Darío, llamadas y corte de luz según avanza la dificultad.
+	if n >= 3 then
+		local ids = { "R_TITULO", "R_INTERNO", "F_TV" }
+		if n >= 4 then
+			table.insert(ids, "R_NUMERO")
+			table.insert(eventos, evento(150, "NOTAS", { ids = { "F_SIEMPRE" } }))
+		end
+		table.insert(eventos, evento(3, "NOTAS", { ids = ids }))
+		table.insert(eventos, evento(40 + rng:NextInteger(0, 20), "TELEFONO", { linea = "mostrador", mensaje = 1 + n % 2 }))
+		table.insert(eventos, evento(190 + rng:NextInteger(0, 20), "TELEFONO", { linea = "interno", voz = "companero" }))
+	end
+	if n >= 2 then
+		table.insert(eventos, evento(95 + rng:NextInteger(0, 25), "TELEFONO", { linea = "mostrador", voz = "cinta" }))
+	end
+	if n >= 4 then
+		local minutoCorte = math.max(60, 160 - d * 8) + rng:NextInteger(0, 20)
+		table.insert(eventos, evento(minutoCorte, "CORTE_LUZ", { valor = true }))
+		table.insert(eventos, evento(minutoCorte, "DEPOSITO_LARGO"))
+	end
+	if n == 1 then
+		table.insert(eventos, evento(5, "AVISO", { texto = "Sin fin: cada noche es peor y no hay final. Aguantá todo lo que puedas." }))
+	end
+
+	return noche("Turno sin fin", "Resistir", modoClientes, eventos)
+end
+
+--- La noche del modo Sin fin (la cantidad de jugadores suma tareas igual que en la historia).
+function NightData.sinFin(numero: number, cantidad: number): Noche
+	cantidad = math.clamp(cantidad, 1, 4)
+	local clave = numero .. ":" .. cantidad
+	if not sinFinCache[clave] then
+		local base = generarSinFin(numero)
+		sinFinCache[clave] = if cantidad > 1 then conJugadores(base, numero, cantidad) else base
+	end
+	return sinFinCache[clave]
+end
+
+--- La noche 'numero' del modo indicado ("historia" | "sinfin") para esa cantidad de jugadores.
+function NightData.deModo(modo: string, numero: number, cantidad: number): Noche?
+	if modo == "sinfin" then
+		return NightData.sinFin(numero, cantidad)
+	end
+	return NightData.paraJugadores(numero, cantidad)
 end
 
 return NightData

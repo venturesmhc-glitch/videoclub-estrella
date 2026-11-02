@@ -131,8 +131,9 @@ local function alCambiarNoche(datos)
 		-- Cartel de inicio solo si el turno recién empieza (no a quien entra a mitad de la noche).
 		if (datos.minuto or 0) < 5 then
 			local info = NightData[datos.noche]
-			textoPantalla.Text = string.format("NOCHE %d\n%s", datos.noche, info and info.titulo or "")
-			if datos.noche == 1 then
+			local titulo = datos.titulo or (info and info.titulo) or "" -- el servidor lo manda (el modo Sin fin pasa de la noche 5)
+			textoPantalla.Text = string.format("NOCHE %d\n%s", datos.noche, titulo)
+			if datos.noche == 1 and datos.modo ~= "sinfin" then
 				textoPantalla.Text ..= "\n\nWASD moverte · E interactuar · Tab ficha\nAtendé el teléfono del mostrador."
 			end
 			pantalla.BackgroundTransparency = 0

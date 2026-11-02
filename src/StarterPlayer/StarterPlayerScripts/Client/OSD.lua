@@ -40,7 +40,7 @@ end
 
 local function formatearFecha(noche, minuto)
 	local f = Config.Noche.Fecha
-	local dia = f.Dia + (noche - 1)
+	local dia = f.Dia + (noche - 1) % 14 -- (en el modo Sin fin hay más de cinco noches: el calendario da la vuelta)
 	-- Pasada la medianoche, la videocasetera cambia de día.
 	if Config.Noche.InicioHora * 60 + math.floor(minuto) >= 1440 then
 		dia += 1

@@ -37,6 +37,7 @@ local NOMBRES_ZONA = {
 local bolsas = {} -- lista de { parte, zona, base = CFrame, dueno = Player? }
 local manchas = {} -- lista de { parte, zona }
 local cargando = {} -- Player -> bolsa
+local cepillos = {} -- Player -> modelo del cepillo que lleva en la mano izquierda
 local carpeta
 
 local function carpetaMundo()
@@ -214,6 +215,57 @@ local function tirarEnContenedor(jugador: Player)
 	Net.aviso(jugador, "Bolsa tirada.")
 end
 
+-- ===== Cepillo de mano =====
+-- Cuelga de la pared del baño (modelo con el tag "CepilloColgado"). Quien lo toma lleva una copia en la mano izquierda;
+-- volver a usar el soporte lo guarda. Sin el cepillo no se puede limpiar una mancha.
+
+local function guardarCepillo(jugador: Player)
+	local modelo = cepillos[jugador]
+	cepillos[jugador] = nil
+	if modelo then
+		modelo:Destroy()
+	end
+end
+
+local function tomarCepillo(jugador: Player, molde: Model)
+	local personaje = jugador.Character
+	local raiz = personaje and personaje:FindFirstChild("HumanoidRootPart")
+	if not raiz or not molde.PrimaryPart then
+		return
+	end
+	local modelo = molde:Clone()
+	modelo.Name = "CepilloEnMano"
+	for _, d in modelo:GetDescendants() do
+		if d:IsA("BasePart") then
+			d.Anchored = false
+			d.CanCollide = false
+			d.CanQuery = false
+			d.CanTouch = false
+			d.Massless = true
+		elseif d:IsA("Highlight") then
+			d:Destroy() -- el contorno es solo del cepillo colgado
+		end
+	end
+	local agarre = Instance.new("Weld")
+	agarre.Name = "AgarreMano"
+	agarre.Part0 = raiz
+	agarre.Part1 = modelo.PrimaryPart
+	agarre.C0 = Config.Cepillo.EnMano
+	agarre.Parent = modelo.PrimaryPart
+	modelo.Parent = carpetaMundo() -- como la bolsa: en primera persona lo que cuelga del personaje se oculta
+	cepillos[jugador] = modelo
+	Net.aviso(jugador, "Tenés el cepillo. Mantené E sobre una mancha para limpiarla.")
+end
+
+local function alternarCepillo(jugador: Player, molde: Model)
+	if cepillos[jugador] then
+		guardarCepillo(jugador)
+		Net.aviso(jugador, "Guardaste el cepillo.")
+	else
+		tomarCepillo(jugador, molde)
+	end
+end
+
 -- ===== Manchas =====
 
 local function crearMancha(zona: string)
@@ -258,6 +310,10 @@ local function crearMancha(zona: string)
 		if not lugar then
 			return
 		end
+		if not cepillos[jugador] then
+			Net.aviso(jugador, "Para limpiar hace falta el cepillo de mano: cuelga en el baño.")
+			return
+		end
 		table.remove(manchas, lugar)
 		parte:Destroy()
 		TaskSystem.registrar("limpiar")
@@ -266,7 +322,7 @@ local function crearMancha(zona: string)
 	Prompts.crear(parte, {
 		clave = "mancha",
 		accion = "Limpiar",
-		objeto = "Mancha",
+		objeto = "Mancha (con cepillo)",
 		hold = cfg.LimpiezaSeg,
 		distancia = 6,
 		alActivar = mancha.activar,
@@ -298,7 +354,18 @@ function ChoreSystem.probar(accion: string, jugador: Player)
 		tirarEnContenedor(jugador)
 	elseif accion == "limpiar" and manchas[1] then
 		manchas[1].activar(jugador)
+	elseif accion == "cepillo" then
+		for _, molde in CollectionService:GetTagged("CepilloColgado") do
+			if molde:IsA("Model") then
+				alternarCepillo(jugador, molde)
+				return
+			end
+		end
 	end
+end
+
+function ChoreSystem.llevaCepillo(jugador: Player): boolean
+	return cepillos[jugador] ~= nil
 end
 
 function ChoreSystem.llevaBolsa(jugador: Player): boolean
@@ -319,6 +386,9 @@ function ChoreSystem.limpiarTodo()
 	table.clear(bolsas)
 	table.clear(manchas)
 	table.clear(cargando)
+	for jugador in table.clone(cepillos) do
+		guardarCepillo(jugador) -- cada noche empieza con el cepillo colgado en el baño
+	end
 end
 
 function ChoreSystem.estadoTexto(): string
@@ -337,6 +407,7 @@ local function alSalirElPersonaje(jugador: Player)
 	if bolsa then
 		soltarBolsa(bolsa) -- la bolsa vuelve a su lugar
 	end
+	guardarCepillo(jugador) -- el cepillo vuelve al baño
 end
 
 function ChoreSystem.init()
@@ -362,6 +433,21 @@ function ChoreSystem.init()
 		end
 		return nil
 	end)
+
+	-- El cepillo colgado en el baño: el modelo del mundo es solo el molde (y el soporte con el prompt).
+	for _, molde in CollectionService:GetTagged("CepilloColgado") do
+		if molde:IsA("Model") and molde.PrimaryPart then
+			Prompts.crear(molde.PrimaryPart, {
+				clave = "cepillo",
+				accion = "Tomar o guardar",
+				objeto = "Cepillo de mano",
+				distancia = Config.Cepillo.DistanciaPrompt,
+				alActivar = function(jugador)
+					alternarCepillo(jugador, molde)
+				end,
+			})
+		end
+	end
 
 	for _, contenedor in CollectionService:GetTagged("Contenedor") do
 		if contenedor:IsA("BasePart") then

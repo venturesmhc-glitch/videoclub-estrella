@@ -8,7 +8,7 @@ argentino, noviembre de 1997. Hay cinco noches y tres finales.
    También se puede jugar desde Roblox si publicás el lugar (Archivo → Publicar en Roblox, `Alt+P`).
 2. Al entrar aparece el **menú**: Un jugador (arranca el turno), Multijugador (lista de salas públicas; abajo, **Crear** —pública o privada, de 2 a 4 jugadores— y **Unirse por código**; dentro de la sala se ve el código y los jugadores, y el anfitrión la arranca con **Iniciar**), Ajustes (música, ambiente y estática del filtro) y Cómo jugar. **M** abre los ajustes durante el turno.
 3. Controles: **WASD** moverte · **E** interactuar · **R** (mantener) segunda acción · **Tab** ocultar la ficha · **G** soltar el casete que llevás ·
-   **Q** marcar una anomalía (apuntándole) · **F** linterna (cuando se corta la luz) · **Shift** suelta o atrapa el mouse (en primera persona está bloqueado; sirve para tocar "Asustar a todos" o "Revivir").
+   **Q** marcar una anomalía (apuntándole) · **F** linterna (cuando se corta la luz) · **Shift** suelta o atrapa el mouse (en primera persona está bloqueado; sirve para tocar "Revivir" y los botones del menú).
 4. La **ficha de socio** (cartón, a la izquierda) es tu inventario: tareas, lo que llevás en la mano y lo que pide el cliente.
 
 Al empezar la noche 1 suena el teléfono del mostrador (cartel flotante "TELÉFONO SONANDO"): atendelo con **E** y
@@ -29,23 +29,25 @@ Don Ernesto explica el trabajo y los controles. Suena hasta que alguien lo atien
   Noche 5: el Socio hace cola. Tres finales: **devolverle la cinta** (final verdadero), **grabarle encima**
   (R en la videocasetera, mantener) o **mirarla entera**.
 
-- **Tareas extra** (para repartir entre varios): las bolsas de basura se llevan al contenedor del patio (puerta del fondo a la derecha; con una bolsa en las manos no se pueden tomar casetes) y las manchas se limpian manteniendo E. La cocina (puerta del fondo a la izquierda) y el baño también tienen tareas.
+- **Tareas extra** (para repartir entre varios): las bolsas de basura se llevan al contenedor del patio (puerta del fondo a la derecha; con una bolsa en las manos no se pueden tomar casetes) y las manchas se limpian con el **cepillo de mano** (cuelga de la pared del baño, junto al lavatorio: E lo toma o lo guarda; con el cepillo en la mano, mantené E sobre la mancha). La cocina (puerta del fondo a la izquierda) y el baño también tienen tareas.
 
 - **Tareas del local**: además de clientes, cintas, basura y manchas hay pequeñas tareas (regar la planta, ordenar las fichas, enderezar el cartel, limpiar el vidrio, contar la caja; se marcan con un contorno y se hacen manteniendo E). Con más jugadores hay más trabajo (clientes, cintas, basura, manchas y tareas del local por cada jugador extra: `NightData.paraJugadores`).
 - **Radio** (sobre el lateral del mostrador): E cambia de estación (Radio AM, Synthwave, Jazz, Cumbia, Tango), R mantenido la apaga. Las estaciones están en `Config.Radio`.
 - **El monstruo** aparece 30 s por persecución (`Config.Socio.PersecucionSeg`) y vuelve a aparecer cada 55 a 90 s mientras dure la noche.
 - **Quedar fuera de la noche**: a la segunda captura el jugador pasa a ser **espectador** (ve el local por la cámara de sus compañeros, distorsionado y sin el monstruo) y su personaje queda como una estatua traslúcida en el motel. No se reinicia el personaje. Vuelve con **Revivir (R$ 15)** o si todo el equipo cae y la noche se repite.
-- **Screamers** automáticos en las noches 2 a 5 y el botón **Asustar a todos (R$ 10)**. Los dos productos son Developer Products de la experiencia (ids en `Config.Tienda.Productos`; con 0 la compra se simula solo en Studio).
+- **Screamers** automáticos en las noches 2 a 5 y **Asustar a todos (R$ 10)**: se compra manteniendo E sobre la **máscara de Ghostface** colgada en la pared izquierda del depósito (brilla con destellos blancos). Los dos productos son Developer Products de la experiencia (ids en `Config.Tienda.Productos`; con 0 la compra se simula solo en Studio).
+- **Insignias** (`Insignias.lua`, lista en `Catalogo.Insignias`): Primer turno, En vivo (llegar a la noche 5), una por cada final (Grabar encima, Cuenta cerrada, Hasta el final), Cinta completa (los tres finales) y, en Sin fin, Insomnio (5 noches seguidas) y Turno eterno (10). Quedan anotadas en el perfil (DataStore) y se otorgan con BadgeService cuando su id está cargado en `Config.Insignias.Ids` (con 0 solo se avisa en pantalla).
+- **Modo Sin fin**: se desbloquea al alcanzar cualquier final de la historia. En el menú, el selector **HISTORIA / SIN FIN** vale para Un jugador y para las salas (el anfitrión lo elige al crear). Las noches se arman solas (`NightData.sinFin`), suben de dificultad hasta la noche 12 y no hay final ni cinta final: la racha termina cuando cae todo el equipo ("Noches superadas" y récord) y el turno vuelve a empezar desde la noche 1. El récord se guarda en el perfil (`mejorSinFin`).
 
 - **Idioma**: el juego se ve en español o en inglés según el idioma de Roblox del jugador (si empieza con "es", español; con cualquier otro, inglés). Todo está escrito en español y `Client/Traductor.lua` traduce lo que se muestra con el diccionario de `Shared/Idioma.lua` (exacto + patrones). Si agregás un texto nuevo, sumá su traducción ahí; `Config.Idioma.Forzar = "en"` fuerza un idioma para probar.
 
 ## Cómo está armado
 - `src/` es la fuente de verdad del código (Luau). `node push.js` lo sincroniza a Studio.
 - `build/videoclub.lua` reconstruye el local (`node mcp-call.js execute_luau @build/videoclub.lua`).
-- Las tareas extra usan dos modelos de la toolbox guardados en el place, en `ServerStorage.Plantillas`: `trash bag` (bolsa) y `trash` (decal de suciedad).
+- Las tareas extra usan dos modelos de la toolbox guardados en el place, en `ServerStorage.Plantillas`: `trash bag` (bolsa) y `trash` (decal de suciedad); la máscara de la tienda es `ghostface.Mascara` (inventario, id 78464649977521).
   No viajan con el repo (viven en el `.rbxl`); si faltan, `ChoreSystem` usa una esfera negra y un círculo oscuro. Para ponerlos: `insert_asset` 10795701949 (trash bag) y 12900378954 (trash) y moverlos a esa carpeta.
 - `mcp-call.js` es un puente para llamar a las herramientas del servidor MCP de Studio; `studio-mcp.cmd` y `.mcp.json` lo conectan.
-- `dbg.js` ejecuta comandos de depuración en el servidor durante el Play (`node dbg.js empezar | estado | noche 4 | saltar 120 | basura LOCAL | derrame BANO | tarea levantar|tirar|limpiar | todo ...`).
+- `dbg.js` ejecuta comandos de depuración en el servidor durante el Play (`node dbg.js empezar | estado | noche 4 | saltar 120 | basura LOCAL | derrame BANO | tarea levantar|tirar|cepillo|limpiar | sinfin [noche] | desbloquear [FINAL] | insignia CLAVE | todo ...`).
   Se desactivan con `Config.Debug.Comandos = false`.
 - Todos los números del juego están en `src/ReplicatedStorage/Shared/Config.lua`; el contenido de cada noche, en `NightData.lua`.
 

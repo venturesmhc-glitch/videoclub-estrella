@@ -15,6 +15,7 @@ local Catalogo = require(ReplicatedStorage.Shared.Catalogo)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Net = require(ReplicatedStorage.Shared.Net)
 local CursedTapeSystem = require(script.Parent.CursedTapeSystem)
+local Insignias = require(script.Parent.Insignias)
 local NightManager = require(script.Parent.NightManager)
 local Persistencia = require(script.Parent.Persistencia)
 local Prompts = require(script.Parent.Prompts)
@@ -27,13 +28,15 @@ local enCurso = false
 
 function EndingSystem.disparar(id: string)
 	local final = Catalogo.Finales[id]
-	if enCurso or not final then
+	-- El modo Sin fin no tiene finales: la cinta sigue llegando, pero ver o devolver nada termina nada.
+	if enCurso or not final or NightManager.modo() ~= "historia" then
 		return
 	end
 	enCurso = true
 	NightManager.detenerTurno()
 	SocioEntity.desactivar()
 	Persistencia.registrarFinal(id)
+	Insignias.alcanzarFinal(id)
 	Net.obtener("EndingTrigger"):FireAllClients({ id = id, titulo = final.titulo, lineas = final.lineas })
 
 	task.delay(Config.Final.PausaFinalSeg, function()
@@ -49,7 +52,7 @@ end
 local function grabarEncima(jugador: Player)
 	local estado = NightManager.obtenerEstado()
 	local casete = TapeItem.enMano(jugador)
-	if estado.fase ~= "turno" or estado.noche < 5 then
+	if estado.fase ~= "turno" or estado.noche < 5 or NightManager.modo() ~= "historia" then
 		Net.aviso(jugador, "Todavía no. Esta cinta no se deja grabar tan fácil.")
 	elseif not casete or not casete.sinEtiqueta then
 		Net.aviso(jugador, "Hace falta la cinta sin etiqueta en la mano.")

@@ -28,12 +28,14 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Net = require(ReplicatedStorage.Shared.Net)
 local NightManager = require(script.Parent.NightManager)
+local Persistencia = require(script.Parent.Persistencia)
 local Salas = require(script.Parent.Salas)
 
 local Partida = {}
 
--- sala = { tipo = "sala" | "solo", codigo, publica, maximo, anfitrionId?, esperados? } (servidor de juego y modo local)
-local estado = { fase = "menu", modo = nil, anfitrion = nil, sala = nil }
+-- sala = { tipo = "sala" | "solo", codigo, publica, maximo, modo = "historia" | "sinfin", anfitrionId?, esperados? }
+-- (servidor de juego y modo local). estado.modo es "solo" | "multi"; estado.modoJuego es "historia" | "sinfin".
+local estado = { fase = "menu", modo = nil, modoJuego = nil, anfitrion = nil, sala = nil }
 
 local nube = Salas.enNube()
 local enEntrada = nube and not Salas.esServidorDeSala() -- servidor público: menú y salas de espera
@@ -57,6 +59,7 @@ local function paquete()
 	return {
 		fase = estado.fase,
 		modo = estado.modo,
+		modoJuego = estado.modoJuego or (sala and sala.modo) or "historia",
 		anfitrion = estado.anfitrion and estado.anfitrion.DisplayName or nil,
 		anfitrionId = estado.anfitrion and estado.anfitrion.UserId or nil,
 		jugadores = nombres(),
@@ -81,6 +84,7 @@ local function paqueteDeEntrada(jugador: Player)
 	return {
 		fase = "lobby",
 		modo = "multi",
+		modoJuego = registro.modo or "historia",
 		anfitrion = registro.anfitrion,
 		anfitrionId = registro.anfitrionId,
 		jugadores = lista,
@@ -117,12 +121,27 @@ local function mensaje(jugador: Player, texto: string, esError: boolean?)
 	responder(jugador, { tipo = "mensaje", texto = texto, error = esError == true })
 end
 
-local function empezar(modo: string)
+-- El modo de juego que pidió el jugador ("historia" por defecto), o nil si pidió Sin fin sin haberlo desbloqueado
+-- (se le avisa). Sin fin se desbloquea al alcanzar cualquier final de la historia.
+local function modoPedido(jugador: Player, datos): string?
+	if typeof(datos) ~= "table" or datos.modo ~= "sinfin" then
+		return "historia"
+	end
+	if Persistencia.sinFinDesbloqueado(jugador) then
+		return "sinfin"
+	end
+	mensaje(jugador, "El modo Sin fin se desbloquea al alcanzar un final de la historia.", true)
+	return nil
+end
+
+local function empezar(modo: string, modoJuego: string?)
 	if estado.fase == "jugando" then
 		return
 	end
 	estado.fase = "jugando"
 	estado.modo = modo
+	estado.modoJuego = modoJuego or (estado.sala and estado.sala.modo) or "historia"
+	NightManager.fijarModo(estado.modoJuego)
 	difundir()
 	-- Toda partida (solo o en equipo) empieza desde la noche 1: la noche guardada no se usa para arrancar.
 	NightManager.iniciarPartida(Config.Noche.NocheInicial)
@@ -133,8 +152,8 @@ function Partida.estado()
 end
 
 --- Arranca sin pasar por el menú (pruebas y depuración).
-function Partida.forzarInicio(modo: string?)
-	empezar(modo or "solo")
+function Partida.forzarInicio(modo: string?, modoJuego: string?)
+	empezar(modo or "solo", modoJuego)
 end
 
 -- ===== Servidor de entrada: salas de espera =====
@@ -255,13 +274,17 @@ local function crearSala(jugador: Player, datos)
 	end
 	local publica = datos.publica ~= false
 	local maximo = math.clamp(math.floor(tonumber(datos.maximo) or Config.Partida.MaxJugadores), 2, Config.Partida.MaxJugadores)
+	local modoJuego = modoPedido(jugador, datos)
+	if not modoJuego then
+		return
+	end
 	if enEntrada then
 		if miSala[jugador] then
 			return
 		end
 		mensaje(jugador, "Creando la sala...")
 		task.spawn(function()
-			local codigo, registro = Salas.crearRegistro(jugador, publica, maximo)
+			local codigo, registro = Salas.crearRegistro(jugador, publica, maximo, modoJuego)
 			if not codigo then
 				mensaje(jugador, registro or "No se pudo crear la sala.", true)
 				return
@@ -282,7 +305,8 @@ local function crearSala(jugador: Player, datos)
 	end
 	-- Modo local: este servidor pasa a ser la sala y quien la crea es el anfitrión.
 	estado.fase, estado.modo, estado.anfitrion = "lobby", "multi", jugador
-	estado.sala = { tipo = "sala", codigo = Salas.codigoNuevo(), publica = publica, maximo = maximo }
+	estado.sala = { tipo = "sala", codigo = Salas.codigoNuevo(), publica = publica, maximo = maximo, modo = modoJuego }
+	estado.modoJuego = modoJuego
 	difundir()
 end
 
@@ -358,12 +382,16 @@ local function iniciarSala(jugador: Player)
 	end
 end
 
-local function iniciarSolo(jugador: Player)
+local function iniciarSolo(jugador: Player, datos)
 	if estado.fase ~= "menu" and not enEntrada then
 		return
 	end
+	local modoJuego = modoPedido(jugador, datos)
+	if not modoJuego then
+		return
+	end
 	if not nube then
-		empezar("solo") -- Studio: no hay otro servidor adonde ir
+		empezar("solo", modoJuego) -- Studio: no hay otro servidor adonde ir
 		return
 	end
 	if miSala[jugador] or not Net.limitar(jugador, "crearSala", 3) then
@@ -371,7 +399,7 @@ local function iniciarSolo(jugador: Player)
 	end
 	mensaje(jugador, "Preparando tu partida...")
 	task.spawn(function()
-		local ok, err = Salas.crearSolo(jugador)
+		local ok, err = Salas.crearSolo(jugador, modoJuego)
 		if not ok then
 			mensaje(jugador, err or "No se pudo preparar la partida.", true)
 		end
@@ -406,8 +434,10 @@ function Partida.init()
 			difundir(jugador) -- el menú del cliente pide el estado actual al abrirse
 		elseif accion == "salas" then
 			listarSalas(jugador)
+		elseif accion == "perfil" then
+			Persistencia.enviarPerfil(jugador) -- el menú lo pide al abrirse (el primer envío puede haber llegado antes de estar listo)
 		elseif accion == "solo" then
-			iniciarSolo(jugador)
+			iniciarSolo(jugador, datos)
 		elseif accion == "crear" then
 			crearSala(jugador, datos)
 		elseif accion == "unirse" then
@@ -456,6 +486,7 @@ function Partida.init()
 					tipo = d.tipo,
 					codigo = d.sala,
 					publica = d.publica ~= false,
+					modo = d.modo == "sinfin" and "sinfin" or "historia",
 					maximo = math.clamp(tonumber(d.maximo) or Config.Partida.MaxJugadores, d.tipo == "solo" and 1 or 2, Config.Partida.MaxJugadores),
 					anfitrionId = d.anfitrionId,
 					esperados = tonumber(d.esperados) or 1,

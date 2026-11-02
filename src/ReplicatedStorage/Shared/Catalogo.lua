@@ -84,7 +84,7 @@ Catalogo.Telefono = {
 				"Si viene a devolver, deja la cinta en el mostrador. Agarrala con E, rebobinala en la videocasetera (mantené E) y ponela en su góndola.",
 				"Si una cinta está arrugada, no se rebobina: va a la caja de dañadas. Lo mismo con las que caen por el buzón.",
 				"Cuando no haya clientes, hay laburo de limpieza. Las bolsas de basura van al contenedor del patio: puerta del fondo, a la derecha.",
-				"Y si ves una mancha en el piso, mantené E encima hasta que desaparezca. Lo que no hagas vos, que lo haga tu compañero.",
+				"Y si ves una mancha en el piso, agarrá el cepillo de mano que cuelga en el baño y mantené E encima hasta que desaparezca. Lo que no hagas vos, que lo haga tu compañero.",
 				"Tu ficha de socio está a la izquierda: ahí figura todo lo que falta. Con Tab la mostrás o la ocultás. Y con G soltás lo que tengas en la mano.",
 				"Si alguna vez la luz se corta, F es la linterna. Y si ves algo fuera de lugar, apuntale y apretá Q. Después hablamos de eso.",
 				"Hasta las cuatro de la mañana. No me llamen, yo los llamo. Suerte, che.",
@@ -159,6 +159,18 @@ Catalogo.Finales = {
 			"Mañana empieza alguien nuevo.",
 		},
 	},
+}
+
+-- Insignias (Insignias.lua). El orden es el de la lista de logros; los ids de Roblox están en Config.Insignias.Ids.
+Catalogo.Insignias = {
+	{ clave = "PRIMER_TURNO", nombre = "Primer turno", descripcion = "Sobreviví tu primera noche en el Videoclub Estrella." },
+	{ clave = "NOCHE_5", nombre = "En vivo", descripcion = "Llegá a la quinta noche, cuando el Socio ya está adentro." },
+	{ clave = "FINAL_REBOBINAR", nombre = "Grabar encima", descripcion = "Alcanzá el final REBOBINAR." },
+	{ clave = "FINAL_DEVOLVER", nombre = "Cuenta cerrada", descripcion = "Alcanzá el final verdadero: DEVOLVER." },
+	{ clave = "FINAL_MIRAR", nombre = "Hasta el final", descripcion = "Alcanzá el final MIRAR HASTA EL FINAL." },
+	{ clave = "TODOS_LOS_FINALES", nombre = "Cinta completa", descripcion = "Alcanzá los tres finales del Videoclub Estrella." },
+	{ clave = "SIN_FIN_5", nombre = "Insomnio", descripcion = "Sobreviví 5 noches seguidas en el modo Sin fin." },
+	{ clave = "SIN_FIN_10", nombre = "Turno eterno", descripcion = "Sobreviví 10 noches seguidas en el modo Sin fin." },
 }
 
 --- Título al azar de un género.

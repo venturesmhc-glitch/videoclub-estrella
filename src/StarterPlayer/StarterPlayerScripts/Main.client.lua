@@ -26,7 +26,6 @@ local ORDEN = {
 	"Sustos",
 	"Screamers",
 	"Espectador",
-	"TiendaUI",
 	"Raton",
 }
 

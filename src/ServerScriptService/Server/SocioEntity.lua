@@ -514,7 +514,9 @@ function SocioEntity.init()
 
 	NightManager.suscribir("NOCHE_INICIA", function(datos)
 		SocioEntity.desactivar()
-		progreso = cfg.PorNoche[datos.noche] or cfg.PorNoche[#cfg.PorNoche]
+		-- Pasada la última noche de la historia (modo Sin fin) el Socio arranca un poco más rápido cada noche.
+		local pasadas = math.max(0, datos.noche - #cfg.PorNoche)
+		progreso = math.min(cfg.ProgresoMax, (cfg.PorNoche[datos.noche] or cfg.PorNoche[#cfg.PorNoche]) + pasadas * Config.SinFin.ProgresoSocioPorNoche)
 		capturas = 0
 		table.clear(capturasDe)
 		sustoUsado = false

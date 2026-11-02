@@ -19,7 +19,7 @@
 	un teletransporte que solo se anota (Salas.teleportesSimulados): sirve para probar el flujo de la sala de espera.
 
 	Registro de una sala (MemoryStore, clave = código):
-	  { publica, maximo, anfitrionId, anfitrion, miembros = { { id, nombre } }, estado = "espera" | "iniciando", accessCode? }
+	  { publica, maximo, modo = "historia" | "sinfin", anfitrionId, anfitrion, miembros = { { id, nombre } }, estado = "espera" | "iniciando", accessCode? }
 
 	API (devuelven el resultado o nil + texto del error):
 	  Salas.enNube() -> boolean
@@ -27,7 +27,7 @@
 	  Salas.datosDeEntrada(jugador) -> datos con los que llegó el jugador a un servidor de juego, o nil
 	  Salas.codigoNuevo() -> string
 	  Salas.listar() -> { { codigo, anfitrion, jugadores, maximo } } | nil, error     (solo salas públicas en espera)
-	  Salas.crearRegistro(jugador, publica, maximo) -> codigo, registro | nil, error
+	  Salas.crearRegistro(jugador, publica, maximo, modo?) -> codigo, registro | nil, error
 	  Salas.leer(codigo) -> registro | nil, esErrorDeRed
 	  Salas.agregar(jugador, codigo) -> registro | nil, error
 	  Salas.quitar(jugador, codigo)
@@ -35,7 +35,7 @@
 	  Salas.iniciar(codigo, anfitrion) -> registro | nil, error     (reserva el servidor de juego y marca "iniciando")
 	  Salas.teleportar(jugadores, codigo, registro) -> boolean
 	  Salas.retirar(codigo)
-	  Salas.crearSolo(jugador) -> ok, error          (partida en solitario: servidor de un solo lugar)
+	  Salas.crearSolo(jugador, modo?) -> ok, error         (partida en solitario: servidor de un solo lugar)
 	  Salas.irAlInicio(jugador)                      (vuelve a un servidor público)
 ]]
 
@@ -178,7 +178,7 @@ function Salas.listar()
 	return lista
 end
 
-function Salas.crearRegistro(jugador: Player, publica: boolean, maximo: number)
+function Salas.crearRegistro(jugador: Player, publica: boolean, maximo: number, modo: string?)
 	for _ = 1, 8 do
 		local codigo = Salas.codigoNuevo()
 		local okLeer, existente = pcall(function()
@@ -191,6 +191,7 @@ function Salas.crearRegistro(jugador: Player, publica: boolean, maximo: number)
 			local registro = {
 				publica = publica,
 				maximo = maximo,
+				modo = modo == "sinfin" and "sinfin" or "historia",
 				anfitrionId = jugador.UserId,
 				anfitrion = jugador.DisplayName,
 				miembros = { miembroDe(jugador) },
@@ -351,6 +352,7 @@ function Salas.teleportar(jugadores: { Player }, codigo: string, registro): bool
 		sala = codigo,
 		publica = registro.publica,
 		maximo = registro.maximo,
+		modo = registro.modo or "historia",
 		anfitrionId = registro.anfitrionId,
 		esperados = #registro.miembros, -- el servidor de juego espera a este equipo antes de empezar
 	}
@@ -361,13 +363,16 @@ function Salas.teleportar(jugadores: { Player }, codigo: string, registro): bool
 	return ok
 end
 
-function Salas.crearSolo(jugador: Player)
+function Salas.crearSolo(jugador: Player, modo: string?)
 	local ok, accessCode = pcall(reservarServidor)
 	if not ok or typeof(accessCode) ~= "string" then
 		warn("[Salas] ReserveServer falló: " .. tostring(accessCode))
 		return false, "No se pudo preparar la partida. Probá de nuevo."
 	end
-	local datos = { tipo = "solo", sala = "SOLO", publica = false, maximo = 1, anfitrionId = jugador.UserId, esperados = 1 }
+	local datos = {
+		tipo = "solo", sala = "SOLO", publica = false, maximo = 1, anfitrionId = jugador.UserId, esperados = 1,
+		modo = modo == "sinfin" and "sinfin" or "historia",
+	}
 	local okTp, err = pcall(teletransportar, { jugador }, accessCode, datos)
 	if not okTp then
 		warn("[Salas] Falló el teletransporte: " .. tostring(err))

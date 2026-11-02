@@ -618,7 +618,7 @@ do
 	linea("2. Rebobiná las cintas devueltas", 32, Enum.Font.SourceSansBold, CREMA, 25)
 	linea("3. Las dañadas, a la caja roja", 32, Enum.Font.SourceSansBold, CREMA, 25)
 	linea("4. Cada cinta a la góndola de su género", 32, Enum.Font.SourceSansBold, CREMA, 25)
-	linea("5. Basura al patio, manchas a limpiar", 32, Enum.Font.SourceSansBold, CREMA, 25)
+	linea("5. Basura al patio; manchas con cepillo", 32, Enum.Font.SourceSansBold, CREMA, 25)
 	linea('<font color="#E0584A"><b>El Socio N° 0000 solo se mueve cuando nadie lo mira.</b></font>', 60, Enum.Font.SourceSansBold, CREMA, 25, true)
 end
 
@@ -775,6 +775,54 @@ end
 local telInterno = parte("TelefonoInterno", V3(0.5, 1.2, 0.9), V3(-1.5, 4.2, -13.3), C3(90, 90, 96), Enum.Material.Plastic, deposito)
 CollectionService:AddTag(telInterno, "TelefonoInterno")
 
+-- Máscara de Ghostface colgada en la pared izquierda del depósito (cara interior en x = -24). Mantener E sobre ella abre la
+-- compra de "Asustar a todos" (Tienda.lua busca el tag MascaraAsustar). Brilla con destellos blancos para que llame la
+-- atención en la oscuridad. La malla viene de la toolbox y está guardada en ServerStorage.Plantillas.ghostface.Mascara
+-- (su frente mira hacia -X: se la gira para que mire hacia el depósito).
+do
+	local plantillas = game:GetService("ServerStorage"):FindFirstChild("Plantillas")
+	local molde = plantillas and plantillas:FindFirstChild("ghostface") and plantillas.ghostface:FindFirstChild("Mascara")
+	-- Tablero oscuro detrás, como si la máscara estuviera clavada en la pared.
+	parte("TableroMascara", V3(0.15, 3.4, 2.4), V3(-23.92, 5.4, -16.5), C3(30, 24, 22), Enum.Material.Wood, deposito, DECO)
+	if molde then
+		local mascara = molde:Clone()
+		mascara.Name = "MascaraGhostface"
+		mascara.Size = mascara.Size * (2.3 / mascara.Size.Y)
+		mascara.Anchored = true
+		mascara.CanCollide = false
+		mascara.CanTouch = false
+		mascara.CFrame = CFrame.new(-23.55, 5.4, -16.5) * CFrame.Angles(0, math.pi, 0)
+		mascara.Parent = deposito
+		CollectionService:AddTag(mascara, "MascaraAsustar")
+		-- Destellos blancos (el típico efecto de brillos de Roblox) alrededor de la máscara.
+		local brillos = Instance.new("ParticleEmitter")
+		brillos.Name = "Brillos"
+		brillos.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+		brillos.Color = ColorSequence.new(C3(255, 255, 255))
+		brillos.LightEmission = 1
+		brillos.LightInfluence = 0
+		brillos.Rate = 14
+		brillos.Lifetime = NumberRange.new(0.9, 1.8)
+		brillos.Speed = NumberRange.new(0.2, 0.7)
+		brillos.SpreadAngle = Vector2.new(180, 180)
+		brillos.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.5), NumberSequenceKeypoint.new(1, 0) })
+		brillos.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(1, 1) })
+		brillos.Rotation = NumberRange.new(0, 360)
+		brillos.RotSpeed = NumberRange.new(-60, 60)
+		brillos.Shape = Enum.ParticleEmitterShape.Box
+		brillos.ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume
+		brillos.EmissionDirection = Enum.NormalId.Left -- el frente de la malla es su eje -X (Left), que con el giro mira hacia el depósito
+		brillos.Parent = mascara
+		local luz = Instance.new("PointLight")
+		luz.Color = C3(220, 235, 255)
+		luz.Brightness = 0.8
+		luz.Range = 9
+		luz.Parent = mascara
+	else
+		warn("[build] Falta ServerStorage.Plantillas.ghostface.Mascara: no se construyó la máscara de Ghostface.")
+	end
+end
+
 -- ===== Baño =====
 -- x 7.5..24, z -20..-12.5. Azulejos hasta media pared, cubículo con puerta, inodoro, lavatorio, espejo, dispensador.
 
@@ -841,6 +889,34 @@ texto(cartelBano, Enum.NormalId.Front, "NO TIRAR PAPEL AL INODORO", Enum.Font.Ar
 -- Papeles tirados en el piso (detalle).
 for i = 1, 4 do
 	parte("PapelPiso", V3(0.5, 0.04, 0.4), CFrame.new(13 + i * 1.3, 0.08, -17 + (i % 2) * 1.4) * CFrame.Angles(0, i * 1.1, 0), C3(236, 232, 218), Enum.Material.SmoothPlastic, bano, DECO)
+end
+
+-- Cepillo de mano colgado de la pared del fondo, junto al lavatorio. ChoreSystem lo toma como molde (tag CepilloColgado en
+-- el modelo; PrimaryPart = Mango) y le pone el prompt: sin él no se pueden limpiar las manchas del piso.
+do
+	local CX, CY, CZ = 9.4, 3.9, -19.6
+	parte("SoporteCepillo", V3(0.9, 0.14, 0.14), V3(CX, CY + 0.95, -19.85), C3(160, 164, 168), Enum.Material.Metal, bano, DECO)
+	parte("GanchoCepillo", V3(0.1, 0.5, 0.1), V3(CX, CY + 0.7, -19.78), C3(140, 144, 148), Enum.Material.Metal, bano, DECO)
+	local cepillo = Instance.new("Model")
+	cepillo.Name = "CepilloBano"
+	local mango = parte("Mango", V3(0.55, 1.35, 0.3), V3(CX, CY, CZ), C3(158, 112, 66), Enum.Material.Wood, cepillo, DECO)
+	local cerdas = parte("Cerdas", V3(0.45, 1.1, 0.22), V3(CX, CY - 0.04, CZ + 0.25), C3(214, 196, 142), Enum.Material.Fabric, cepillo, DECO)
+	local agujero = parte("AgujeroMango", V3(0.18, 0.18, 0.32), V3(CX, CY + 0.5, CZ), C3(40, 28, 20), Enum.Material.Wood, cepillo, DECO)
+	for _, p in { cerdas, agujero } do
+		local soldadura = Instance.new("WeldConstraint")
+		soldadura.Part0, soldadura.Part1 = mango, p
+		soldadura.Parent = p
+	end
+	cepillo.PrimaryPart = mango
+	cepillo.Parent = bano
+	CollectionService:AddTag(cepillo, "CepilloColgado")
+	-- Para que se vea desde la puerta: un contorno suave (el molde también lo conserva en la mano).
+	local contorno = Instance.new("Highlight")
+	contorno.FillTransparency = 1
+	contorno.OutlineColor = Color3.fromRGB(235, 225, 190)
+	contorno.OutlineTransparency = 0.6
+	contorno.DepthMode = Enum.HighlightDepthMode.Occluded
+	contorno.Parent = cepillo
 end
 
 -- ===== Objetos movibles (AnomalySystem los desplaza del lado del cliente) =====

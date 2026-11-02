@@ -124,6 +124,21 @@ Config.Tareas = {
 	SincronizacionSeg = 2, -- reenvío periódico del estado a los clientes (por si alguno entró tarde)
 }
 
+-- Cepillo de mano (ChoreSystem): cuelga de la pared del baño; hace falta llevarlo para limpiar una mancha.
+Config.Cepillo = {
+	-- Relativo a HumanoidRootPart, abajo a la izquierda de la vista: el mango apunta hacia adelante y las cerdas hacia abajo.
+	EnMano = CFrame.new(-1.3, -0.5, -2.1) *CFrame.Angles(math.rad(-80), math.rad(15), 0) * CFrame.Angles(0, math.pi, 0),
+	DistanciaPrompt = 6,
+}
+
+-- Modo "Sin fin" (NightData.sinFin / NightManager): noches que se encadenan sin final hasta que el equipo entero cae.
+-- Se desbloquea al llegar a cualquiera de los finales del modo Historia.
+Config.SinFin = {
+	NocheTopeDificultad = 12, -- a partir de esta noche la dificultad deja de crecer (lo que sigue es resistir)
+	ProgresoSocioPorNoche = 0.05, -- cuánto más rápido arranca el Socio cada noche después de la 5
+	PausaReinicioSeg = 14, -- pantalla de "te grabaron" antes de que el turno sin fin vuelva a empezar en la noche 1
+}
+
 -- Clientes NPC. Las posiciones tienen y = 3 (altura del HumanoidRootPart).
 Config.Clientes = {
 	PacienciaSeg = 90, -- tiempo que espera en el mostrador antes de irse
@@ -341,6 +356,24 @@ Config.Tienda = {
 	Productos = { Asustar = 3726792104, Revivir = 3726792548 },
 	Precios = { Asustar = 10, Revivir = 15 }, -- solo para mostrarlos en los botones (el precio real es el del producto)
 	EnfriamientoAsustarSeg = 45, -- entre un "asustar a todos" y otro (para todo el servidor)
+	-- La máscara de Ghostface del depósito (Tienda.lua): mantener E sobre ella abre la compra de "Asustar a todos".
+	Mascara = { MantenerSeg = 1.2, Distancia = 8 },
+}
+
+-- Insignias (Insignias.lua / Catalogo.Insignias): ids de las insignias de la experiencia (Centro de creación > Insignias).
+-- Con 0 la insignia no está creada en Roblox: igual se avisa en pantalla y queda anotada en el perfil, pero no se otorga
+-- la de Roblox.
+Config.Insignias = {
+	Ids = {
+		PRIMER_TURNO = 1447396606648832,
+		NOCHE_5 = 0, -- pendiente: Roblox deja crear 5 insignias gratis cada 24 h (las demás cuestan 100 Robux)
+		FINAL_REBOBINAR = 3629946071895543,
+		FINAL_DEVOLVER = 4284849697446367,
+		FINAL_MIRAR = 9166582595813,
+		TODOS_LOS_FINALES = 2598464511858468,
+		SIN_FIN_5 = 0,
+		SIN_FIN_10 = 0,
+	},
 }
 
 -- Idioma (Idioma.lua): por defecto sigue el de Roblox del jugador (español si empieza con "es", inglés en cualquier otro).
@@ -385,7 +418,7 @@ Config.Cinta = {
 
 -- Anomalías por jugador (AnomalySystem). La cantidad por noche está en PorNoche.
 Config.Anomalias = {
-	PorNoche = { 0, 5, 6, 7, 8 }, -- más anomalías: menos tiempos muertos
+	PorNoche = { 0, 5, 6, 7, 8 }, -- más anomalías: menos tiempos muertos (en el modo Sin fin, desde la noche 6 se repite la última cantidad)
 	MinutoDesde = 22,
 	MinutoHasta = 290,
 	DistanciaReporte = 35,

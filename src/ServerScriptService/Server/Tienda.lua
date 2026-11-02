@@ -1,14 +1,16 @@
 --!nonstrict
 --[[
 	Tienda (servidor): compras con Robux (Developer Products de la experiencia, ids en Config.Tienda.Productos).
-	  asustar  10 Robux: un screamer a todos los demás que siguen en la noche (con enfriamiento para todo el servidor)
+	  asustar  10 Robux: un screamer a todos los demás que siguen en la noche (con enfriamiento para todo el servidor).
+           Se compra manteniendo E sobre la máscara de Ghostface colgada en el depósito (parte con el tag "MascaraAsustar").
 	  revivir  15 Robux: un espectador vuelve a jugar al instante (no hace falta esperar a la noche siguiente)
 
-	El cliente solo pide ("Comprar" { producto }); acá se valida, se abre la compra y recién cuando Roblox confirma el
+	El cliente pide ("Comprar" { producto }) o el jugador usa el prompt de la máscara; acá se valida, se abre la compra y recién cuando Roblox confirma el
 	pago (ProcessReceipt) se aplica el efecto. En Studio, si el producto todavía no tiene id (0), la compra se simula para
 	poder probar el efecto sin gastar nada.
 ]]
 
+local CollectionService = game:GetService("CollectionService")
 local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -16,6 +18,7 @@ local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Net = require(ReplicatedStorage.Shared.Net)
+local Prompts = require(script.Parent.Prompts)
 local Fantasmas = require(script.Parent.Fantasmas)
 local NightManager = require(script.Parent.NightManager)
 local Screamers = require(script.Parent.Screamers)
@@ -102,7 +105,29 @@ local function pedirCompra(jugador: Player, producto: string)
 	end
 end
 
+function Tienda.pedirCompra(jugador: Player, producto: string)
+	pedirCompra(jugador, producto)
+end
+
 function Tienda.init()
+	-- La máscara de Ghostface del depósito: mantener E abre la compra de "Asustar a todos".
+	for _, mascara in CollectionService:GetTagged("MascaraAsustar") do
+		if mascara:IsA("BasePart") then
+			Prompts.crear(mascara, {
+				clave = "mascara",
+				accion = "Asustar a todos",
+				objeto = string.format("Máscara · R$ %d", cfg.Precios.Asustar),
+				hold = cfg.Mascara.MantenerSeg,
+				distancia = cfg.Mascara.Distancia,
+				alActivar = function(jugador)
+					if Net.limitar(jugador, "comprar", 1.5) then
+						pedirCompra(jugador, "asustar")
+					end
+				end,
+			})
+		end
+	end
+
 	Net.obtener("Comprar").OnServerEvent:Connect(function(jugador, datos)
 		if typeof(datos) ~= "table" or typeof(datos.producto) ~= "string" then
 			return

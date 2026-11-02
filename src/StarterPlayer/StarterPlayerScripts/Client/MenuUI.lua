@@ -28,6 +28,12 @@ local TEXTOS = {
 	subtitulo = "TURNO NOCHE · NOVIEMBRE DE 1997",
 	solo = "UN JUGADOR",
 	multi = "MULTIJUGADOR",
+	modoHistoria = "HISTORIA",
+	modoSinFin = "SIN FIN",
+	modoSinFinBloqueado = "SIN FIN (BLOQUEADO)",
+	sinFinAyuda = "El modo Sin fin se desbloquea al alcanzar un final de la historia.",
+	modoLobbyHistoria = "MODO: HISTORIA",
+	modoLobbySinFin = "MODO: SIN FIN",
 	ajustes = "AJUSTES",
 	ayuda = "CÓMO JUGAR",
 	volver = "VOLVER",
@@ -95,6 +101,9 @@ local enJuego = false -- el turno ya empezó
 local ajustesAbiertos = false
 local pantallaActual = "cargando"
 local ajustes = { Musica = 1, Ambiente = 1, Estatica = 1 } -- guardados solo en esta sesión
+local modoElegido = "historia" -- "historia" | "sinfin": lo que se manda al elegir UN JUGADOR o CREAR una sala
+local sinFinListo = false -- el servidor avisó que ya alcanzó un final (perfil)
+local actualizarModo -- (se define con la pantalla principal)
 
 -- ===== Utilidades de interfaz =====
 
@@ -299,10 +308,35 @@ local function construirPrincipal()
 	texto(p, { texto = TEXTOS.subtitulo, tamano = UDim2.fromScale(0.5, 0.04), posicion = UDim2.fromScale(0.5, 0.31), ancla = Vector2.new(0.5, 0.5), color = COLOR_APAGADO })
 	-- Botones separados 0.13 de alto y de 0.075: queda aire entre uno y otro para no confundirlos.
 	local TAM_BOTON = UDim2.fromScale(0.34, 0.075)
-	boton(p, TEXTOS.solo, UDim2.fromScale(0.5, 0.45), function()
-		enviar("solo")
+	-- Modo de juego: HISTORIA (cinco noches con final) o SIN FIN (desbloqueable). Vale para UN JUGADOR y para las salas.
+	local TAM_MODO = UDim2.fromScale(0.17, 0.05)
+	local botonHistoria, marcarHistoria = selector(p, TEXTOS.modoHistoria, UDim2.fromScale(0.415, 0.38), TAM_MODO, function()
+		modoElegido = "historia"
+		actualizarModo()
+	end)
+	local botonSinFin, marcarSinFin = selector(p, TEXTOS.modoSinFin, UDim2.fromScale(0.585, 0.38), TAM_MODO, function()
+		if not sinFinListo then
+			ponerMensaje(TEXTOS.sinFinAyuda, true)
+			return
+		end
+		modoElegido = "sinfin"
+		actualizarModo()
+	end)
+	function actualizarModo()
+		if modoElegido == "sinfin" and not sinFinListo then
+			modoElegido = "historia"
+		end
+		marcarHistoria(modoElegido == "historia")
+		marcarSinFin(modoElegido == "sinfin")
+		botonSinFin.Text = sinFinListo and TEXTOS.modoSinFin or TEXTOS.modoSinFinBloqueado
+		botonSinFin.TextTransparency = sinFinListo and 0 or 0.45
+		botonHistoria.TextTransparency = 0
+	end
+	actualizarModo()
+	boton(p, TEXTOS.solo, UDim2.fromScale(0.5, 0.46), function()
+		enviar("solo", { modo = modoElegido })
 	end, TAM_BOTON)
-	boton(p, TEXTOS.multi, UDim2.fromScale(0.5, 0.58), function()
+	boton(p, TEXTOS.multi, UDim2.fromScale(0.5, 0.59), function()
 		mostrarPantalla("salas")
 		enviar("salas")
 	end, TAM_BOTON)
@@ -315,7 +349,7 @@ local function construirPrincipal()
 	table.insert(mensajes, texto(p, { texto = "", tamano = UDim2.fromScale(0.5, 0.04), posicion = UDim2.fromScale(0.5, 0.93), ancla = Vector2.new(0.5, 0.5), color = COLOR_APAGADO }))
 end
 
-local lobbyLista, lobbyEstado, lobbyBotonEmpezar, lobbyBotonVolver, lobbyCodigo, lobbyTipo
+local lobbyLista, lobbyEstado, lobbyBotonEmpezar, lobbyBotonVolver, lobbyCodigo, lobbyTipo, lobbyModo
 local listaSalas, listaVacia
 
 local function construirLobby()
@@ -323,7 +357,8 @@ local function construirLobby()
 	texto(p, { texto = TEXTOS.salaTitulo, fuente = FUENTE_TITULO, color = COLOR_ACENTO, tamano = UDim2.fromScale(0.7, 0.1), posicion = UDim2.fromScale(0.5, 0.13), ancla = Vector2.new(0.5, 0.5) })
 	lobbyCodigo = texto(p, { texto = "", fuente = FUENTE_TITULO, color = COLOR_TEXTO, tamano = UDim2.fromScale(0.6, 0.085), posicion = UDim2.fromScale(0.5, 0.23), ancla = Vector2.new(0.5, 0.5) })
 	lobbyTipo = texto(p, { texto = "", tamano = UDim2.fromScale(0.6, 0.04), posicion = UDim2.fromScale(0.5, 0.3), ancla = Vector2.new(0.5, 0.5), color = COLOR_APAGADO })
-	lobbyLista = texto(p, { texto = "", tamano = UDim2.fromScale(0.4, 0.26), posicion = UDim2.fromScale(0.5, 0.48), ancla = Vector2.new(0.5, 0.5), escalado = false })
+	lobbyModo = texto(p, { texto = "", tamano = UDim2.fromScale(0.4, 0.035), posicion = UDim2.fromScale(0.5, 0.345), ancla = Vector2.new(0.5, 0.5), color = COLOR_ACENTO })
+	lobbyLista = texto(p, { texto = "", tamano = UDim2.fromScale(0.4, 0.26), posicion = UDim2.fromScale(0.5, 0.49), ancla = Vector2.new(0.5, 0.5), escalado = false })
 	lobbyLista.TextSize = 24
 	lobbyEstado = texto(p, { texto = "", tamano = UDim2.fromScale(0.7, 0.05), posicion = UDim2.fromScale(0.5, 0.67), ancla = Vector2.new(0.5, 0.5), color = COLOR_APAGADO })
 	-- Abajo: INICIAR (solo el anfitrión) y SALIR.
@@ -450,7 +485,7 @@ local function construirCrear()
 	table.insert(mensajes, texto(p, { texto = "", tamano = UDim2.fromScale(0.6, 0.045), posicion = UDim2.fromScale(0.5, 0.69), ancla = Vector2.new(0.5, 0.5), color = COLOR_APAGADO }))
 	boton(p, TEXTOS.crearSala, UDim2.fromScale(0.5, 0.78), function()
 		ponerMensaje("")
-		enviar("crear", { publica = publica, maximo = maximo })
+		enviar("crear", { publica = publica, maximo = maximo, modo = modoElegido })
 	end, UDim2.fromScale(0.34, 0.075))
 	boton(p, TEXTOS.volver, UDim2.fromScale(0.5, 0.9), function()
 		mostrarPantalla("salas")
@@ -574,6 +609,7 @@ local function actualizarLobby()
 	lobbyLista.Text = table.concat(lineas, "\n")
 	lobbyCodigo.Text = estadoPartida.codigo and string.format(TEXTOS.codigoSala, estadoPartida.codigo) or ""
 	lobbyTipo.Text = string.format(estadoPartida.publica == false and TEXTOS.salaPrivadaTipo or TEXTOS.salaPublicaTipo, #jugadores, maximo)
+	lobbyModo.Text = estadoPartida.modoJuego == "sinfin" and TEXTOS.modoLobbySinFin or TEXTOS.modoLobbyHistoria
 	local soyAnfitrion = estadoPartida.anfitrionId == Players.LocalPlayer.UserId
 	lobbyEstado.Text = soyAnfitrion and TEXTOS.salaAnfitrion or string.format(TEXTOS.salaEspera, estadoPartida.anfitrion or "el anfitrión")
 	local iniciando = estadoPartida.iniciando == true
@@ -765,6 +801,14 @@ function MenuUI.init()
 	task.delay(2, function()
 		if pantallaActual == "cargando" then
 			Net.obtener("MenuAction"):FireServer({ accion = "estado" })
+		end
+		Net.obtener("MenuAction"):FireServer({ accion = "perfil" }) -- el perfil puede haber llegado antes de que el menú estuviera listo
+	end)
+	-- Perfil guardado: con cualquier final alcanzado se habilita el modo Sin fin.
+	Net.obtener("ProfileLoaded").OnClientEvent:Connect(function(perfil)
+		if typeof(perfil) == "table" then
+			sinFinListo = perfil.sinFinDesbloqueado == true
+			actualizarModo()
 		end
 	end)
 

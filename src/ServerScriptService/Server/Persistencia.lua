@@ -25,7 +25,23 @@ local cargados = {} -- Player -> true cuando terminó de cargar (con datos o con
 local avisado = false
 
 local function perfilNuevo()
-	return { nocheAlcanzada = 1, finales = {}, empleadosMenos = 0 }
+	return { nocheAlcanzada = 1, finales = {}, empleadosMenos = 0, insignias = {}, mejorSinFin = 0 }
+end
+
+local function tieneFinal(perfil): boolean
+	return next(perfil.finales) ~= nil
+end
+
+-- Lo que ve el cliente de su perfil. "sinFinDesbloqueado": con cualquier final alcanzado se habilita el modo Sin fin.
+local function paquetePerfil(perfil)
+	return {
+		nocheAlcanzada = perfil.nocheAlcanzada,
+		finales = perfil.finales,
+		empleadosMenos = perfil.empleadosMenos,
+		insignias = perfil.insignias,
+		mejorSinFin = perfil.mejorSinFin,
+		sinFinDesbloqueado = tieneFinal(perfil),
+	}
 end
 
 local function avisarSinAlmacen(motivo)
@@ -51,6 +67,8 @@ local function cargar(jugador: Player)
 					perfil.nocheAlcanzada = math.clamp(tonumber(datos.nocheAlcanzada) or 1, 1, Config.Noche.NochesImplementadas)
 					perfil.finales = typeof(datos.finales) == "table" and datos.finales or {}
 					perfil.empleadosMenos = tonumber(datos.empleadosMenos) or 0
+					perfil.insignias = typeof(datos.insignias) == "table" and datos.insignias or {}
+					perfil.mejorSinFin = tonumber(datos.mejorSinFin) or 0
 				end
 				break
 			end
@@ -60,11 +78,7 @@ local function cargar(jugador: Player)
 	end
 	perfiles[jugador] = perfil
 	cargados[jugador] = true
-	Net.obtener("ProfileLoaded"):FireClient(jugador, {
-		nocheAlcanzada = perfil.nocheAlcanzada,
-		finales = perfil.finales,
-		empleadosMenos = perfil.empleadosMenos,
-	})
+	Net.obtener("ProfileLoaded"):FireClient(jugador, paquetePerfil(perfil))
 end
 
 local function guardar(jugador: Player)
@@ -83,12 +97,75 @@ end
 local function enviarPerfil(jugador: Player)
 	local perfil = perfiles[jugador]
 	if perfil then
-		Net.obtener("ProfileLoaded"):FireClient(jugador, {
-			nocheAlcanzada = perfil.nocheAlcanzada,
-			finales = perfil.finales,
-			empleadosMenos = perfil.empleadosMenos,
-		})
+		Net.obtener("ProfileLoaded"):FireClient(jugador, paquetePerfil(perfil))
 	end
+end
+
+--- Vuelve a mandarle al cliente su perfil (el menú lo pide al abrirse por si el primer envío le llegó antes de estar listo).
+function Persistencia.enviarPerfil(jugador: Player)
+	enviarPerfil(jugador)
+end
+
+--- ¿Alcanzó algún final? Eso habilita el modo Sin fin (el perfil puede no haber cargado todavía: en ese caso, no).
+function Persistencia.sinFinDesbloqueado(jugador: Player): boolean
+	local perfil = perfiles[jugador]
+	return perfil ~= nil and tieneFinal(perfil)
+end
+
+--- Mejor racha de noches del modo Sin fin entre los jugadores presentes.
+function Persistencia.mejorSinFin(): number
+	local mejor = 0
+	for _, perfil in perfiles do
+		mejor = math.max(mejor, perfil.mejorSinFin)
+	end
+	return mejor
+end
+
+--- Anota la racha de este equipo (noches superadas seguidas) en el perfil de cada presente si supera su récord.
+function Persistencia.registrarSinFin(superadas: number)
+	for _, jugador in Players:GetPlayers() do
+		local perfil = perfiles[jugador]
+		if perfil and superadas > perfil.mejorSinFin then
+			perfil.mejorSinFin = superadas
+			enviarPerfil(jugador)
+			task.spawn(guardar, jugador)
+		end
+	end
+end
+
+--- Anota una insignia en el perfil. Devuelve true si era nueva (hay que avisarle al jugador), false si ya la tenía.
+function Persistencia.marcarInsignia(jugador: Player, clave: string): boolean
+	local perfil = perfiles[jugador]
+	if not perfil or perfil.insignias[clave] then
+		return false
+	end
+	perfil.insignias[clave] = true
+	enviarPerfil(jugador)
+	task.spawn(guardar, jugador)
+	return true
+end
+
+--- Para pruebas: marca un final como alcanzado (habilita el modo Sin fin) sin pasar por el turno.
+function Persistencia.marcarFinal(jugador: Player, id: string)
+	local perfil = perfiles[jugador]
+	if perfil then
+		perfil.finales[id] = true
+		enviarPerfil(jugador)
+	end
+end
+
+--- ¿Tiene todos estos finales?
+function Persistencia.tieneFinales(jugador: Player, ids: { string }): boolean
+	local perfil = perfiles[jugador]
+	if not perfil then
+		return false
+	end
+	for _, id in ids do
+		if not perfil.finales[id] then
+			return false
+		end
+	end
+	return true
 end
 
 --- Noche guardada del primer jugador (espera un poco a que termine de cargar).
@@ -127,8 +204,12 @@ function Persistencia.estadoTexto(): string
 		for id in perfil.finales do
 			table.insert(finales, id)
 		end
-		table.insert(partes, string.format("%s: noche %d, empleadosMenos %d, finales [%s]",
-			jugador.Name, perfil.nocheAlcanzada, perfil.empleadosMenos, table.concat(finales, ",")))
+		local insignias = {}
+		for clave in perfil.insignias do
+			table.insert(insignias, clave)
+		end
+		table.insert(partes, string.format("%s: noche %d, empleadosMenos %d, finales [%s], mejor Sin fin %d, insignias [%s]",
+			jugador.Name, perfil.nocheAlcanzada, perfil.empleadosMenos, table.concat(finales, ","), perfil.mejorSinFin, table.concat(insignias, ",")))
 	end
 	return #partes > 0 and table.concat(partes, "\n") or "sin perfiles"
 end
@@ -144,6 +225,7 @@ function Persistencia.init()
 	end
 
 	NightManager.registrarNocheInicial(Persistencia.nocheInicial)
+	NightManager.registrarRecordSinFin(Persistencia.mejorSinFin)
 
 	Players.PlayerAdded:Connect(function(jugador)
 		task.spawn(cargar, jugador)
@@ -159,6 +241,11 @@ function Persistencia.init()
 	-- Al pasar una noche (sin fracasar ni llegar a un final) se guarda la siguiente.
 	NightManager.suscribir("NOCHE_TERMINA", function(datos)
 		if datos.fracaso or datos.final then
+			return
+		end
+		if datos.modo == "sinfin" then
+			-- Sin fin no avanza la noche guardada de la historia: solo cuenta la racha.
+			Persistencia.registrarSinFin(datos.noche)
 			return
 		end
 		local siguiente = math.min(datos.noche + 1, Config.Noche.NochesImplementadas)

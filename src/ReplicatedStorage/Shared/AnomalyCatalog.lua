@@ -75,7 +75,7 @@ end
 --- Las anomalías del jugador para la noche indicada. 'escena' viene de AnomalyCatalog.escena().
 function AnomalyCatalog.generar(semilla: number, noche: number, escena: Escena): { Anomalia }
 	local cfg = Config.Anomalias
-	local cantidad = cfg.PorNoche[noche] or 0
+	local cantidad = cfg.PorNoche[noche] or cfg.PorNoche[#cfg.PorNoche] or 0 -- después de la última noche (Sin fin) se repite la cantidad final
 	local rng = Random.new(semilla)
 	local libres = {
 		portadas = table.clone(escena.portadas),

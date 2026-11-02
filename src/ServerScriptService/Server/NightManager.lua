@@ -31,6 +31,8 @@ local siguienteEvento = 1
 local proveedorResumen: (() -> { string })? = nil
 local resumenActual: { string }? = nil
 local proveedorNocheInicial: (() -> number?)? = nil
+local proveedorRecordSinFin: (() -> number)? = nil
+local modo = "historia" -- "historia" (cinco noches con final) | "sinfin" (noches sin final hasta que cae todo el equipo)
 local generacion = 0 -- invalida los temporizadores de una noche anterior
 
 local function emitir(id: string, datos: any)
@@ -44,11 +46,12 @@ local function emitir(id: string, datos: any)
 end
 
 local function sincronizar(jugador: Player?)
-	local noche = NightData[estado.noche]
+	local noche = NightManager.datosNoche()
 	local paquete = {
 		noche = estado.noche,
 		minuto = estado.minuto,
 		fase = estado.fase,
+		modo = modo,
 		titulo = noche and noche.titulo or nil,
 		escala = escalaActual,
 		resumen = resumenActual,
@@ -63,20 +66,40 @@ end
 
 local function terminarNoche(fracaso: boolean?)
 	local miGeneracion = generacion -- antes de emitir: un final puede cancelar el reinicio (detenerTurno)
+	local sinFin = modo == "sinfin"
 	estado.minuto = Config.Noche.DuracionMinutosJuego
 	estado.fase = "fin"
-	if fracaso then
+	if fracaso and sinFin then
+		-- Sin fin: caer entero el equipo termina la racha; el turno vuelve a empezar desde la noche 1.
+		local superadas = estado.noche - 1
+		local record = math.max(proveedorRecordSinFin and proveedorRecordSinFin() or 0, superadas)
+		resumenActual = {
+			"TE GRABARON.",
+			"",
+			string.format("Noches superadas: %d", superadas),
+			string.format("Récord: %d", record),
+			"",
+			"El turno sin fin vuelve a empezar desde la noche 1.",
+		}
+	elseif fracaso then
 		resumenActual = { "TE GRABARON.", "", "El turno se repite desde las 22:00." }
 	else
 		resumenActual = if proveedorResumen then proveedorResumen() else {}
 	end
-	emitir("NOCHE_TERMINA", { noche = estado.noche, fracaso = fracaso == true })
+	emitir("NOCHE_TERMINA", { noche = estado.noche, fracaso = fracaso == true, modo = modo })
 	sincronizar()
 
-	task.delay(Config.Noche.PausaFinSeg, function()
+	local pausa = if fracaso and sinFin then Config.SinFin.PausaReinicioSeg else Config.Noche.PausaFinSeg
+	task.delay(pausa, function()
 		if generacion == miGeneracion then
-			-- Si el equipo fracasó la noche se repite; si no, pasa a la siguiente (hasta la última implementada).
-			local siguiente = if fracaso then estado.noche else math.min(estado.noche + 1, Config.Noche.NochesImplementadas)
+			-- Historia: si el equipo fracasó la noche se repite; si no, pasa a la siguiente (hasta la última implementada).
+			-- Sin fin: sigue la noche siguiente sin tope; si el equipo cayó, la racha vuelve a empezar.
+			local siguiente
+			if sinFin then
+				siguiente = if fracaso then 1 else estado.noche + 1
+			else
+				siguiente = if fracaso then estado.noche else math.min(estado.noche + 1, Config.Noche.NochesImplementadas)
+			end
 			NightManager.iniciarNoche(siguiente)
 		end
 	end)
@@ -118,7 +141,21 @@ end
 
 --- La noche en curso (NightData ajustado a la cantidad de jugadores que había al empezar).
 function NightManager.datosNoche()
-	return datosNocheActual or NightData[estado.noche]
+	return datosNocheActual or NightData.deModo(modo, estado.noche, 1)
+end
+
+--- Modo de la partida: "historia" o "sinfin". Se fija antes de que arranque el primer turno (Partida).
+function NightManager.fijarModo(nuevo: string)
+	modo = if nuevo == "sinfin" then "sinfin" else "historia"
+end
+
+function NightManager.modo(): string
+	return modo
+end
+
+--- Persistencia registra de dónde sale el récord de noches seguidas del modo Sin fin (el mejor de los presentes).
+function NightManager.registrarRecordSinFin(fn: () -> number)
+	proveedorRecordSinFin = fn
 end
 
 --- Minutos de juego por segundo real de la noche en curso.
@@ -137,7 +174,7 @@ function NightManager.iniciarNoche(noche: number)
 	estado.fase = "turno"
 	resumenActual = nil
 
-	local datos = NightData.paraJugadores(noche, #Players:GetPlayers())
+	local datos = NightData.deModo(modo, noche, #Players:GetPlayers())
 	datosNocheActual = datos
 	escalaActual = Config.Noche.DuracionMinutosJuego / ((datos and datos.duracionSeg) or Config.Noche.DuracionRealSegundos)
 	eventos = datos and table.clone(datos.eventos) or {}

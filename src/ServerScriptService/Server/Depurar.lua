@@ -29,6 +29,7 @@ local PhoneSystem = require(script.Parent.PhoneSystem)
 local RulesSystem = require(script.Parent.RulesSystem)
 local Salas = require(script.Parent.Salas)
 local Fantasmas = require(script.Parent.Fantasmas)
+local Insignias = require(script.Parent.Insignias)
 local Screamers = require(script.Parent.Screamers)
 local TareasMenores = require(script.Parent.TareasMenores)
 local NightData = require(ReplicatedStorage.Shared.NightData)
@@ -198,6 +199,35 @@ end
 function comandos.noche(n)
 	NightManager.iniciarNoche(tonumber(n) or 1)
 	return "noche " .. tostring(n)
+end
+
+--- Modo Sin fin: si todavía no empezó la partida la arranca en este modo; si no, salta a esa noche (por defecto la 1).
+function comandos.sinfin(n)
+	if Partida.estado().fase ~= "jugando" then
+		Partida.forzarInicio("solo", "sinfin")
+		return "arranca el modo Sin fin (noche 1)"
+	end
+	NightManager.fijarModo("sinfin")
+	NightManager.iniciarNoche(tonumber(n) or 1)
+	return "sin fin, noche " .. tostring(tonumber(n) or 1)
+end
+
+--- Marca un final (por defecto REBOBINAR) en el perfil del primer jugador: habilita el modo Sin fin sin jugar la historia.
+function comandos.desbloquear(id)
+	local j = jugador()
+	if not j then
+		return "no hay jugadores"
+	end
+	Persistencia.marcarFinal(j, id or "REBOBINAR")
+	return Persistencia.estadoTexto()
+end
+
+function comandos.insignia(clave)
+	local j = jugador()
+	if not j then
+		return "no hay jugadores"
+	end
+	return tostring(Insignias.otorgar(j, clave or "PRIMER_TURNO"))
 end
 
 function comandos.todo()

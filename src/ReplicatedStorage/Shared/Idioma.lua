@@ -93,7 +93,7 @@ local EN = {
 	["Si viene a devolver, deja la cinta en el mostrador. Agarrala con E, rebobinala en la videocasetera (mantené E) y ponela en su góndola."] = "If they're returning one, they leave the tape on the counter. Grab it with E, rewind it in the VCR (hold E) and put it on its shelf.",
 	["Si una cinta está arrugada, no se rebobina: va a la caja de dañadas. Lo mismo con las que caen por el buzón."] = "If a tape is crinkled, don't rewind it: it goes in the damaged box. Same for the ones that drop through the mail slot.",
 	["Cuando no haya clientes, hay laburo de limpieza. Las bolsas de basura van al contenedor del patio: puerta del fondo, a la derecha."] = "When there are no customers, there's cleaning to do. Trash bags go to the dumpster in the yard: back door, on the right.",
-	["Y si ves una mancha en el piso, mantené E encima hasta que desaparezca. Lo que no hagas vos, que lo haga tu compañero."] = "And if you see a stain on the floor, hold E on it until it's gone. What you don't do, your teammate will.",
+	["Y si ves una mancha en el piso, agarrá el cepillo de mano que cuelga en el baño y mantené E encima hasta que desaparezca. Lo que no hagas vos, que lo haga tu compañero."] = "And if you see a stain on the floor, grab the hand brush hanging in the bathroom and hold E on it until it's gone. What you don't do, your teammate will.",
 	["Tu ficha de socio está a la izquierda: ahí figura todo lo que falta. Con Tab la mostrás o la ocultás. Y con G soltás lo que tengas en la mano."] = "Your member card is on the left: everything left to do is listed there. Tab shows or hides it. And G drops whatever you're holding.",
 	["Si alguna vez la luz se corta, F es la linterna. Y si ves algo fuera de lugar, apuntale y apretá Q. Después hablamos de eso."] = "If the lights ever go out, F is the flashlight. And if you see something out of place, aim at it and press Q. We'll talk about that later.",
 	["Hasta las cuatro de la mañana. No me llamen, yo los llamo. Suerte, che."] = "Until four in the morning. Don't call me, I'll call you. Good luck, man.",
@@ -258,6 +258,7 @@ local EN = {
 	["1. Atendé al cliente en el mostrador"] = "1. Serve the customer at the counter", ["2. Rebobiná las cintas devueltas"] = "2. Rewind returned tapes",
 	["3. Las dañadas, a la caja roja"] = "3. Damaged ones go in the red box", ["4. Cada cinta a la góndola de su género"] = "4. Each tape on its genre's shelf",
 	["5. Basura al patio, manchas a limpiar"] = "5. Trash to the yard, clean the stains",
+	["5. Basura al patio; manchas con cepillo"] = "5. Trash to the yard; stains need the brush",
 	["FRÁGIL"] = "FRAGILE", ["NO TIRAR PAPEL AL INODORO"] = "DO NOT FLUSH PAPER", ["¡OFERTA!"] = "SALE!", ["LOS MARTES"] = "ON TUESDAYS",
 	["en alquileres"] = "on rentals", ["NO COMER LO DE OTROS"] = "DON'T EAT OTHERS' FOOD", ["DARÍO"] = "DARÍO",
 	["TURNOS\nLUN  DARÍO\nMAR  DARÍO\nMIE  DARÍO\nJUE  ---"] = "SHIFTS\nMON  DARÍO\nTUE  DARÍO\nWED  DARÍO\nTHU  ---",
@@ -269,6 +270,24 @@ local EN = {
 	["en la puerta del depósito"] = "at the storeroom door", ["en la puerta del baño"] = "at the bathroom door", ["cerca de la entrada"] = "near the entrance",
 	["Canal "] = "Channel ",
 	["[E] sacar la cinta"] = "[E] eject the tape",
+
+	-- Cepillo de mano y manchas
+	["Limpiar manchas (cepillo del baño)"] = "Clean stains (bathroom brush)",
+	["Mancha (con cepillo)"] = "Stain (needs the brush)",
+	["Tomar o guardar"] = "Take or put back", ["Cepillo de mano"] = "Hand brush",
+	["Tenés el cepillo. Mantené E sobre una mancha para limpiarla."] = "You have the brush. Hold E on a stain to clean it.",
+	["Guardaste el cepillo."] = "You put the brush back.",
+	["Para limpiar hace falta el cepillo de mano: cuelga en el baño."] = "You need the hand brush to clean: it hangs in the bathroom.",
+	-- Insignias
+	["Grabar encima"] = "Record Over", ["Cuenta cerrada"] = "Account Closed",
+	["Hasta el final"] = "To the End", ["Cinta completa"] = "Complete Tape", ["Insomnio"] = "Insomnia", ["Turno eterno"] = "Eternal Shift",
+	-- Modo Sin fin
+	["HISTORIA"] = "STORY", ["SIN FIN"] = "ENDLESS", ["SIN FIN (BLOQUEADO)"] = "ENDLESS (LOCKED)",
+	["MODO: HISTORIA"] = "MODE: STORY", ["MODO: SIN FIN"] = "MODE: ENDLESS",
+	["El modo Sin fin se desbloquea al alcanzar un final de la historia."] = "Endless mode unlocks once you reach an ending in the story.",
+	["Turno sin fin"] = "Endless shift",
+	["Sin fin: cada noche es peor y no hay final. Aguantá todo lo que puedas."] = "Endless: every night is worse and there is no ending. Hold out as long as you can.",
+	["El turno sin fin vuelve a empezar desde la noche 1."] = "The endless shift starts over from night 1.",
 }
 
 -- ===== Patrones (textos con datos adentro) =====
@@ -283,6 +302,10 @@ local PATRONES = {
 	{ "^Hola, busco una de (.+) para esta noche%.$", function(g) return "Hi, I'm looking for a " .. t(g) .. " one for tonight." end },
 	{ "^¿Me recomendás una de (.+)%?$", function(g) return "Can you recommend a " .. t(g) .. " one?" end },
 	{ "^Notas de Darío mal interpretadas: (%d+)$", function(n) return "Darío's notes misread: " .. n end },
+	{ "^Máscara · R%$ (%d+)$", function(n) return "Mask · R$ " .. n end },
+	{ "^Insignia obtenida: (.+)$", function(x) return "Badge earned: " .. t(x) end },
+	{ "^Noches superadas: (%d+)$", function(n) return "Nights survived: " .. n end },
+	{ "^Récord: (%d+)$", function(n) return "Record: " .. n end },
 	{ "^Canal (%d+)$", function(n) return "Channel " .. n end },
 	{ "^CANAL (%d+)$", function(n) return "CHANNEL " .. n end },
 	{ "^Anomalía registrada %((%d+)/(%d+)%)%.$", function(a, b) return "Anomaly logged (" .. a .. "/" .. b .. ")." end },

@@ -90,7 +90,7 @@ function CursedTapeSystem.reproducir(jugador: Player): boolean
 		return false
 	end
 
-	local final = estado.noche == 5
+	local final = estado.noche == 5 and NightManager.modo() == "historia" -- en Sin fin la cinta nunca es la del final
 	local duracion = final and cfg.DuracionFinalSeg or cfg.DuracionSeg
 	local prediccion = elegirPrediccion()
 	local token = {}
