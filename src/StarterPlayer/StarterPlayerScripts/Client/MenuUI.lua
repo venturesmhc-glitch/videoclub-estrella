@@ -77,7 +77,6 @@ local TEXTOS = {
 	volMusica = "Música",
 	volAmbiente = "Sonido ambiente",
 	estatica = "Estática del filtro VHS",
-	idioma = "Idioma: Español (más idiomas pronto)",
 	calidad = "Calidad gráfica: %s",
 	salaConteo = "\nEl turno arranca solo en %d s.",
 	ayudaTitulo = "CÓMO JUGAR",
@@ -701,7 +700,6 @@ local function construirAjustes()
 	botonCalidad.MouseLeave:Connect(function()
 		botonCalidad.Text = string.format(TEXTOS.calidad, Rendimiento.nivel())
 	end)
-	texto(p, { texto = TEXTOS.idioma, tamano = UDim2.fromScale(0.7, 0.045), posicion = UDim2.fromScale(0.5, 0.75), ancla = Vector2.new(0.5, 0.5), color = COLOR_APAGADO })
 	boton(p, TEXTOS.volver, UDim2.fromScale(0.5, 0.85), function()
 		mostrarPantalla(destinoVolver())
 	end, UDim2.fromScale(0.25, 0.07))
