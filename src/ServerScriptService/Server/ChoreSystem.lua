@@ -15,6 +15,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Escoba = require(ReplicatedStorage.Shared.Escoba)
 local Net = require(ReplicatedStorage.Shared.Net)
 local NightManager = require(script.Parent.NightManager)
 local Prompts = require(script.Parent.Prompts)
@@ -156,7 +157,9 @@ local function crearBolsa(zona: string)
 	parte.Anchored = true
 	parte.CanCollide = false
 	parte.CanQuery = true
-	local base = CFrame.new(punto.Position.X, parte.Size.Y / 2, punto.Position.Z) * CFrame.Angles(0, rng:NextNumber(0, math.pi * 2), 0)
+	-- Un pequeño desvío: si llegan varias bolsas a la misma zona no quedan una encima de otra.
+	local desvio = Vector3.new(rng:NextNumber(-1.2, 1.2), 0, rng:NextNumber(-1.2, 1.2))
+	local base = CFrame.new(punto.Position.X + desvio.X, parte.Size.Y / 2, punto.Position.Z + desvio.Z) * CFrame.Angles(0, rng:NextNumber(0, math.pi * 2), 0)
 	parte.CFrame = base
 	if not modelo then
 		-- Nudo de la bolsa.
@@ -215,9 +218,9 @@ local function tirarEnContenedor(jugador: Player)
 	Net.aviso(jugador, "Bolsa tirada.")
 end
 
--- ===== Cepillo de mano =====
--- Cuelga de la pared del baño (modelo con el tag "CepilloColgado"). Quien lo toma lleva una copia en la mano izquierda;
--- volver a usar el soporte lo guarda. Sin el cepillo no se puede limpiar una mancha.
+-- ===== Escoba =====
+-- Está apoyada en la pared del baño (modelo con el tag "CepilloColgado"). Quien la toma lleva una copia en las manos;
+-- volver a usar la escoba apoyada la guarda. Sin la escoba no se puede limpiar una mancha.
 
 local function guardarCepillo(jugador: Player)
 	local modelo = cepillos[jugador]
@@ -254,13 +257,38 @@ local function tomarCepillo(jugador: Player, molde: Model)
 	agarre.Parent = modelo.PrimaryPart
 	modelo.Parent = carpetaMundo() -- como la bolsa: en primera persona lo que cuelga del personaje se oculta
 	cepillos[jugador] = modelo
-	Net.aviso(jugador, "Tenés el cepillo. Mantené E sobre una mancha para limpiarla.")
+	Net.aviso(jugador, "Tenés la escoba. Mantené E sobre una mancha para limpiarla.")
+end
+
+--- Cambia el cepillo del mundo por una escoba de tamaño normal, apoyada de pie contra la pared del fondo del baño.
+local function apoyarEscoba(viejo: Model)
+	local cfgEscoba = Config.Cepillo
+	local lugar = viejo.PrimaryPart.Position
+	local escoba = Escoba.construir()
+	escoba:SetAttribute("EsEscoba", true)
+	for _, d in escoba:GetDescendants() do
+		if d:IsA("BasePart") then
+			d.Anchored = true
+		end
+	end
+	-- El pie de la escoba en el piso, inclinada hacia la pared (-Z).
+	local pie = CFrame.new(lugar.X, cfgEscoba.PisoY, -19.15) * CFrame.Angles(math.rad(-cfgEscoba.InclinacionGrados), 0, 0)
+	escoba:PivotTo(pie * CFrame.new(0, Escoba.alturaCentro(), 0))
+	local contorno = Instance.new("Highlight")
+	contorno.FillTransparency = 1
+	contorno.OutlineColor = Color3.fromRGB(235, 225, 190)
+	contorno.OutlineTransparency = 0.6
+	contorno.DepthMode = Enum.HighlightDepthMode.Occluded
+	contorno.Parent = escoba
+	escoba.Parent = viejo.Parent or workspace
+	CollectionService:AddTag(escoba, "CepilloColgado")
+	viejo:Destroy()
 end
 
 local function alternarCepillo(jugador: Player, molde: Model)
 	if cepillos[jugador] then
 		guardarCepillo(jugador)
-		Net.aviso(jugador, "Guardaste el cepillo.")
+		Net.aviso(jugador, "Guardaste la escoba.")
 	else
 		tomarCepillo(jugador, molde)
 	end
@@ -276,19 +304,20 @@ local function crearMancha(zona: string)
 	end
 	local parte
 	local modelo = plantilla("trash", "BasePart")
+	local desvio = Vector3.new(rng:NextNumber(-1, 1), 0, rng:NextNumber(-1, 1))
 	if modelo then
 		-- Parte plana invisible con el decal de suciedad; se achica para que sea una mancha y no un basural.
 		-- Queda apenas sobre las baldosas del baño (0.1 de alto) para que no la tapen.
 		parte = modelo:Clone()
 		local lado = rng:NextNumber(LADO_MANCHA[1], LADO_MANCHA[2])
 		parte.Size = parte.Size * (lado / math.max(parte.Size.X, parte.Size.Z))
-		parte.CFrame = CFrame.new(punto.Position.X, 0.13, punto.Position.Z) * CFrame.Angles(0, rng:NextNumber(0, math.pi * 2), 0)
+		parte.CFrame = CFrame.new(punto.Position.X + desvio.X, 0.13, punto.Position.Z + desvio.Z) * CFrame.Angles(0, rng:NextNumber(0, math.pi * 2), 0)
 	else
 		local diametro = rng:NextNumber(2.4, 3.4)
 		parte = Instance.new("Part")
 		parte.Shape = Enum.PartType.Cylinder
 		parte.Size = Vector3.new(0.08, diametro, diametro)
-		parte.CFrame = CFrame.new(punto.Position.X, 0.06, punto.Position.Z) * CFrame.Angles(0, 0, math.rad(90))
+		parte.CFrame = CFrame.new(punto.Position.X + desvio.X, 0.06, punto.Position.Z + desvio.Z) * CFrame.Angles(0, 0, math.rad(90))
 		parte.Color = Color3.fromRGB(26, 20, 18)
 		parte.Material = Enum.Material.SmoothPlastic
 		parte.Reflectance = 0.12
@@ -311,7 +340,7 @@ local function crearMancha(zona: string)
 			return
 		end
 		if not cepillos[jugador] then
-			Net.aviso(jugador, "Para limpiar hace falta el cepillo de mano: cuelga en el baño.")
+			Net.aviso(jugador, "Para limpiar hace falta la escoba: está apoyada en el baño.")
 			return
 		end
 		table.remove(manchas, lugar)
@@ -322,7 +351,7 @@ local function crearMancha(zona: string)
 	Prompts.crear(parte, {
 		clave = "mancha",
 		accion = "Limpiar",
-		objeto = "Mancha (con cepillo)",
+		objeto = "Mancha (con escoba)",
 		hold = cfg.LimpiezaSeg,
 		distancia = 6,
 		alActivar = mancha.activar,
@@ -434,13 +463,26 @@ function ChoreSystem.init()
 		return nil
 	end)
 
-	-- El cepillo colgado en el baño: el modelo del mundo es solo el molde (y el soporte con el prompt).
+	-- El cepillito colgado del mundo se cambia por una escoba de tamaño normal apoyada en la misma pared del baño.
+	for _, viejo in CollectionService:GetTagged("CepilloColgado") do
+		if viejo:IsA("Model") and viejo.PrimaryPart and not viejo:GetAttribute("EsEscoba") then
+			apoyarEscoba(viejo)
+		end
+	end
+	for _, nombre in { "SoporteCepillo", "GanchoCepillo" } do
+		local resto = workspace:FindFirstChild(nombre, true)
+		if resto then
+			resto:Destroy()
+		end
+	end
+
+	-- La escoba apoyada en el baño: el modelo del mundo es solo el molde (y lleva el prompt).
 	for _, molde in CollectionService:GetTagged("CepilloColgado") do
 		if molde:IsA("Model") and molde.PrimaryPart then
 			Prompts.crear(molde.PrimaryPart, {
 				clave = "cepillo",
 				accion = "Tomar o guardar",
-				objeto = "Cepillo de mano",
+				objeto = "Escoba",
 				distancia = Config.Cepillo.DistanciaPrompt,
 				alActivar = function(jugador)
 					alternarCepillo(jugador, molde)

@@ -84,7 +84,7 @@ Catalogo.Telefono = {
 				"Si viene a devolver, deja la cinta en el mostrador. Agarrala con E, rebobinala en la videocasetera (mantené E) y ponela en su góndola.",
 				"Si una cinta está arrugada, no se rebobina: va a la caja de dañadas. Lo mismo con las que caen por el buzón.",
 				"Cuando no haya clientes, hay laburo de limpieza. Las bolsas de basura van al contenedor del patio: puerta del fondo, a la derecha.",
-				"Y si ves una mancha en el piso, agarrá el cepillo de mano que cuelga en el baño y mantené E encima hasta que desaparezca. Lo que no hagas vos, que lo haga tu compañero.",
+				"Y si ves una mancha en el piso, agarrá la escoba que está apoyada en el baño y mantené E encima hasta que desaparezca. Lo que no hagas vos, que lo haga tu compañero.",
 				"Tu ficha de socio está a la izquierda: ahí figura todo lo que falta. Con Tab la mostrás o la ocultás. Y con G soltás lo que tengas en la mano.",
 				"Si alguna vez la luz se corta, F es la linterna. Y si ves algo fuera de lugar, apuntale y apretá Q. Después hablamos de eso.",
 				"Hasta las cuatro de la mañana. No me llamen, yo los llamo. Suerte, che.",
@@ -119,7 +119,7 @@ Catalogo.Telefono = {
 	VozCinta = {
 		speaker = "(estática)",
 		lineas = {
-			"...bienvenido al Videoclub Estrella... turno noche...",
+			"...bienvenido a Star Videoclub... turno noche...",
 			"...ya estás en la cinta...",
 		},
 	},
@@ -171,6 +171,10 @@ Catalogo.Insignias = {
 	{ clave = "TODOS_LOS_FINALES", nombre = "Cinta completa", descripcion = "Alcanzá los tres finales del Videoclub Estrella." },
 	{ clave = "SIN_FIN_5", nombre = "Insomnio", descripcion = "Sobreviví 5 noches seguidas en el modo Sin fin." },
 	{ clave = "SIN_FIN_10", nombre = "Turno eterno", descripcion = "Sobreviví 10 noches seguidas en el modo Sin fin." },
+	{ clave = "NOCHE_3", nombre = "Mitad de camino", descripcion = "Sobreviví la tercera noche en el modo Historia." },
+	{ clave = "RECHAZAR_SOCIO", nombre = "Te vi venir", descripcion = "Rechazá al Socio cuando se presenta como cliente." },
+	{ clave = "EN_EQUIPO", nombre = "Turno compartido", descripcion = "Sobreviví una noche con otro jugador en el local." },
+	{ clave = "SIN_FIN_20", nombre = "Sin descanso", descripcion = "Sobreviví 20 noches seguidas en el modo Sin fin." },
 }
 
 --- Título al azar de un género.
@@ -188,9 +192,22 @@ function Catalogo.tituloPara(genero: string, estado: string, rng: Random): strin
 end
 
 --- Frase al azar de un grupo (Catalogo.Frases[clave]); si lleva %s se reemplaza por 'argumento'.
-function Catalogo.frase(clave: string, rng: Random, argumento: string?): string
+--- Frase al azar de un grupo, sin reemplazar el %s (para poder repetirla con otro argumento).
+function Catalogo.plantilla(clave: string, rng: Random): string
 	local lista = Catalogo.Frases[clave :: any] :: { string }
-	local texto = lista[rng:NextInteger(1, #lista)]
+	return lista[rng:NextInteger(1, #lista)]
+end
+
+--- Reemplaza el %s de una plantilla por 'argumento' (si lo hay).
+function Catalogo.rellenar(texto: string, argumento: string?): string
+	if argumento then
+		return string.format(texto, argumento)
+	end
+	return texto
+end
+
+function Catalogo.frase(clave: string, rng: Random, argumento: string?): string
+	local texto = Catalogo.plantilla(clave, rng)
 	if argumento then
 		return string.format(texto, argumento)
 	end

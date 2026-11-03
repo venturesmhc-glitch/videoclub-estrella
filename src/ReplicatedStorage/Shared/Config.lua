@@ -7,7 +7,8 @@
 local Config = {}
 
 Config.Juego = {
-	Nombre = "Videoclub Estrella",
+	Nombre = "Star Videoclub",
+	Version = "Alpha 0.1",
 	NochesTotales = 5,
 	JugadoresMax = 4,
 }
@@ -124,10 +125,15 @@ Config.Tareas = {
 	SincronizacionSeg = 2, -- reenvío periódico del estado a los clientes (por si alguno entró tarde)
 }
 
--- Cepillo de mano (ChoreSystem): cuelga de la pared del baño; hace falta llevarlo para limpiar una mancha.
+-- Escoba (ChoreSystem / Escoba.lua): está apoyada contra la pared del baño; hace falta llevarla para limpiar una mancha.
+-- (El nombre Cepillo y el tag CepilloColgado se conservan por compatibilidad con el mundo.)
 Config.Cepillo = {
-	-- Relativo a HumanoidRootPart, abajo a la izquierda de la vista: el mango apunta hacia adelante y las cerdas hacia abajo.
-	EnMano = CFrame.new(-1.3, -0.5, -2.1) *CFrame.Angles(math.rad(-80), math.rad(15), 0) * CFrame.Angles(0, math.pi, 0),
+	LargoPalo = 4.3, -- studs; con el cabezal y las cerdas mide unos 5,5 (una escoba de tamaño normal)
+	-- Relativo a HumanoidRootPart: el palo sale en diagonal hacia adelante y las cerdas casi tocan el piso, delante del jugador.
+	EnMano = CFrame.new(0.85, -0.9, -2.3) * CFrame.Angles(math.rad(62), 0, math.rad(-6)),
+	-- Apoyada en el baño: inclinación hacia la pared y distancia al fondo.
+	InclinacionGrados = 7,
+	PisoY = 0.1,
 	DistanciaPrompt = 6,
 }
 
@@ -266,8 +272,13 @@ Config.Audio = {
 		Presencia = { Id = "rbxassetid://9112775175", Volumen = 0.14, Loop = true, Grupo = "Ambiente" }, -- aire pesado
 		Beta = { Id = "rbxassetid://70986673915317", Volumen = 0.16, Loop = true, Grupo = "Ambiente" }, -- ondas beta: estado de alerta
 		Radio = { Id = "rbxassetid://75201584395115", Volumen = 0.2, Loop = true, Grupo = "Musica" }, -- música de fondo
+		-- La canción exclusiva de cuando aparece el Socio: reemplaza a la radio mientras está en el local. Por ahora es la
+		-- misma canción con efectos fuertes (MusicaSocio abajo); para usar una pista propia basta con cambiar este Id.
+		RadioSocio = { Id = "rbxassetid://75201584395115", Volumen = 0, Loop = true, Grupo = "Musica" },
 	},
 	FundidoSeg = 0.15,
+	-- La pista RadioSocio: más grave, lenta, distorsionada y con eco, con un temblor de velocidad. Suena aunque la radio esté apagada.
+	MusicaSocio = { Velocidad = 0.72, Distorsion = 0.85, Octava = 0.8, Volumen = 0.3, EntraSeg = 0.6, SaleSeg = 2.5 },
 	PeligroParaCortar = 0.7, -- con tanto peligro se corta el zumbido
 	CorteSeg = 3,
 	EntreCortesSeg = 12,
@@ -317,6 +328,35 @@ Config.Socio = {
 	PorCaptura = -0.12,
 	DistanciaAparicion = 14, -- "presentarse" en un pasillo: a cuántos studs del fondo aparece
 	AlturaModelo = 7,
+}
+
+-- Los bordes de la pantalla (Client/Cordura): se oscurecen y enrojecen con el progreso del Socio, sin mostrar ningún número.
+Config.Cordura = {
+	Desde = 0.08, -- presión (progreso / ProgresoMax) a partir de la cual empieza a notarse
+	OpacidadMax = 0.6, -- cuán cerrado queda el borde con la presión máxima
+	AnchoMin = 0.1, -- ancho del borde (fracción de la pantalla) al empezar a notarse
+	AnchoMax = 0.3, -- y con la presión máxima
+	ColorBase = Color3.fromRGB(4, 2, 2),
+	ColorRojo = Color3.fromRGB(70, 4, 6),
+	RespiraMin = 0.45, -- respiraciones por segundo al empezar
+	RespiraMax = 1.3, -- y con la presión máxima
+	RespiraAmplitud = 0.22,
+	Suavizado = 1.2, -- qué tan rápido sigue los cambios de presión
+}
+
+-- Temblor de la cámara cuando el Socio se acerca (Client/Temblor): crece con el peligro (0..1) que manda el servidor.
+Config.Temblor = {
+	Desde = 0.12, -- peligro a partir del cual empieza a temblar
+	AmplitudMaxGrados = 2.6, -- sacudida máxima de la cámara (grados) con el Socio encima
+	GiroRelativo = 0.6, -- cuánto del temblor es inclinación lateral
+	FrecuenciaMin = 5, -- velocidad del ruido al empezar
+	FrecuenciaMax = 17, -- y con el Socio encima
+	LatidoMin = 70, -- latidos por minuto al empezar
+	LatidoMax = 165, -- y con el Socio encima
+	LatidoGrados = 1.2, -- cuánto empuja la cámara cada latido
+	Suavizado = 3, -- qué tan rápido sigue los cambios de peligro
+	SobresaltoSeg = 1.4, -- la sacudida brusca cuando el Socio aparece dura esto
+	SobresaltoFuerza = 0.7, -- y vale como este tanto de peligro
 }
 
 -- Jugador fuera de la noche (Fantasmas): él pasa a ser espectador (ve el local distorsionado, sin el monstruo) y una
@@ -373,6 +413,10 @@ Config.Insignias = {
 		TODOS_LOS_FINALES = 2598464511858468,
 		SIN_FIN_5 = 0,
 		SIN_FIN_10 = 0,
+		NOCHE_3 = 0, -- pendiente: crear la insignia en Roblox y pegar acá el id
+		RECHAZAR_SOCIO = 0,
+		EN_EQUIPO = 0,
+		SIN_FIN_20 = 0,
 	},
 }
 
@@ -428,6 +472,14 @@ Config.Anomalias = {
 	OffsetMovido = 1.4,
 	RotacionMovida = 28, -- grados
 	LimiteFalsosReportes = 4, -- por noche; pasado esto el jugador pierde progreso del equipo
+	-- La sombra quieta de la anomalía "FiguraAlFondo": una persona normal, negra, con contorno de estática (Client/Silueta).
+	Figura = {
+		Color = Color3.fromRGB(5, 5, 7),
+		ColorContorno = Color3.fromRGB(175, 205, 255),
+		Escala = 1.12,
+		Ancho = 0.95,
+		Transparencia = 0.12,
+	},
 }
 
 Config.Telefono = {

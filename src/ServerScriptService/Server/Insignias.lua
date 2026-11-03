@@ -6,7 +6,10 @@
 	  - NOCHE_5            llegar a la noche 5
 	  - FINAL_REBOBINAR / FINAL_DEVOLVER / FINAL_MIRAR   uno por cada final
 	  - TODOS_LOS_FINALES  los tres finales
-	  - SIN_FIN_5 / SIN_FIN_10   sobrevivir 5 / 10 noches seguidas en el modo Sin fin
+	  - SIN_FIN_5 / SIN_FIN_10 / SIN_FIN_20   sobrevivir 5 / 10 / 20 noches seguidas en el modo Sin fin
+	  - NOCHE_3            sobrevivir la noche 3 (modo Historia)
+	  - RECHAZAR_SOCIO     rechazar al Socio cuando llega como cliente (solo quien lo rechazó)
+	  - EN_EQUIPO          sobrevivir una noche con otro jugador en el local
 
 	Los que están en la partida cuando pasa el hecho la reciben todos (el equipo juega junto).
 	  Insignias.otorgar(jugador, clave) -> true si era nueva
@@ -83,6 +86,9 @@ function Insignias.init()
 		if datos.fracaso or datos.final then
 			return
 		end
+		if #Players:GetPlayers() >= 2 then
+			Insignias.otorgarATodos("EN_EQUIPO")
+		end
 		if datos.modo == "sinfin" then
 			if datos.noche >= 5 then
 				Insignias.otorgarATodos("SIN_FIN_5")
@@ -90,8 +96,19 @@ function Insignias.init()
 			if datos.noche >= 10 then
 				Insignias.otorgarATodos("SIN_FIN_10")
 			end
+			if datos.noche >= 20 then
+				Insignias.otorgarATodos("SIN_FIN_20")
+			end
 		elseif datos.noche == 1 then
 			Insignias.otorgarATodos("PRIMER_TURNO")
+		elseif datos.noche == 3 then
+			Insignias.otorgarATodos("NOCHE_3")
+		end
+	end)
+	-- Rechazar al Socio cuando llega disfrazado de cliente: lo anota quien lo atendió.
+	NightManager.suscribir("RECHAZADO_SOCIO", function(datos)
+		if datos.jugador then
+			Insignias.otorgar(datos.jugador, "RECHAZAR_SOCIO")
 		end
 	end)
 end

@@ -326,6 +326,7 @@ function SocioEntity.activar(donde: Vector3?)
 	construirModelo()
 	posicion = donde and Vector3.new(donde.X, 0, donde.Z) or nodoMasLejanoDeTodos()
 	ruta = {}
+	local yaEstaba = activo
 	activo = true
 	activoDesde = os.clock()
 	sinCapturaHasta = math.max(sinCapturaHasta, os.clock() + cfg.GraciaAparicionSeg)
@@ -333,9 +334,13 @@ function SocioEntity.activar(donde: Vector3?)
 	reaparecerEn = nil
 	colocar()
 	modelo.Parent = workspace
+	if not yaEstaba then
+		Net.obtener("SocioPresencia"):FireAllClients(true)
+	end
 end
 
 function SocioEntity.desactivar()
+	local estaba = activo
 	activo = false
 	ciclo = false
 	reaparecerEn = nil
@@ -346,6 +351,9 @@ function SocioEntity.desactivar()
 	end
 	for _, jugador in Players:GetPlayers() do
 		Net.obtener("Danger"):FireClient(jugador, 0)
+	end
+	if estaba then
+		Net.obtener("SocioPresencia"):FireAllClients(false)
 	end
 end
 
@@ -557,6 +565,7 @@ function SocioEntity.init()
 
 	task.spawn(function()
 		local ultimoPeligroEnvio = 0
+		local ultimoPresionEnvio = 0
 		while true do
 			task.wait(cfg.TickSeg)
 			local enTurno = NightManager.obtenerEstado().fase == "turno"
@@ -593,6 +602,12 @@ function SocioEntity.init()
 						break
 					end
 				end
+			end
+
+			-- La presión (el progreso, sin número) alimenta los bordes de la pantalla: una vez por segundo alcanza.
+			if enTurno and os.clock() - ultimoPresionEnvio >= 1 then
+				ultimoPresionEnvio = os.clock()
+				Net.obtener("Presion"):FireAllClients(math.clamp(progreso / cfg.ProgresoMax, 0, 1))
 			end
 
 			if os.clock() - ultimoPeligroEnvio >= Config.Socio.PeligroEnvioSeg then

@@ -27,7 +27,7 @@ local capas = {} -- nombre -> { sonido = Sound, volumenBase = number, grupo = st
 local grupos = { Ambiente = 1, Musica = 1 }
 
 local function volumenFinal(capa)
-	return capa.cortada and 0 or capa.volumenBase * (grupos[capa.grupo] or 1)
+	return (capa.cortada or capa.silenciada) and 0 or capa.volumenBase * (grupos[capa.grupo] or 1)
 end
 
 local function crearCapa(nombre, definicion)
@@ -108,7 +108,7 @@ function AudioManager.cintaArranca(segundos: number, excepto: { [string]: boolea
 		if not (excepto and excepto[nombre]) then
 			capa.cortada = false
 			TweenService:Create(capa.sonido, TweenInfo.new(segundos, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-				PlaybackSpeed = 1,
+				PlaybackSpeed = capa.velocidad or 1,
 				Volume = volumenFinal(capa),
 			}):Play()
 		end
@@ -176,6 +176,78 @@ function AudioManager.radio(estacion: number)
 	fundir(capa, 0.4)
 end
 
+-- ===== La música cuando el Socio está presente =====
+-- Mientras el Socio está en el local la radio se funde a nada y entra una pista propia (capa RadioSocio): grave, lenta,
+-- distorsionada y con eco, con un temblor de velocidad como una cinta mal tensada. Suena aunque la radio esté apagada.
+-- Al irse, la pista sale de a poco y vuelve la radio. Los efectos viven en la pista, así que no dependen de la radio.
+local cfgMusica = Config.Audio.MusicaSocio
+local distorsionActiva = false
+local distorsionToken = 0
+
+local function prepararMusicaSocio()
+	local capa = capas.RadioSocio
+	if not capa then
+		return
+	end
+	local sonido = capa.sonido
+	sonido.PlaybackSpeed = cfgMusica.Velocidad
+	capa.velocidad = cfgMusica.Velocidad -- a esta velocidad vuelve cuando la cinta arranca de nuevo
+	local distorsion = Instance.new("DistortionSoundEffect")
+	distorsion.Name = "DistorsionSocio"
+	distorsion.Level = cfgMusica.Distorsion
+	distorsion.Parent = sonido
+	local tono = Instance.new("PitchShiftSoundEffect")
+	tono.Name = "TonoSocio"
+	tono.Octave = cfgMusica.Octava
+	tono.Parent = sonido
+	local filtro = Instance.new("EqualizerSoundEffect")
+	filtro.Name = "OpacoSocio"
+	filtro.HighGain = -14
+	filtro.MidGain = -4
+	filtro.LowGain = 5
+	filtro.Parent = sonido
+	local eco = Instance.new("ReverbSoundEffect")
+	eco.Name = "EcoSocio"
+	eco.DecayTime = 4
+	eco.DryLevel = -2
+	eco.WetLevel = -4
+	eco.Parent = sonido
+end
+
+function AudioManager.distorsionarMusica(activar: boolean)
+	if activar == distorsionActiva then
+		return
+	end
+	local socio = capas.RadioSocio
+	local radio = capas.Radio
+	if not socio then
+		return -- sin pista exclusiva (Id vacío en Config.Audio.Capas.RadioSocio): la radio sigue como siempre
+	end
+	distorsionActiva = activar
+	distorsionToken += 1
+	local token = distorsionToken
+	local duracion = activar and cfgMusica.EntraSeg or cfgMusica.SaleSeg
+	if radio then
+		radio.silenciada = activar
+		fundir(radio, duracion)
+	end
+	socio.volumenBase = activar and cfgMusica.Volumen or 0
+	fundir(socio, duracion)
+	if activar then
+		-- Temblor de velocidad mientras dure.
+		task.spawn(function()
+			local rng = Random.new()
+			while distorsionActiva and distorsionToken == token do
+				local objetivo = cfgMusica.Velocidad + rng:NextNumber(-0.12, 0.08)
+				TweenService:Create(socio.sonido, TweenInfo.new(rng:NextNumber(0.2, 0.7)), { PlaybackSpeed = objetivo }):Play()
+				task.wait(rng:NextNumber(0.25, 0.8))
+			end
+		end)
+	else
+		TweenService:Create(socio.sonido, TweenInfo.new(duracion), { PlaybackSpeed = cfgMusica.Velocidad }):Play()
+	end
+end
+
 function AudioManager.estado(): string
 	local lineas = {}
 	for nombre, capa in capas do
@@ -189,6 +261,7 @@ function AudioManager.init()
 	for nombre, definicion in Config.Audio.Capas do
 		crearCapa(nombre, definicion)
 	end
+	prepararMusicaSocio()
 	-- La radio del local decide la música de fondo (atributo de Workspace que pone Radio.lua).
 	AudioManager.radio(workspace:GetAttribute("RadioEstacion") or 0)
 	workspace:GetAttributeChangedSignal("RadioEstacion"):Connect(function()
@@ -201,6 +274,9 @@ function AudioManager.init()
 			proximaAlerta = os.clock() + Config.Audio.EntreCortesSeg
 			AudioManager.cortar("Zumbido", Config.Audio.CorteSeg)
 		end
+	end)
+	Net.obtener("SocioPresencia").OnClientEvent:Connect(function(presente)
+		AudioManager.distorsionarMusica(presente == true)
 	end)
 	-- El susto de la captura: la cinta se corta de golpe, queda una ráfaga de estática apagada y el ambiente vuelve de a poco.
 	Net.obtener("Scare").OnClientEvent:Connect(function()

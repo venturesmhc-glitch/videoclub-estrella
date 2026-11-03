@@ -92,7 +92,7 @@ local function objetivosDe(eventos: { Evento }): { Objetivo }
 		table.insert(lista, { id = "basura", texto = "Tirar la basura (patio)", meta = basura })
 	end
 	if manchas > 0 then
-		table.insert(lista, { id = "limpiar", texto = "Limpiar manchas (cepillo del baño)", meta = manchas })
+		table.insert(lista, { id = "limpiar", texto = "Limpiar manchas (escoba del baño)", meta = manchas })
 	end
 	if menores > 0 then
 		table.insert(lista, { id = "menores", texto = "Cuidar el local", meta = menores })

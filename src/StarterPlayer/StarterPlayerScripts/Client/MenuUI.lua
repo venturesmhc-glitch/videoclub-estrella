@@ -26,7 +26,8 @@ local VHSEffects = require(script.Parent.VHSEffects)
 local MenuUI = {}
 
 local TEXTOS = {
-	titulo = "VIDEOCLUB ESTRELLA",
+	titulo = "STAR VIDEOCLUB",
+	version = "VERSIÓN %s",
 	subtitulo = "TURNO NOCHE · NOVIEMBRE DE 1997",
 	solo = "UN JUGADOR",
 	multi = "MULTIJUGADOR",
@@ -314,6 +315,7 @@ local function construirPrincipal()
 	local p = nuevaPantalla("principal")
 	texto(p, { texto = TEXTOS.titulo, fuente = FUENTE_TITULO, color = COLOR_ACENTO, tamano = UDim2.fromScale(0.8, 0.14), posicion = UDim2.fromScale(0.5, 0.2), ancla = Vector2.new(0.5, 0.5) })
 	texto(p, { texto = TEXTOS.subtitulo, tamano = UDim2.fromScale(0.5, 0.04), posicion = UDim2.fromScale(0.5, 0.31), ancla = Vector2.new(0.5, 0.5), color = COLOR_APAGADO })
+	texto(p, { texto = string.format(TEXTOS.version, Config.Juego.Version), tamano = UDim2.fromScale(0.3, 0.035), posicion = UDim2.fromScale(0.98, 0.97), ancla = Vector2.new(1, 1), color = COLOR_APAGADO, alineacion = Enum.TextXAlignment.Right })
 	-- Botones separados 0.13 de alto y de 0.075: queda aire entre uno y otro para no confundirlos.
 	local TAM_BOTON = UDim2.fromScale(0.34, 0.075)
 	-- Modo de juego: HISTORIA (cinco noches con final) o SIN FIN (desbloqueable). Vale para UN JUGADOR y para las salas.

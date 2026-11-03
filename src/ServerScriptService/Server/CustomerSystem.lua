@@ -45,7 +45,7 @@ local puerta
 local transparenciaCerrada = 0.55
 local usosPuerta = 0
 local modoNoche = "normal"
-local fraseRepetida = nil
+local fraseRepetida = {} -- noche 3: plantilla de frase elegida por grupo (PedirAlquiler, Devolver...)
 
 local function elegir(lista)
 	return lista[rng:NextInteger(1, #lista)]
@@ -58,13 +58,16 @@ end
 -- Dice la frase del grupo 'clave'. En la noche 3 todos repiten la primera que se dijo.
 local function decir(cliente, clave: string, argumento: string?)
 	local texto
-	if modoNoche == "repetir" and fraseRepetida then
-		texto = fraseRepetida
+	if modoNoche == "repetir" then
+		-- Repiten las mismas palabras, pero el género es el que realmente pidió (si no, la frase confunde el pedido).
+		local plantilla = fraseRepetida[clave]
+		if not plantilla then
+			plantilla = Catalogo.plantilla(clave, rng)
+			fraseRepetida[clave] = plantilla
+		end
+		texto = Catalogo.rellenar(plantilla, argumento)
 	else
 		texto = Catalogo.frase(clave, rng, argumento)
-		if modoNoche == "repetir" then
-			fraseRepetida = texto
-		end
 	end
 	if modoNoche == "mismo" and cliente.numero and (clave == "PedirAlquiler" or clave == "Devolver" or clave == "DevolverDanada") then
 		texto = string.format("Socio N° %s. %s", cliente.numero, texto)
@@ -397,7 +400,7 @@ local function reiniciar()
 	table.clear(cola)
 	enMostrador = nil
 	usosPuerta = 0
-	fraseRepetida = nil
+	fraseRepetida = {}
 	if puerta then
 		puerta.CanCollide = true
 		puerta.Transparency = transparenciaCerrada
@@ -420,9 +423,10 @@ function CustomerSystem.init()
 	TaskSystem.registrarFuentePedido(CustomerSystem.pedidoActual)
 	NightManager.suscribir("CLIENTE", CustomerSystem.llegar)
 	NightManager.suscribir("NOCHE_INICIA", function(datos)
-		reiniciar()
+		-- El modo se fija antes de limpiar: si algo fallara al limpiar no puede quedar el de la noche anterior.
 		local noche = NightData[datos.noche]
 		modoNoche = noche and noche.clientesModo or "normal"
+		reiniciar()
 	end)
 	NightManager.suscribir("NOCHE_TERMINA", reiniciar)
 	NightManager.suscribir("SOCIO_MOSTRADOR", function()

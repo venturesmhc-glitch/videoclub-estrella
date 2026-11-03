@@ -1,5 +1,5 @@
 --[[
-	Construye (o reconstruye) el greybox del Videoclub Estrella en Workspace.Videoclub.
+	Construye (o reconstruye) el greybox de Star Videoclub en Workspace.Videoclub.
 	Es idempotente: borra solo lo que construyó antes (Workspace.Videoclub) y lo vuelve a crear.
 	Ejecutar con:  node mcp-call.js execute_luau @build/videoclub.lua
 
@@ -552,7 +552,7 @@ afiche("AficheDer1", V3(23.9, 9, -2), Enum.NormalId.Left, "2x1 LOS MARTES", C3(3
 afiche("AficheDer2", V3(23.9, 9, 8), Enum.NormalId.Left, "REBOBINE ANTES DE DEVOLVER", C3(110, 80, 30), "X")
 
 local letrero = parte("LetreroVideoclub", V3(14, 2.4, 0.2), V3(0, 10, -11.9), C3(30, 28, 26), Enum.Material.SmoothPlastic, afiches, DECO)
-texto(letrero, Enum.NormalId.Back, "VIDEOCLUB ESTRELLA", Enum.Font.Arcade, C3(255, 220, 90))
+texto(letrero, Enum.NormalId.Back, "STAR VIDEOCLUB", Enum.Font.Arcade, C3(255, 220, 90))
 
 -- Cartel de instrucciones: en la pared del frente, a la izquierda de la puerta (se ve desde el mostrador y al
 -- entrar o salir). Repite lo que explica la llamada inicial para quien no se acuerde.
@@ -604,7 +604,7 @@ do
 		linea('<font color="#FFDC5A"><b>[' .. k .. ']</b></font>  ' .. que, 30, Enum.Font.SourceSansBold, CREMA, 25)
 	end
 	linea("CÓMO SE TRABAJA", 44, Enum.Font.Arcade, AMARILLO, 40, true)
-	linea("Turno noche · Videoclub Estrella", 24, Enum.Font.Code, C3(190, 184, 160), 19, true)
+	linea("Turno noche · Star Videoclub", 24, Enum.Font.Code, C3(190, 184, 160), 19, true)
 	linea("CONTROLES", 28, Enum.Font.Arcade, AMARILLO, 24)
 	tecla("E", "Interactuar (atender, tomar, usar)")
 	tecla("R", "Mantener: rechazar o grabar")
@@ -618,7 +618,7 @@ do
 	linea("2. Rebobiná las cintas devueltas", 32, Enum.Font.SourceSansBold, CREMA, 25)
 	linea("3. Las dañadas, a la caja roja", 32, Enum.Font.SourceSansBold, CREMA, 25)
 	linea("4. Cada cinta a la góndola de su género", 32, Enum.Font.SourceSansBold, CREMA, 25)
-	linea("5. Basura al patio; manchas con cepillo", 32, Enum.Font.SourceSansBold, CREMA, 25)
+	linea("5. Basura al patio; manchas con escoba", 32, Enum.Font.SourceSansBold, CREMA, 25)
 	linea('<font color="#E0584A"><b>El Socio N° 0000 solo se mueve cuando nadie lo mira.</b></font>', 60, Enum.Font.SourceSansBold, CREMA, 25, true)
 end
 
@@ -891,32 +891,43 @@ for i = 1, 4 do
 	parte("PapelPiso", V3(0.5, 0.04, 0.4), CFrame.new(13 + i * 1.3, 0.08, -17 + (i % 2) * 1.4) * CFrame.Angles(0, i * 1.1, 0), C3(236, 232, 218), Enum.Material.SmoothPlastic, bano, DECO)
 end
 
--- Cepillo de mano colgado de la pared del fondo, junto al lavatorio. ChoreSystem lo toma como molde (tag CepilloColgado en
--- el modelo; PrimaryPart = Mango) y le pone el prompt: sin él no se pueden limpiar las manchas del piso.
+-- Escoba de tamaño normal apoyada de pie contra la pared del fondo, junto al lavatorio. ChoreSystem la toma como molde
+-- (tag CepilloColgado en el modelo; PrimaryPart = Mango) y le pone el prompt: sin ella no se pueden limpiar las manchas.
+-- Misma forma que Shared/Escoba.lua (el atributo EsEscoba evita que el servidor la reemplace).
 do
-	local CX, CY, CZ = 9.4, 3.9, -19.6
-	parte("SoporteCepillo", V3(0.9, 0.14, 0.14), V3(CX, CY + 0.95, -19.85), C3(160, 164, 168), Enum.Material.Metal, bano, DECO)
-	parte("GanchoCepillo", V3(0.1, 0.5, 0.1), V3(CX, CY + 0.7, -19.78), C3(140, 144, 148), Enum.Material.Metal, bano, DECO)
-	local cepillo = Instance.new("Model")
-	cepillo.Name = "CepilloBano"
-	local mango = parte("Mango", V3(0.55, 1.35, 0.3), V3(CX, CY, CZ), C3(158, 112, 66), Enum.Material.Wood, cepillo, DECO)
-	local cerdas = parte("Cerdas", V3(0.45, 1.1, 0.22), V3(CX, CY - 0.04, CZ + 0.25), C3(214, 196, 142), Enum.Material.Fabric, cepillo, DECO)
-	local agujero = parte("AgujeroMango", V3(0.18, 0.18, 0.32), V3(CX, CY + 0.5, CZ), C3(40, 28, 20), Enum.Material.Wood, cepillo, DECO)
-	for _, p in { cerdas, agujero } do
+	local CX, PISO, CZ = 9.4, 0.1, -19.15
+	local LARGO = 4.3
+	local escoba = Instance.new("Model")
+	escoba.Name = "Escoba"
+	escoba:SetAttribute("EsEscoba", true)
+	local pie = CFrame.new(CX, PISO, CZ) * CFrame.Angles(math.rad(-7), 0, 0) * CFrame.new(0, LARGO / 2 + 1.03, 0)
+	local function pieza(nombre, tam, desde, color, material)
+		return parte(nombre, tam, pie * desde, color, material, escoba, DECO)
+	end
+	local base = CFrame.new(0, -LARGO / 2 + 0.25, 0)
+	local mango = pieza("Mango", V3(0.2, LARGO, 0.2), CFrame.new(), C3(150, 108, 62), Enum.Material.Wood)
+	local resto = {
+		pieza("Cabezal", V3(1.35, 0.3, 0.4), base, C3(118, 82, 48), Enum.Material.Wood),
+		pieza("Alambre", V3(0.34, 0.14, 0.34), CFrame.new(0, -LARGO / 2 + 0.55, 0), C3(150, 154, 158), Enum.Material.Metal),
+		pieza("CerdasAltas", V3(1.25, 0.55, 0.38), base * CFrame.new(0, -0.43, 0), C3(205, 182, 112), Enum.Material.Fabric),
+		pieza("CerdasBajas", V3(1.45, 0.6, 0.44), base * CFrame.new(0, -0.98, 0), C3(186, 160, 92), Enum.Material.Fabric),
+		pieza("Punta", V3(0.3, 0.18, 0.3), CFrame.new(0, LARGO / 2 + 0.05, 0), C3(110, 76, 44), Enum.Material.Wood),
+	}
+	for _, p in resto do
 		local soldadura = Instance.new("WeldConstraint")
 		soldadura.Part0, soldadura.Part1 = mango, p
 		soldadura.Parent = p
 	end
-	cepillo.PrimaryPart = mango
-	cepillo.Parent = bano
-	CollectionService:AddTag(cepillo, "CepilloColgado")
+	escoba.PrimaryPart = mango
+	escoba.Parent = bano
+	CollectionService:AddTag(escoba, "CepilloColgado")
 	-- Para que se vea desde la puerta: un contorno suave (el molde también lo conserva en la mano).
 	local contorno = Instance.new("Highlight")
 	contorno.FillTransparency = 1
 	contorno.OutlineColor = Color3.fromRGB(235, 225, 190)
 	contorno.OutlineTransparency = 0.6
 	contorno.DepthMode = Enum.HighlightDepthMode.Occluded
-	contorno.Parent = cepillo
+	contorno.Parent = escoba
 end
 
 -- ===== Objetos movibles (AnomalySystem los desplaza del lado del cliente) =====

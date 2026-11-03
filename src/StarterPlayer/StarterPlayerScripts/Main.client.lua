@@ -9,6 +9,8 @@ local ORDEN = {
 	"JugadorLocal",
 	"Traductor",
 	"VHSEffects",
+	"Cordura",
+	"Temblor",
 	"OSD",
 	"AudioManager",
 	"Rendimiento",

@@ -26,7 +26,7 @@ local BARRAS = {
 local CANALES = {
 	[1] = { texto = "SIN SEÑAL", color = COLOR_TEXTO, fondo = COLOR_FONDO },
 	[2] = { texto = "CARTA DE AJUSTE", color = Color3.fromRGB(20, 20, 20), fondo = Color3.fromRGB(235, 235, 225), barras = true },
-	[3] = { texto = "VIDEOCLUB ESTRELLA\n2x1 LOS MARTES\nREBOBINE ANTES DE DEVOLVER", color = Color3.fromRGB(255, 226, 120), fondo = Color3.fromRGB(20, 40, 110) },
+	[3] = { texto = "STAR VIDEOCLUB\n2x1 LOS MARTES\nREBOBINE ANTES DE DEVOLVER", color = Color3.fromRGB(255, 226, 120), fondo = Color3.fromRGB(20, 40, 110) },
 	[4] = { texto = "NOTICIERO 23 HS\nSIGUE SIN APARECER DARÍO F.,\nEMPLEADO DE UN VIDEOCLUB", color = Color3.fromRGB(236, 236, 226), fondo = Color3.fromRGB(70, 24, 30) },
 	[5] = { texto = "CANAL 9\n- - - - - - - -\nTRANSMISIÓN SUSPENDIDA", color = Color3.fromRGB(170, 170, 160), fondo = Color3.fromRGB(34, 34, 36) },
 	[6] = { texto = "SOCIO N° 0000\nESPERA SU CINTA", color = Color3.fromRGB(255, 70, 60), fondo = Color3.fromRGB(8, 6, 6) },
