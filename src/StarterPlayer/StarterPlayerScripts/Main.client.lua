@@ -11,6 +11,7 @@ local ORDEN = {
 	"VHSEffects",
 	"Cordura",
 	"Temblor",
+	"Parpadeo",
 	"OSD",
 	"AudioManager",
 	"Rendimiento",

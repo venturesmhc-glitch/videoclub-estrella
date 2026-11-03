@@ -42,15 +42,22 @@ local function construirFantasma(jugador: Player): Model?
 	if not ok or not copia then
 		return nil
 	end
+	-- Sin Humanoid: un Humanoid vivo vuelve a activar la colisión de brazos, piernas y torso en cada paso de física, y
+	-- el fantasma (que se coloca encima del jugador) lo empujaba y lo lanzaba fuera del mapa.
+	for _, d in copia:GetDescendants() do
+		if d:IsA("Humanoid") or d:IsA("Script") or d:IsA("LocalScript") or d:IsA("Sound") or d:IsA("ProximityPrompt") then
+			d:Destroy()
+		end
+	end
 	for _, d in copia:GetDescendants() do
 		if d:IsA("BasePart") then
 			d.Anchored = true
 			d.CanCollide = false
+			d.CanTouch = false
 			d.CanQuery = false
+			d.Massless = true
 			d.Transparency = 0.45
 			d.Material = Enum.Material.ForceField
-		elseif d:IsA("Script") or d:IsA("LocalScript") or d:IsA("Sound") or d:IsA("ProximityPrompt") then
-			d:Destroy()
 		end
 	end
 	copia.Name = "Fantasma_" .. jugador.Name

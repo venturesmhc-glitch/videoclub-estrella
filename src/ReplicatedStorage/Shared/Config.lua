@@ -359,6 +359,17 @@ Config.Temblor = {
 	SobresaltoFuerza = 0.7, -- y vale como este tanto de peligro
 }
 
+-- Parpadeo del Socio (Client/Parpadeo): desaparece un instante y vuelve. Las esperas (segundos entre parpadeos) van de
+-- "lejos" (peligro 0) a "cerca" (peligro 1); la duración de cada parpadeo también crece con el peligro.
+Config.Parpadeo = {
+	IntervaloMin = 0.9, IntervaloMax = 3.2, -- lejos
+	IntervaloMinCerca = 0.25, IntervaloMaxCerca = 0.9, -- encima
+	DuracionMin = 0.05, DuracionMax = 0.16, -- cuánto dura invisible
+	DuracionExtraCerca = 1.2, -- con el Socio encima dura hasta este tanto más (2.2 veces)
+	ProbDoble = 0.3, -- probabilidad de que sean dos parpadeos seguidos
+	EntreDoblesMin = 0.07, EntreDoblesMax = 0.2,
+}
+
 -- Jugador fuera de la noche (Fantasmas): él pasa a ser espectador (ve el local distorsionado, sin el monstruo) y una
 -- estatua traslúcida de su personaje queda quieta en el estacionamiento del motel de enfrente, mirando al local.
 Config.Fantasma = {
