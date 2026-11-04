@@ -571,9 +571,9 @@ Config.Cinta = {
 
 -- Anomalías por jugador (AnomalySystem). La cantidad por noche está en PorNoche.
 Config.Anomalias = {
-	PorNoche = { 0, 5, 6, 7, 8 }, -- más anomalías: menos tiempos muertos (en el modo Sin fin, desde la noche 6 se repite la última cantidad)
-	MinutoDesde = 22,
-	MinutoHasta = 290,
+	PorNoche = { 0, 9, 11, 13, 15 }, -- más anomalías y más seguidas (en el modo Sin fin, desde la noche 6 se repite la última cantidad)
+	MinutoDesde = 12,
+	MinutoHasta = 300,
 	DistanciaReporte = 35,
 	EstaticaDistancia = 28, -- una anomalía a esta distancia (y de frente) sube la estática del filtro
 	VidaFiguraSeg = 25,
@@ -597,8 +597,8 @@ Config.Anomalias = {
 		X = 23.9, -- paredes izquierda y derecha (x = -24 / 24)
 		ZFondo = -11.9, -- pared del fondo (z = -12)
 		ZFrente = 25.9 + EXT, -- pared del frente (z = 26 más la ampliación del salón)
-		VentajaTecho = 1, -- prefiere el techo: lo elige aunque una pared esté hasta este tanto más cerca
-		Histeresis = 1.5, -- y no cambia de superficie por una diferencia menor a esto
+		ProbPared = 0.6, -- cada sorteo de superficie: probabilidad de andar por una pared (si no, por el techo)
+		CambioSuperficieSeg = { 4, 9 }, -- cada cuánto vuelve a sortear por dónde anda (techo o una de las cuatro paredes)
 		RecalculoSeg = 0.4, -- cada cuánto vuelve a pensar el camino
 		Suavizado = 7, -- qué tan rápido gira el cuerpo al cambiar de superficie
 		VelocidadSalto = 48, -- studs/seg del salto final sobre el jugador (si no la marcó con Q)

@@ -180,9 +180,11 @@ function SocioHuesos.nuevo(modelo: Model, opciones)
 	local sesgoCabeza = 0 -- hacia dónde mira el Socio con la cabeza (radianes respecto de su frente): sigue al jugador a tirones
 
 	local function cabezaAlAzar(fuerte: boolean)
-		local k = fuerte and 1.6 or 1
-		rotar("Neck2", rad(rng:NextNumber(-8, 8)) * k, rad(rng:NextNumber(-14, 14)) * k + sesgoCabeza * 0.3, rad(rng:NextNumber(-6, 6)) * k)
-		rotar("Head", rad(rng:NextNumber(-14, 24)) * k, rad(rng:NextNumber(-38, 38)) * k + sesgoCabeza * 0.7, rad(rng:NextNumber(-16, 16)) * k)
+		-- La cabeza se clava ladeada (como un pájaro o un espantapájaros torcido) y salta a otro ángulo: el ladeo manda.
+		local k = fuerte and 1.5 or 1
+		local lado = if rng:NextNumber() < 0.5 then -1 else 1
+		rotar("Neck2", rad(rng:NextNumber(-6, 6)) * k, rad(rng:NextNumber(-14, 14)) * k + sesgoCabeza * 0.3, rad(rng:NextNumber(4, 14)) * lado * k)
+		rotar("Head", rad(rng:NextNumber(-10, 18)) * k, rad(rng:NextNumber(-34, 34)) * k + sesgoCabeza * 0.7, rad(rng:NextNumber(10, 30)) * lado * k)
 	end
 
 	local function dedosAlAzar(minimo: number?, maximo: number?)
@@ -272,7 +274,7 @@ function SocioHuesos.nuevo(modelo: Model, opciones)
 			end
 		end },
 		-- Olfatea: picotea el aire con la cabeza, inclinado hacia adelante.
-		olfateo = { dur = { 1.0, 1.5 }, peso = 2, f = function(a, k)
+		olfateo = { dur = { 1.0, 1.5 }, peso = 1, f = function(a, k)
 			local pico = math.floor(a * 14) % 2 == 0
 			rotar("Spine2", -rad(pico and 16 or 6), 0, 0)
 			rotar("Neck2", pico and -rad(10) or 0, 0, 0)
@@ -281,7 +283,7 @@ function SocioHuesos.nuevo(modelo: Model, opciones)
 			brazo("R", pico and 14 or 4, 12, 40)
 		end },
 		-- Se estira hacia atrás con los brazos caídos y la cara se entreabre un momento (como un bostezo roto).
-		arco = { dur = { 1.5, 2.0 }, peso = 2, f = function(a, k)
+		arco = { dur = { 1.5, 2.0 }, peso = 1, f = function(a, k)
 			local p = math.min(a / 0.3, 1)
 			rotar("Spine1", rad(14) * p, 0, 0)
 			rotar("Spine2", rad(18) * p, 0, 0)
@@ -356,6 +358,47 @@ function SocioHuesos.nuevo(modelo: Model, opciones)
 				reposoArriba()
 			end
 		end },
+		-- Espantapájaros: abre los brazos en cruz, ladea la cabeza y se queda así, vibrando, hasta que los suelta de golpe.
+		espantapajaros = { dur = { 1.8, 2.8 }, peso = 5, f = function(a, k)
+			local p = math.min(a / 0.12, 1)
+			local suelta = a > 0.88
+			local q = suelta and 0 or p
+			brazo("L", 4 * q, 82 * q, 6 * q)
+			brazo("R", 4 * q, 82 * q, 6 * q)
+			rotar("Spine1", rad(4) * q, 0, 0)
+			rotar("Spine2", rad(10) * q, 0, 0)
+			rotar("Neck2", 0, 0, rad(12) * k.s * q)
+			rotar("Head", rad(-6) * q, rad(rng:NextNumber(-6, 6)) * q, rad(30) * k.s * q + rad(rng:NextNumber(-3, 3)) * q)
+			if not suelta then
+				for _, lado in { "L", "R" } do
+					rotar("Hand_" .. lado, rad(rng:NextNumber(-14, 14)), 0, rad(rng:NextNumber(-12, 12)))
+				end
+				dedosAlAzar(0.1, 1.4) -- los dedos se abren y se crispan
+			end
+		end },
+		-- Picotea con la cabeza de un lado al otro, como un cuervo que te mira con un ojo y con el otro.
+		picoteo = { dur = { 1.2, 1.9 }, peso = 5, f = function(a, k)
+			local fase = math.floor(a * 7) % 2 == 0 and 1 or -1
+			local s = fase * k.s
+			rotar("Neck2", rad(rng:NextNumber(-4, 8)), rad(rng:NextNumber(10, 20)) * s, rad(rng:NextNumber(8, 14)) * s)
+			rotar("Head", rad(rng:NextNumber(4, 16)), rad(rng:NextNumber(24, 44)) * s, rad(rng:NextNumber(22, 38)) * s)
+			rotar("Spine2", -rad(10), rad(8) * s, 0)
+			brazo("L", rng:NextNumber(8, 24), rng:NextNumber(8, 20), rng:NextNumber(20, 50))
+			brazo("R", rng:NextNumber(8, 24), rng:NextNumber(8, 20), rng:NextNumber(20, 50))
+			dedosAlAzar(0.2, 0.9)
+		end },
+		-- Se mece de lado a lado con los brazos largos balanceándose, como un trapo al viento.
+		balanceo = { dur = { 2.0, 3.0 }, peso = 4, f = function(a, k)
+			local o = math.sin(a * 2 * math.pi * 2.2) * k.s
+			rotar("Pelvis", 0, 0, -rad(9) * o)
+			rotar("Spine1", -rad(6), 0, rad(14) * o)
+			rotar("Spine2", -rad(8), 0, rad(18) * o)
+			rotar("Neck2", 0, 0, -rad(12) * o)
+			rotar("Head", rad(-4), rad(8) * o, -rad(20) * o)
+			brazo("L", 6, 12 + 26 * math.max(0, -o), 18)
+			brazo("R", 6, 12 + 26 * math.max(0, o), 18)
+			dedosAlAzar(0.05, 0.5)
+		end },
 		-- Se deja caer como un títere sin hilos y de golpe se endereza.
 		colgar = { dur = { 1.3, 1.9 }, peso = 2, f = function(a, k)
 			if a < 0.75 then
@@ -379,7 +422,7 @@ function SocioHuesos.nuevo(modelo: Model, opciones)
 	local gestoActual = nil -- { def, inicio, dur, k }
 	local proxGesto = 0
 	local ultimoGesto = ""
-	local GESTO_ESPERA = { 1.8, 5 } -- segundos entre un gesto y el siguiente
+	local GESTO_ESPERA = { 1.2, 3.5 } -- segundos entre un gesto y el siguiente
 
 	local function elegirGesto(distancia: number?)
 		local total = 0
@@ -455,26 +498,40 @@ function SocioHuesos.nuevo(modelo: Model, opciones)
 		end
 	end
 
-	-- ===== Marcha y respiración (solo en modo suave) =====
-	-- Ciclo de marcha continuo: la fase avanza con la distancia recorrida (ZANCADA studs = dos pasos), así los pies no patinan
-	-- ni dan pasos con el cuerpo quieto. Piernas y brazos van en contrafase, la cadera y el torso se retuercen un poco y el cuerpo se
-	-- inclina hacia adelante cuanto más rápido camina. Todo se suma (aditivo) a lo que piden los gestos. Quieto, solo respira.
-	local ZANCADA = 6.5
+	-- ===== Marcha, postura y movimiento suelto (solo en modo suave) =====
+	-- Inspirado en Fiddlesticks: un espantapájaros altísimo y flaco, encorvado, con los brazos largos colgando como de trapo, la
+	-- cabeza ladeada que se clava en un ángulo y salta a otro, y un andar arrastrado que se bambolea de lado a lado, a veces
+	-- con trabones (la animación se congela un instante, como un cuadro perdido).
+	--  * Marcha: la fase avanza con la distancia recorrida (ZANCADA studs = dos pasos): los pies no patinan. Pasos cortos y
+	--    arrastrados, cadera y torso balanceándose de lado, cuerpo encorvado hacia adelante.
+	--  * Brazos, cabeza y manos son resortes (poco amortiguados): se quedan atrás cuando el cuerpo se mueve y rebotan al
+	--    parar, como colgados de un hilo. Es el "movimiento secundario" que hace que parezca de trapo y no de plástico.
+	--  * Postura: siempre encorvado, con la cabeza caída hacia adelante; quieto se mece despacio.
+	--  * Trabones: cada tanto toda la pose se congela 0,08 a 0,22 s.
+	local ZANCADA = 5.4
 	local fase = 0
 	local amplitud = 0 -- 0 quieto, 1 a la velocidad base del Socio
 	local tRespira = rng:NextNumber(0, 10)
-	local K_CUERPO = 9 -- qué rápido se acerca cada hueso a su pose (1/s)
+	local congeladoHasta = 0
+	local proxTrabon = os.clock() + rng:NextNumber(1.2, 3)
+	local resortes = {} -- hueso -> { p = Vector3, v = Vector3 } (los que cuelgan sueltos)
+
+	-- Huesos que van con resorte (rigidez, amortiguación) en vez de acercarse sin rebote.
+	local RESORTE = {
+		UpperArm_L = { 62, 6.2 }, UpperArm_R = { 62, 6.2 },
+		Forearm_L = { 48, 5 }, Forearm_R = { 48, 5 },
+		Hand_L = { 40, 4.2 }, Hand_R = { 40, 4.2 },
+		Head = { 150, 15 }, Neck2 = { 110, 13 },
+		Shoulder_L = { 70, 8 }, Shoulder_R = { 70, 8 },
+	}
 	local K_RAPIDO = { FaceL = 30, FaceR = 30 } -- la cara se parte de golpe
-	local K_MEDIO = 14 -- cabeza y cuello
+	local K_CUERPO = 9 -- el resto se acerca a su pose a esta velocidad (1/s)
 	local K_DEDOS = 22
 
 	local function velocidadDeHueso(nombre: string): number
 		local r = K_RAPIDO[nombre]
 		if r then
 			return r
-		end
-		if nombre == "Head" or nombre == "Neck2" or nombre == "Neck1" then
-			return K_MEDIO
 		end
 		if string.sub(nombre, 1, 6) == "Finger" then
 			return K_DEDOS
@@ -483,46 +540,74 @@ function SocioHuesos.nuevo(modelo: Model, opciones)
 	end
 
 	local function marcha(dt: number, velocidad: number)
-		amplitud += (math.clamp(velocidad / 5, 0, 1.4) - amplitud) * (1 - math.exp(-dt * 6))
+		amplitud += (math.clamp(velocidad / 5.5, 0, 1.3) - amplitud) * (1 - math.exp(-dt * 5))
 		fase += velocidad / ZANCADA * 2 * math.pi * dt
 		tRespira += dt
 		local s, c = math.sin(fase), math.cos(fase)
 		local a = amplitud
-		local respira = math.sin(tRespira * 1.7)
-		local ladea = math.sin(tRespira * 0.63)
+		local quieto = 1 - math.min(a, 1) -- 1 parado, 0 caminando
+		local respira = math.sin(tRespira * 1.5)
+		local mece = math.sin(tRespira * 0.55) -- balanceo lento de espantapájaros al viento
 
-		-- Cada pierna: el muslo oscila, la rodilla se dobla mientras la pierna pasa hacia adelante y el pie acompaña.
-		aditivo.UpperLeg_L = Vector3.new(rad(32) * s * a, 0, 0)
-		aditivo.UpperLeg_R = Vector3.new(-rad(32) * s * a, 0, 0)
-		aditivo.LowerLeg_L = Vector3.new(-rad(54) * math.max(0, c) * a, 0, 0)
-		aditivo.LowerLeg_R = Vector3.new(-rad(54) * math.max(0, -c) * a, 0, 0)
-		aditivo.Foot_L = Vector3.new(rad(10) * math.max(0, -c) * a, 0, 0)
-		aditivo.Foot_R = Vector3.new(rad(10) * math.max(0, c) * a, 0, 0)
-		aditivo.Pelvis = Vector3.new(0, rad(6) * s * a, rad(3.5) * s * a)
+		-- Piernas: pasos cortos y arrastrados (muslo poco, rodilla algo, pie que se arrastra).
+		aditivo.UpperLeg_L = Vector3.new(rad(22) * s * a, 0, 0)
+		aditivo.UpperLeg_R = Vector3.new(-rad(22) * s * a, 0, 0)
+		aditivo.LowerLeg_L = Vector3.new(-rad(38) * math.max(0, c) * a, 0, 0)
+		aditivo.LowerLeg_R = Vector3.new(-rad(38) * math.max(0, -c) * a, 0, 0)
+		aditivo.Foot_L = Vector3.new(-rad(12) * math.max(0, c) * a, 0, 0)
+		aditivo.Foot_R = Vector3.new(-rad(12) * math.max(0, -c) * a, 0, 0)
 
-		-- Torso: se inclina hacia adelante al caminar, contragira respecto de la cadera y respira.
-		aditivo.Spine1 = Vector3.new(-rad(5) * a, -rad(4) * s * a, rad(1.2) * ladea)
-		aditivo.Spine2 = Vector3.new(-rad(3) * a + rad(1.8) * respira, -rad(5) * s * a, rad(1.5) * math.sin(fase) * a)
-		aditivo.Neck2 = Vector3.new(rad(2) * a * math.abs(s) - rad(0.8) * respira, 0, 0)
-		aditivo.Head = Vector3.new(rad(1) * respira, rad(2) * ladea, 0)
+		-- Bamboleo: la cadera cae hacia el lado del paso y el torso se contrarresta, la cabeza queda atrás.
+		aditivo.Pelvis = Vector3.new(0, rad(7) * s * a, rad(6) * s * a + rad(2) * mece * quieto)
+		aditivo.Spine1 = Vector3.new(-rad(8) - rad(5) * a, -rad(5) * s * a, -rad(7) * s * a + rad(2.5) * mece * quieto)
+		aditivo.Spine2 = Vector3.new(-rad(10) - rad(4) * a + rad(1.6) * respira, -rad(6) * s * a, -rad(9) * s * a + rad(3) * mece * quieto)
+		aditivo.Neck2 = Vector3.new(-rad(10) - rad(3) * a, 0, rad(7) * s * a)
+		aditivo.Head = Vector3.new(-rad(6) + rad(1.2) * respira, rad(3) * mece * quieto, rad(5) * s * a)
 
-		-- Brazos en contrafase con las piernas; el codo se dobla cuando el brazo pasa hacia adelante.
-		aditivo.UpperArm_L = Vector3.new(-rad(20) * s * a + rad(1.5) * respira, 0, rad(1.2) * respira)
-		aditivo.UpperArm_R = Vector3.new(rad(20) * s * a + rad(1.5) * respira, 0, rad(1.2) * respira)
-		aditivo.Forearm_L = Vector3.new(rad(10) * math.max(0, s) * a, 0, 0)
-		aditivo.Forearm_R = Vector3.new(rad(10) * math.max(0, -s) * a, 0, 0)
+		-- Brazos colgando: la posición de base cae hacia adelante y afuera; el contrapaso los empuja y el resorte los hace rebotar.
+		local pe = rad(10) -- los brazos cuelgan un poco adelantados
+		aditivo.UpperArm_L = Vector3.new(pe - rad(24) * s * a + rad(1.5) * respira, 0, rad(7) + rad(10) * s * a)
+		aditivo.UpperArm_R = Vector3.new(pe + rad(24) * s * a + rad(1.5) * respira, 0, rad(7) - rad(10) * s * a)
+		aditivo.Forearm_L = Vector3.new(rad(18) + rad(12) * math.max(0, s) * a, 0, 0)
+		aditivo.Forearm_R = Vector3.new(rad(18) + rad(12) * math.max(0, -s) * a, 0, 0)
+		aditivo.Hand_L = Vector3.new(rad(10) * s * a, 0, rad(6) * mece)
+		aditivo.Hand_R = Vector3.new(-rad(10) * s * a, 0, rad(6) * mece)
 	end
 
-	--- Llamar en cada cuadro (Heartbeat) en modo suave. velocidad: studs/seg que se mueve el cuerpo (lo que se ve, no la lógica).
+	--- Llamar en cada cuadro (Heartbeat o RenderStepped) en modo suave. velocidad: studs/seg que se mueve el cuerpo (lo que se ve).
 	function ctl.suavizar(dt: number, velocidad: number?)
 		if not iniciado then
 			iniciar()
+		end
+		-- Trabón: la pose queda congelada un instante (los huesos no avanzan ni la marcha).
+		local t = os.clock()
+		if t < congeladoHasta then
+			return
+		end
+		if t >= proxTrabon and dt > 0 then
+			congeladoHasta = t + rng:NextNumber(0.08, 0.22)
+			proxTrabon = congeladoHasta + rng:NextNumber(0.9, 3.2) * ((velocidad or 0) > 1 and 1 or 1.8)
+			return
 		end
 		marcha(dt, velocidad or 0)
 		for nombre, h in huesos do
 			local meta = (objetivo[nombre] or CERO) + (aditivo[nombre] or CERO)
 			local antes = actual[nombre] or CERO
-			local ahora = antes:Lerp(meta, 1 - math.exp(-dt * velocidadDeHueso(nombre)))
+			local resorte = RESORTE[nombre]
+			local ahora
+			if resorte then
+				-- Resorte amortiguado (Euler semiimplícito): rebota alrededor de la pose en vez de frenar en seco.
+				local r = resortes[nombre]
+				if not r then
+					r = { p = antes, v = CERO }
+					resortes[nombre] = r
+				end
+				r.v += ((meta - r.p) * resorte[1] - r.v * resorte[2]) * math.min(dt, 1 / 30)
+				r.p += r.v * math.min(dt, 1 / 30)
+				ahora = r.p
+			else
+				ahora = antes:Lerp(meta, 1 - math.exp(-dt * velocidadDeHueso(nombre)))
+			end
 			if (ahora - antes).Magnitude > 1e-4 then
 				actual[nombre] = ahora
 				aplicar(h, ahora)
@@ -650,7 +735,7 @@ function SocioHuesos.nuevo(modelo: Model, opciones)
 			end
 		else
 			if t >= proxCabeza then
-				proxCabeza = t + rng:NextNumber(0.12, 0.7)
+				proxCabeza = t + rng:NextNumber(0.3, 1.5)
 				cabezaAlAzar(rng:NextNumber() < 0.2)
 			end
 			if t >= proxBoca then

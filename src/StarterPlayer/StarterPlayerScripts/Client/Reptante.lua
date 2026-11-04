@@ -61,23 +61,27 @@ local function puntoEn(s: string, p: Vector3): Vector3
 	return Vector3.new(p.X, p.Y, cfg.ZFondo)
 end
 
--- La superficie (techo o pared) más cercana al jugador, con una ventaja para el techo y la superficie actual
--- (histéresis: no cambia de pared por una diferencia chica).
-local function elegirSuperficie(p: Vector3, actual: string?): string
-	local mejor, mejorPeso = "T", math.huge
-	for s in NORMAL do
-		local d = (puntoEn(s, p) - p).Magnitude
-		if s == "T" then
-			d -= cfg.VentajaTecho
-		end
-		if s == actual then
-			d -= cfg.Histeresis
-		end
-		if d < mejorPeso then
-			mejor, mejorPeso = s, d
+-- La superficie por la que anda un rato: el techo o una de las paredes. El jugador casi nunca está a menos de unos pasos de
+-- una pared, así que "la más cercana" siempre era el techo: ahora se sortea cada cierto tiempo (cfg.ProbPared de que sea una
+-- pared; entre las paredes, más probable la más cercana al jugador) y se mantiene hasta el próximo sorteo.
+local PAREDES = { "EP", "EN", "NP", "NN" }
+local function sortearSuperficie(p: Vector3, rng: Random): string
+	if rng:NextNumber() >= cfg.ProbPared then
+		return "T"
+	end
+	local pesos, total = {}, 0
+	for i, s in PAREDES do
+		pesos[i] = 1 / ((puntoEn(s, p) - p).Magnitude + 8)
+		total += pesos[i]
+	end
+	local r = rng:NextNumber() * total
+	for i, s in PAREDES do
+		r -= pesos[i]
+		if r <= 0 then
+			return s
 		end
 	end
-	return mejor
+	return "T"
 end
 
 -- Punto de la arista entre el techo y la pared `pared` que está a la altura de lado `p` (sobre la arista).
@@ -132,6 +136,8 @@ function Reptante.iniciar(modelo: Model, inicio: Vector3, opciones)
 	local camino = {}
 	local tramoSup = "T"
 	local siguienteCalculo = 0
+	local superficieElegida = "T" -- techo o pared por la que anda ahora (se vuelve a sortear cada cfg.CambioSuperficieSeg)
+	local cambiaSuperficieEn = 0
 	local activo = true
 	local avanza = false
 	-- Ráfagas: "repta" | "arremete" | "pausa", cada una con su duración y su velocidad.
@@ -211,7 +217,11 @@ function Reptante.iniciar(modelo: Model, inicio: Vector3, opciones)
 		if objetivo and ahora >= siguienteCalculo then
 			siguienteCalculo = ahora + cfg.RecalculoSeg
 			local dentro = limitar(objetivo)
-			local meta = elegirSuperficie(dentro, superficie)
+			if ahora >= cambiaSuperficieEn then
+				cambiaSuperficieEn = ahora + rango(cfg.CambioSuperficieSeg)
+				superficieElegida = sortearSuperficie(dentro, rng)
+			end
+			local meta = superficieElegida
 			camino = armarCamino(superficie, pos, meta, puntoEn(meta, dentro))
 		end
 

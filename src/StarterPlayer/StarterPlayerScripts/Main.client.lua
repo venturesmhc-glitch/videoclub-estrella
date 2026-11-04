@@ -13,6 +13,7 @@ local ORDEN = {
 	"Cordura",
 	"Temblor",
 	"Parpadeo",
+	"SocioAnimacion",
 	"OSD",
 	"AudioManager",
 	"Rendimiento",

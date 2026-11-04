@@ -1,7 +1,7 @@
 --!nonstrict
 --[[
 	SocioEntity (servidor) — Fase 5.
-	El Socio N° 0000. Camina con un ciclo de marcha (SocioHuesos modo suave) y avanza a arrancadas cortas; cuando algún jugador lo mira con la linterna prendida apuntándole se arrastra a una fracción de su velocidad (Config.Socio.VelocidadMirado); mirarlo sin luz no lo frena.
+	El Socio N° 0000. Lleva la lógica (ruta, velocidad, capturas) y publica su posición y giro en atributos del modelo: el esqueleto lo anima cada cliente (Client/SocioAnimacion, porque Bone.Transform no se replica); cuando algún jugador lo mira con la linterna prendida apuntándole se arrastra a una fracción de su velocidad (Config.Socio.VelocidadMirado); mirarlo sin luz no lo frena.
 
 	"Mirar" lo decide el servidor: cada cliente informa hacia dónde apunta su cámara (remote LookReport)
 	y acá se valida (la cámara debe estar cerca de la cabeza del personaje) y se comprueba el cono de visión
@@ -26,12 +26,10 @@
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Personajes = require(ReplicatedStorage.Shared.Personajes)
-local SocioHuesos = require(ReplicatedStorage.Shared.SocioHuesos)
 local Fantasmas = require(script.Parent.Fantasmas)
 local NightManager = require(script.Parent.NightManager)
 local TapeItem = require(script.Parent.TapeItem)
@@ -47,14 +45,8 @@ local alturaRaiz = 3 -- altura de la raíz del cuerpo sobre el piso (se mide al 
 local ultimaPosicion = Vector3.zero
 local ultimoPaso = 0
 local esMalla = false -- true si el cuerpo es la criatura generada con IA
-local huesos -- controlador de SocioHuesos (solo si el cuerpo trae esqueleto)
+local conHuesos = false -- el cuerpo trae esqueleto: lo anima cada cliente (Client/SocioAnimacion), porque Bone.Transform no se replica
 local temblor = CFrame.new()
--- Lo que se ve del cuerpo: se acerca a la posición lógica (posicion / rotacion / temblor) en cada cuadro, así los pasos
--- de la lógica no son saltos de un lugar a otro sino arrancadas cortas, y la marcha de los huesos sigue la velocidad visible.
-local posVisible = Vector3.new(0, 0, -16)
-local rotVisible = 0
-local temblorVisible = CFrame.new()
-local velVisible = 0
 local pasoAcumulado = 0
 local activo = false
 local posicion = Vector3.new(0, 0, -16) -- a nivel del piso
@@ -97,23 +89,7 @@ local function construirModelo()
 		esMalla = true
 		alturaRaiz = 0.02
 		if malla:GetAttribute("ConHuesos") then
-			huesos = SocioHuesos.nuevo(modelo, { distanciaBoca = cfg.BocaDistancia, anguloBoca = cfg.BocaAngulo, suave = true })
-			RunService.Heartbeat:Connect(function(dt)
-				if not modelo or not modelo.Parent then
-					return
-				end
-				-- Desliza el cuerpo hacia donde lo manda la lógica y gira hacia donde camina.
-				local k = 1 - math.exp(-dt * cfg.SuavizadoMovimiento)
-				local antes = posVisible
-				posVisible = posVisible:Lerp(posicion, k)
-				local giro = (rotacion - rotVisible + math.pi) % (2 * math.pi) - math.pi
-				rotVisible += giro * (1 - math.exp(-dt * cfg.SuavizadoGiro))
-				temblorVisible = temblorVisible:Lerp(temblor, k)
-				local v = (posVisible - antes).Magnitude / math.max(dt, 1e-3)
-				velVisible += (v - velVisible) * (1 - math.exp(-dt * 8))
-				modelo:PivotTo(CFrame.new(posVisible.X, alturaRaiz, posVisible.Z) * CFrame.Angles(0, rotVisible, 0) * temblorVisible)
-				huesos.suavizar(dt, velVisible)
-			end)
+			conHuesos = true
 		end
 		return
 	end
@@ -148,11 +124,13 @@ local function colocar(salto: boolean?)
 			ultimaPosicion = posicion
 			temblor = CFrame.Angles(math.rad(rng:NextNumber(-1.5, 1.5)), math.rad(rng:NextNumber(-4, 4)), math.rad(rng:NextNumber(-1.5, 1.5)))
 		end
-		if huesos then
-			-- El cuadro siguiente lo dibuja el Heartbeat (posVisible se acerca a posicion); un salto lo planta ya mismo.
+		if conHuesos then
+			-- Cada cliente dibuja el cuerpo suavizado hacia estos atributos (posición y giro lógicos); un salto lo planta ya mismo.
+			modelo:PivotTo(CFrame.new(posicion.X, alturaRaiz, posicion.Z) * CFrame.Angles(0, rotacion, 0))
+			modelo:SetAttribute("SocioPos", Vector3.new(posicion.X, alturaRaiz, posicion.Z))
+			modelo:SetAttribute("SocioRot", rotacion)
 			if salto then
-				posVisible, rotVisible, temblorVisible, velVisible = posicion, rotacion, temblor, 0
-				modelo:PivotTo(CFrame.new(posicion.X, alturaRaiz, posicion.Z) * CFrame.Angles(0, rotacion, 0) * temblor)
+				modelo:SetAttribute("SocioSalto", (modelo:GetAttribute("SocioSalto") or 0) + 1)
 			end
 		else
 			modelo:PivotTo(CFrame.new(posicion.X, alturaRaiz, posicion.Z) * CFrame.Angles(0, rotacion, 0) * temblor)
@@ -671,7 +649,6 @@ function SocioEntity.init()
 				animacion.ralentizar(factor)
 			end
 
-			local dioPaso = false
 			if enTurno and activo then
 				if os.clock() >= proximaRuta then
 					proximaRuta = os.clock() + cfg.RecalcularRutaSeg
@@ -682,7 +659,6 @@ function SocioEntity.init()
 				if pasoAcumulado >= cfg.PasoSeg then
 					mover(pasoAcumulado * factor)
 					pasoAcumulado = 0
-					dioPaso = true
 				end
 				for _, jugador in Players:GetPlayers() do
 					local raiz = raizDe(jugador)
@@ -693,22 +669,9 @@ function SocioEntity.init()
 				end
 			end
 
-			if huesos then
-				-- Distancia al jugador más cercano que sigue en la noche: a menos de cfg.BocaDistancia ataca con la cara abierta.
-				local cercano, posCercano
-				if enTurno and activo then
-					for _, jugador in Players:GetPlayers() do
-						local raiz = raizDe(jugador)
-						if raiz and not Fantasmas.esFantasma(jugador) then
-							local d = distanciaPlana(raiz.Position, posicion)
-							if not cercano or d < cercano then
-								cercano = d
-								posCercano = raiz.Position
-							end
-						end
-					end
-				end
-				huesos.actualizar(cfg.TickSeg, enTurno and activo, alumbrado, dioPaso, cercano, posCercano)
+			if conHuesos and modelo then
+				-- Lo único que le hace falta al cliente para animarlo (lo demás lo calcula él): si lo están alumbrando, se queda de cara.
+				modelo:SetAttribute("SocioAlumbrado", alumbrado == true)
 			end
 
 			-- La presión (el progreso, sin número) alimenta los bordes de la pantalla: una vez por segundo alcanza.
