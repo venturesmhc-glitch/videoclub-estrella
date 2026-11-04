@@ -99,10 +99,66 @@ end
 
 local plantillaSocio -- MeshPart ya cargado (false si falló): se clona para cada Socio
 
+-- Alto en metros del Socio con huesos tal como sale de blender/socio.py (las posiciones de los ojos están en esas unidades).
+Personajes.ALTURA_ESQUELETO = 3.245
+
+--- Socio con esqueleto (calavera, capa y huesos para moverse a tirones): clon del molde ReplicatedStorage.SocioModelo,
+--- importado de assets/socio/socio.fbx con "Import 3D". Pivote en los pies, mira hacia -Z, queda escalado a cfg.AlturaMalla.
+--- nil si el molde no está (quien llama usa el cuerpo de una sola malla o el humano de respaldo).
+local function crearSocioConHuesos(cfg): Model?
+	local molde = game:GetService("ReplicatedStorage"):FindFirstChild("SocioModelo")
+	if not molde then
+		return nil
+	end
+	local modelo = molde:Clone()
+	local parte = modelo:FindFirstChild("Socio_Malla")
+	if not (parte and parte:IsA("MeshPart")) then
+		modelo:Destroy()
+		return nil
+	end
+	modelo.PrimaryPart = parte
+	modelo:ScaleTo(modelo:GetScale() * cfg.AlturaMalla / parte.Size.Y)
+	parte.Name = "Cuerpo"
+	parte.Anchored = true
+	parte.CanCollide = false
+	parte.CanTouch = false
+	parte.Massless = true
+	-- El importador deja el pivote girado 90° respecto de la malla: se fija uno derecho, en el centro de la base (los pies), mirando a -Z.
+	parte.PivotOffset = CFrame.new(0, -parte.Size.Y / 2, 0)
+	local pivote = modelo:GetPivot()
+	local s = cfg.AlturaMalla / Personajes.ALTURA_ESQUELETO
+	-- Ojos blancos dentro de las órbitas (lo único que se ve en la oscuridad).
+	for _, lado in { -1, 1 } do
+		local ojo = Instance.new("Part")
+		ojo.Name = "Ojo"
+		ojo.Size = Vector3.new(0.19, 0.07, 0.04)
+		ojo.Color = cfg.ColorOjos
+		ojo.Material = Enum.Material.Neon
+		ojo.Anchored = true
+		ojo.CanCollide = false
+		ojo.CanTouch = false
+		ojo.CanQuery = false
+		ojo.CFrame = pivote * CFrame.new(lado * 0.077 * s, 2.88 * s, -0.13 * s)
+		ojo.Parent = modelo
+	end
+	local aura = Instance.new("PointLight")
+	aura.Range = 11
+	aura.Brightness = 0.5
+	aura.Color = Color3.fromRGB(170, 190, 215)
+	aura.Shadows = false
+	aura.Parent = parte
+	modelo:SetAttribute("ConHuesos", true)
+	return modelo
+end
+
 --- Cuerpo del Socio: una criatura flaca y encorvada generada con IA (Config.Socio.MeshId / TextureId).
 --- Devuelve un Model con una sola MeshPart anclada, con el pivote en los pies (el frente de la malla es -Z, como un personaje).
 --- nil si no hay malla configurada o no se pudo cargar (quien llama usa el cuerpo humano de respaldo).
 function Personajes.crearSocioMalla(cfg): Model?
+	local conHuesos = crearSocioConHuesos(cfg)
+	if conHuesos then
+		return conHuesos
+	end
 	if cfg.MeshId == "" or plantillaSocio == false then
 		return nil
 	end

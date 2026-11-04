@@ -72,7 +72,7 @@ local function crearEntidad(posicion: Vector3)
 	cuerpo.TextureID = ""
 	cuerpo.Color = Color3.fromRGB(6, 6, 8)
 	for _, d in modelo:GetDescendants() do
-		if d:IsA("PointLight") or (d:IsA("Part") and d.Name == "Ojo") then
+		if d:IsA("PointLight") or d:IsA("SurfaceAppearance") or (d:IsA("Part") and d.Name == "Ojo") then
 			d:Destroy()
 		end
 	end
@@ -89,7 +89,12 @@ local function crearEntidad(posicion: Vector3)
 		ojo.CanQuery = false
 		ojo.CastShadow = false
 		ojo.Transparency = 1
-		ojo.CFrame = cuerpo.CFrame * CFrame.new(lado * 0.85, cuerpo.Size.Y * 0.378, -cuerpo.Size.Z * 0.49)
+		if modelo:GetAttribute("ConHuesos") then
+			local s = Config.Socio.AlturaMalla / Personajes.ALTURA_ESQUELETO
+			ojo.CFrame = modelo:GetPivot() * CFrame.new(lado * 0.077 * s, 2.88 * s, -0.13 * s)
+		else
+			ojo.CFrame = cuerpo.CFrame * CFrame.new(lado * 0.85, cuerpo.Size.Y * 0.378, -cuerpo.Size.Z * 0.49)
+		end
 		ojo.Parent = modelo
 		table.insert(ojos, ojo)
 	end

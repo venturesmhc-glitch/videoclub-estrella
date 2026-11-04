@@ -30,6 +30,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Personajes = require(ReplicatedStorage.Shared.Personajes)
+local SocioHuesos = require(ReplicatedStorage.Shared.SocioHuesos)
 local Fantasmas = require(script.Parent.Fantasmas)
 local NightManager = require(script.Parent.NightManager)
 local TapeItem = require(script.Parent.TapeItem)
@@ -45,6 +46,7 @@ local alturaRaiz = 3 -- altura de la raíz del cuerpo sobre el piso (se mide al 
 local ultimaPosicion = Vector3.zero
 local ultimoPaso = 0
 local esMalla = false -- true si el cuerpo es la criatura generada con IA
+local huesos -- controlador de SocioHuesos (solo si el cuerpo trae esqueleto)
 local temblor = CFrame.new()
 local pasoAcumulado = 0
 local activo = false
@@ -85,6 +87,9 @@ local function construirModelo()
 		modelo.Name = "Socio0000"
 		esMalla = true
 		alturaRaiz = 0.02
+		if malla:GetAttribute("ConHuesos") then
+			huesos = SocioHuesos.nuevo(modelo, { distanciaBoca = cfg.BocaDistancia, anguloBoca = cfg.BocaAngulo })
+		end
 		return
 	end
 	-- Respaldo: cuerpo humano, alto y oscuro, sin cara ni Humanoid: la raíz anclada se mueve con PivotTo y las animaciones siguen andando.
@@ -118,6 +123,9 @@ local function colocar()
 			temblor = CFrame.Angles(math.rad(rng:NextNumber(-3, 3)), math.rad(rng:NextNumber(-9, 9)), math.rad(rng:NextNumber(-3, 3)))
 		end
 		modelo:PivotTo(CFrame.new(posicion.X, alturaRaiz, posicion.Z) * CFrame.Angles(0, rotacion, 0) * temblor)
+		if huesos then
+			huesos.sincronizarOjos()
+		end
 		return
 	end
 	modelo:PivotTo(CFrame.new(posicion.X, alturaRaiz, posicion.Z) * CFrame.Angles(0, rotacion, 0))
@@ -385,6 +393,8 @@ local function capturar(jugador: Player)
 		sustoUsado = true
 		Net.obtener("Scare"):FireClient(jugador)
 	end
+	-- Screamer de la captura: el Socio te abre la cara en la cara (animado en Client/Screamers).
+	Net.obtener("Screamer"):FireClient(jugador, { captura = true })
 
 	-- La cinta que llevaba vuelve al mostrador (no se pierde).
 	local casete = TapeItem.enMano(jugador)
@@ -585,6 +595,7 @@ function SocioEntity.init()
 				animacion.ralentizar(factor)
 			end
 
+			local dioPaso = false
 			if enTurno and activo then
 				if os.clock() >= proximaRuta then
 					proximaRuta = os.clock() + cfg.RecalcularRutaSeg
@@ -595,6 +606,7 @@ function SocioEntity.init()
 				if pasoAcumulado >= cfg.PasoSeg then
 					mover(pasoAcumulado * factor)
 					pasoAcumulado = 0
+					dioPaso = true
 				end
 				for _, jugador in Players:GetPlayers() do
 					local raiz = raizDe(jugador)
@@ -603,6 +615,23 @@ function SocioEntity.init()
 						break
 					end
 				end
+			end
+
+			if huesos then
+				-- Distancia al jugador más cercano que sigue en la noche: a menos de cfg.BocaDistancia ataca con la cara abierta.
+				local cercano
+				if enTurno and activo then
+					for _, jugador in Players:GetPlayers() do
+						local raiz = raizDe(jugador)
+						if raiz and not Fantasmas.esFantasma(jugador) then
+							local d = distanciaPlana(raiz.Position, posicion)
+							if not cercano or d < cercano then
+								cercano = d
+							end
+						end
+					end
+				end
+				huesos.actualizar(cfg.TickSeg, enTurno and activo, observado, dioPaso, cercano)
 			end
 
 			-- La presión (el progreso, sin número) alimenta los bordes de la pantalla: una vez por segundo alcanza.

@@ -3,6 +3,10 @@
     "roblox-studio": {
       "command": "C:\\Users\\kilic\\Desktop\\rolbox\\studio-mcp.cmd",
       "args": []
+    },
+    "blender": {
+      "command": "node",
+      "args": ["C:\\Users\\kilic\\Desktop\\rolbox\\blender-mcp.js"]
     }
   }
 }

@@ -325,6 +325,8 @@ Config.Socio = {
 	EntreApariciones = { 55, 90 }, -- una vez que la noche lo activó, vuelve a aparecer pasado este rango (s) desde que se fue
 	VelocidadMirado = 0.6, -- mientras alguien lo mira se frena (pero sigue viniendo): avanza a esta fracción de su velocidad
 	DistanciaCaptura = 3.4,
+	BocaDistancia = 7, -- studs (unos 2 m): a menos de esto de un jugador la cara se parte en dos y se abre hacia los lados (SocioHuesos)
+	BocaAngulo = 75, -- grados que gira cada mitad de la cara cuando se abre del todo
 	DistanciaPeligro = 45, -- a esta distancia el peligro empieza a subir
 	AnguloVision = 58, -- grados: mitad del cono de visión de cada jugador
 	LookReportHz = 5, -- frecuencia con la que el cliente informa hacia dónde mira
@@ -482,6 +484,9 @@ Config.Screamer = {
 	-- Grito propio del screamer de la araña (anomalía FiguraAlFondo): el mismo audio fuerte pero más agudo, para que no suene al del Socio.
 	SonidoAracnido = { Id = "rbxassetid://93093877629089", Volumen = 2, Velocidad = 1.3 },
 	DuracionSeg = 1.5,
+	-- Screamer del Socio con esqueleto (SocioHuesos.gritar): se acerca a tirones y a los AbreEn de la duración abre la cara de golpe.
+	DuracionSocioSeg = 2.4,
+	AbreEn = 0.38,
 	EntreAutomaticosSeg = 120, -- tiempo mínimo entre screamers automáticos
 }
 
