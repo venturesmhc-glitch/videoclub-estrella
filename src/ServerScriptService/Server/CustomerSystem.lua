@@ -17,6 +17,7 @@
 ]]
 
 local CollectionService = game:GetService("CollectionService")
+local PhysicsService = game:GetService("PhysicsService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
@@ -75,6 +76,35 @@ local function decir(cliente, clave: string, argumento: string?)
 	hablar(texto)
 end
 
+-- Mientras un cliente pasa, la puerta de vidrio deja de colisionar: para que los jugadores no salgan al mismo tiempo
+-- hay una barrera invisible en el hueco que solo los clientes (grupo de colisión "Clientes") atraviesan.
+local GRUPO_CLIENTES = "Clientes"
+local GRUPO_BARRERA = "BarreraPuerta"
+
+local function prepararBarreraDePuerta()
+	pcall(function()
+		PhysicsService:RegisterCollisionGroup(GRUPO_CLIENTES)
+	end)
+	pcall(function()
+		PhysicsService:RegisterCollisionGroup(GRUPO_BARRERA)
+	end)
+	PhysicsService:CollisionGroupSetCollidable(GRUPO_CLIENTES, GRUPO_BARRERA, false)
+	if not puerta then
+		return
+	end
+	local barrera = Instance.new("Part")
+	barrera.Name = "BarreraPuertaJugadores"
+	barrera.Anchored = true
+	barrera.CanCollide = true
+	barrera.CanQuery = false
+	barrera.CanTouch = false
+	barrera.Transparency = 1
+	barrera.Size = Vector3.new(puerta.Size.X, puerta.Size.Y + 2, 1.5) -- más gruesa que la puerta: no se la atraviesa corriendo
+	barrera.CFrame = puerta.CFrame
+	barrera.CollisionGroup = GRUPO_BARRERA
+	barrera.Parent = puerta.Parent
+end
+
 -- La puerta está cerrada con llave para los jugadores; solo se abre mientras pasa un cliente.
 local function usarPuerta(delta: number)
 	if not puerta then
@@ -125,6 +155,11 @@ local function crearModelo(cliente): boolean
 	humanoide.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
 	modelo:PivotTo(CFrame.new(cfg.Entrada))
 	modelo.Parent = carpeta
+	for _, d in modelo:GetDescendants() do
+		if d:IsA("BasePart") then
+			d.CollisionGroup = GRUPO_CLIENTES -- los clientes atraviesan la barrera de la puerta; los jugadores no
+		end
+	end
 
 	local raiz = modelo:WaitForChild("HumanoidRootPart")
 	pcall(function()
@@ -415,6 +450,7 @@ function CustomerSystem.init()
 	else
 		warn("[CustomerSystem] No se encontró la puerta de entrada (Workspace.Videoclub.PuertaEntrada)")
 	end
+	prepararBarreraDePuerta()
 
 	carpeta = workspace:FindFirstChild("Clientes") or Instance.new("Folder")
 	carpeta.Name = "Clientes"

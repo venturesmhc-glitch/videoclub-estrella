@@ -21,6 +21,7 @@ local Persistencia = require(script.Parent.Persistencia)
 local Prompts = require(script.Parent.Prompts)
 local SocioEntity = require(script.Parent.SocioEntity)
 local TapeItem = require(script.Parent.TapeItem)
+local TaskSystem = require(script.Parent.TaskSystem)
 
 local EndingSystem = {}
 
@@ -49,16 +50,33 @@ function EndingSystem.enCurso(): boolean
 	return enCurso
 end
 
+-- Grabar encima (R en la videocasetera):
+--   - cinta sin etiqueta en la noche 5 de la historia: final REBOBINAR;
+--   - cinta sin etiqueta en cualquier otra noche (y en Sin fin): se destruye y el Socio se calma (ya no se la puede mirar);
+--   - cinta anómala: se destruye, cuenta como separada y calma un poco al Socio (no vuelve a circular).
 local function grabarEncima(jugador: Player)
 	local estado = NightManager.obtenerEstado()
 	local casete = TapeItem.enMano(jugador)
-	if estado.fase ~= "turno" or estado.noche < 5 or NightManager.modo() ~= "historia" then
-		Net.aviso(jugador, "Todavía no. Esta cinta no se deja grabar tan fácil.")
-	elseif not casete or not casete.sinEtiqueta then
-		Net.aviso(jugador, "Hace falta la cinta sin etiqueta en la mano.")
-	else
+	if estado.fase ~= "turno" then
+		return
+	end
+	if not casete then
+		Net.aviso(jugador, "Hace falta una cinta en la mano para grabarle encima.")
+	elseif casete.sinEtiqueta then
 		TapeItem.consumir(casete)
-		EndingSystem.disparar("REBOBINAR")
+		if estado.noche >= 5 and NightManager.modo() == "historia" then
+			EndingSystem.disparar("REBOBINAR")
+		else
+			SocioEntity.agregarProgreso(Config.Final.ProgresoGrabarSinEtiqueta)
+			Net.aviso(jugador, "Le grabaste encima a la cinta sin etiqueta: ya no se puede mirar y el Socio se calma.")
+		end
+	elseif casete.estado == "anomalo" then
+		TapeItem.consumir(casete)
+		TaskSystem.registrar("separar")
+		SocioEntity.agregarProgreso(Config.Final.ProgresoGrabarAnomala)
+		Net.aviso(jugador, "Le grabaste encima a una cinta anómala: ya no puede volver a circular.")
+	else
+		Net.aviso(jugador, "Esa cinta no necesita que le graben encima.")
 	end
 end
 

@@ -41,6 +41,7 @@ local DEFINICIONES: { [string]: string } = {
 	DropTape = "RemoteEvent", -- c>s: soltar el casete que se lleva en la mano (tecla G)
 	MenuAction = "RemoteEvent", -- c>s: { accion = "estado" | "salas" | "solo" | "crear" | "unirse" | "empezar" | "salir", ... } desde el menú
 	PartidaState = "RemoteEvent", -- s>c: { fase = "menu" | "lobby" | "jugando", modo, anfitrion, jugadores, codigo, publica, maximo }
+	Sprint = "RemoteEvent", -- c>s: { activo = bool } mantiene apretada la tecla de correr
 	Comprar = "RemoteEvent", -- c>s: { producto = "asustar" | "revivir" } pide abrir la compra con Robux
 	Screamer = "RemoteEvent", -- s>c: { variante } screamer a pantalla completa
 	SalasState = "RemoteEvent", -- s>c: { tipo = "lista", salas = { { codigo, anfitrion, jugadores, maximo } } } | { tipo = "mensaje", texto, error }

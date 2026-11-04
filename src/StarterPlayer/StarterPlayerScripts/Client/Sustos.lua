@@ -170,7 +170,7 @@ end
 
 -- Variante "ventana": la criatura del otro lado del vidrio, mirando hacia adentro. Si el jugador está lejos del
 -- frente, se cambia por la variante de las luces (para que siempre pase algo que se pueda ver).
-local VENTANA_Z = 30 -- un poco afuera del vidrio (el frente está en z = 26.5)
+local VENTANA_Z = Config.Local.ZFrente + 3.5 -- un poco afuera del vidrio
 local function sustoVentana()
 	local camara = workspace.CurrentCamera
 	if not camara or camara.CFrame.Position.Z < 8 then

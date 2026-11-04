@@ -17,6 +17,7 @@ local Temblor = {}
 
 local cfg = Config.Temblor
 local objetivo = 0 -- peligro que manda el servidor
+local local_ = 0 -- peligro que pone este cliente (la criatura de las anomalías, que solo existe en esta pantalla)
 local actual = 0 -- peligro suavizado
 local ultimoAviso = 0
 local sobresalto = 0 -- sacudida brusca de la aparición (decae sola)
@@ -29,6 +30,11 @@ local function latido(fase: number): number
 	local primero = math.exp(-p * 16)
 	local segundo = p > 0.3 and 0.55 * math.exp(-(p - 0.3) * 18) or 0
 	return primero + segundo
+end
+
+--- Un peligro propio de este cliente (0..1): se combina con el del servidor (gana el mayor). 0 lo quita.
+function Temblor.fijarLocal(valor: number)
+	local_ = math.clamp(valor, 0, 1)
 end
 
 function Temblor.init()
@@ -59,7 +65,7 @@ function Temblor.init()
 	end)
 	RunService:BindToRenderStep("Temblor", Enum.RenderPriority.Camera.Value + 1, function(dt)
 		-- Sin noticias del servidor (el Socio se fue, se acabó el turno): se calma.
-		local meta = (os.clock() - ultimoAviso < 3) and objetivo or 0
+		local meta = math.max((os.clock() - ultimoAviso < 3) and objetivo or 0, local_)
 		actual += (meta - actual) * math.min(1, dt * cfg.Suavizado)
 		sobresalto = math.max(0, sobresalto - dt / cfg.SobresaltoSeg)
 

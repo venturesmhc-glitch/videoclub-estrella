@@ -124,6 +124,16 @@ function LuzFluorescente.init()
 		-- Donde está el Socio la luz se va: los tubos cercanos se apagan y los de alrededor parpadean con ganas.
 		local socio = workspace:FindFirstChild("Socio0000")
 		local posSocio = socio and socio:IsA("Model") and socio.Parent == workspace and socio:GetPivot().Position or nil
+		-- (Las criaturas de las anomalías llevan el tag "ApagaLuces": también se llevan la luz.)
+		local fuentes = {}
+		if posSocio then
+			table.insert(fuentes, posSocio)
+		end
+		for _, m in CollectionService:GetTagged("ApagaLuces") do
+			if m:IsA("Model") and m.Parent == workspace then
+				table.insert(fuentes, m:GetPivot().Position)
+			end
+		end
 		local reevaluar = ahora >= proximoApagon
 		if reevaluar then
 			proximoApagon = ahora + 0.12 -- unas 8 veces por segundo: parpadeo nervioso, no estroboscópico
@@ -133,8 +143,11 @@ function LuzFluorescente.init()
 				break
 			end
 			local apagon = false
-			if posSocio then
-				local d = (Vector3.new(tubo.Position.X, 0, tubo.Position.Z) - Vector3.new(posSocio.X, 0, posSocio.Z)).Magnitude
+			if #fuentes > 0 then
+				local d = math.huge
+				for _, f in fuentes do
+					d = math.min(d, (Vector3.new(tubo.Position.X, 0, tubo.Position.Z) - Vector3.new(f.X, 0, f.Z)).Magnitude)
+				end
 				if d < cfg.SocioApagonRadio then
 					apagon = rng:NextNumber() > 0.06 -- casi siempre apagado, con un destello de vez en cuando
 				elseif d < cfg.SocioParpadeoRadio then

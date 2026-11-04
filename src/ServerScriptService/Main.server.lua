@@ -13,6 +13,7 @@ Net.crearTodos()
 local ORDEN = {
 	"Persistencia",
 	"Jugadores",
+	"Sprint",
 	"NightManager",
 	"Partida",
 	"Mundo",

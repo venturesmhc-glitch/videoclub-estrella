@@ -4,12 +4,14 @@
 	Ejecutar con:  node mcp-call.js execute_luau @build/videoclub.lua
 
 	Medidas en studs. El piso interior tiene su cara superior en y = 0.
-	Local de ventas: x -24..24, z -12..26 (entrada por z = +26; el frente se corrió 6 studs para dar aire al mostrador y a los props).
+	Local de ventas: x -24..24, z -12..(26 + Config.Local.ExtensionFrente) (entrada por la pared del frente; el salón ganó ese espacio libre delante del mostrador para circular, correr y escapar).
 	Fondo: depósito (x -24..6.5) y baño (x 7.5..24), z -20..-12.
 	Cocina (x -52..-25) y patio (x 25..52), z -21..-1: se entra por puertas en las paredes laterales (z -11.5..-8).
 ]]
 
 local CollectionService = game:GetService("CollectionService")
+-- (Se clona el módulo: así se lee el Config recién sincronizado y no la copia que Studio tenía guardada de otra ejecución.)
+local ConfigJuego = require(game.ReplicatedStorage.Shared.Config:Clone())
 
 local V3, C3 = Vector3.new, Color3.fromRGB
 local rng = Random.new(1997)
@@ -24,7 +26,9 @@ raiz.Name = "Videoclub"
 
 local ALTURA = 12
 local GROSOR = 1
-local Z_FRENTE = 26.5 -- eje de la pared del frente (la cara interior queda en z = 26)
+local EXT = ConfigJuego.Local.ExtensionFrente -- el salón se agrandó hacia la calle (Config.Local)
+local AV = ConfigJuego.Local.MostradorAvance -- el mostrador se adelantó hacia la puerta (Config.Local)
+local Z_FRENTE = ConfigJuego.Local.ZFrente -- eje de la pared del frente (la cara interior queda 0.5 antes)
 
 -- ===== Utilidades =====
 
@@ -220,12 +224,18 @@ for ix = 0, 11 do
 		end
 		parte("Baldosa", V3(4, 1, 4), V3(x, -0.5, z), color, Enum.Material.CeramicTiles, pisos, { MaterialVariant = "SueloBaldosas" })
 	end
-	-- Última fila (z 24..26): baldosas de 4x2 para llegar justo a la pared del frente.
-	local claro = (ix + 11) % 2 == 0
-	parte("Baldosa", V3(4, 1, 2), V3(-24 + ix * 4 + 2, -0.5, 25), claro and C3(96, 108, 98) or C3(70, 82, 74), Enum.Material.SmoothPlastic, pisos)
+	-- Desde z = 24 hasta la pared del frente (incluye la ampliación): filas de 4 de profundidad y una última más chica.
+	local z0, fila = 24, 0
+	while z0 < Z_FRENTE - 0.5 - 0.01 do
+		local prof = math.min(4, Z_FRENTE - 0.5 - z0)
+		local claro = (ix + 11 + fila) % 2 == 0
+		parte("Baldosa", V3(4, 1, prof), V3(-24 + ix * 4 + 2, -0.5, z0 + prof / 2), claro and C3(160, 178, 164) or C3(116, 134, 122), Enum.Material.CeramicTiles, pisos, { MaterialVariant = "SueloBaldosas" })
+		z0 += prof
+		fila += 1
+	end
 end
 
-parte("Techo", V3(50, 1, 48), V3(0, ALTURA + 0.5, 3), C3(196, 192, 180), Enum.Material.SmoothPlastic, estructura)
+parte("Techo", V3(50, 1, 48 + EXT), V3(0, ALTURA + 0.5, 3 + EXT / 2), C3(196, 192, 180), Enum.Material.SmoothPlastic, estructura)
 
 local muros = carpeta("Muros", estructura)
 local VIDRIOS = carpeta("Vidrios", estructura)
@@ -278,7 +288,7 @@ local ix = 0
 local defectuosos = { ["-12,-7"] = true, ["20,7"] = true, ["-4,15"] = true }
 for _, x in { -20, -12, -4, 4, 12, 20 } do
 	local iz = 0
-	for _, z in { -7, 0, 7, 15, 22 } do
+	for _, z in { -7, 0, 7, 15, 22, 29 } do
 		local encendida = (ix + iz) % 2 == 0
 		tubo("Tubo", x, z, encendida, defectuosos[x .. "," .. z] == true, luces)
 		iz += 1
@@ -296,7 +306,7 @@ tubo("Tubo", 15, -16, true, true, luces) -- baño
 -- entre las góndolas y el mostrador.
 
 local mostrador = carpeta("Mostrador")
-local Z_MOSTRADOR = 16
+local Z_MOSTRADOR = 16 + AV
 local M_X0, M_X1 = -18, 7.5
 local M_LARGO, M_CENTRO = M_X1 - M_X0, (M_X0 + M_X1) / 2
 local LATERAL_X = M_X0 + 1
@@ -304,7 +314,7 @@ parte("MostradorCuerpo", V3(M_LARGO, 3.5, 2), V3(M_CENTRO, 1.75, Z_MOSTRADOR), C
 parte("MostradorTapa", V3(M_LARGO + 1, 0.3, 3), V3(M_CENTRO, 3.65, Z_MOSTRADOR), C3(190, 180, 160), Enum.Material.SmoothPlastic, mostrador)
 -- Lateral izquierdo: cierra el lado de los empleados. Empieza en z 7, así queda un paso de 4 studs entre
 -- el final de la góndola de ACCIÓN (z 3, con su punto de uso en z 3.9) y el mostrador.
-local LAT_Z0, LAT_Z1 = 7, Z_MOSTRADOR - 1
+local LAT_Z0, LAT_Z1 = 7 + AV, Z_MOSTRADOR - 1
 parte("MostradorLateral", V3(2, 3.5, LAT_Z1 - LAT_Z0), V3(LATERAL_X, 1.75, (LAT_Z0 + LAT_Z1) / 2), COL_MADERA, Enum.Material.Wood, mostrador)
 parte("MostradorLateralTapa", V3(3, 0.3, LAT_Z1 - LAT_Z0 + 1), V3(LATERAL_X, 3.65, (LAT_Z0 + LAT_Z1) / 2), C3(190, 180, 160), Enum.Material.SmoothPlastic, mostrador)
 -- Tablones verticales en el frente (lado de los clientes) y zócalo oscuro.
@@ -361,7 +371,7 @@ CollectionService:AddTag(puntoMostrador, "PuntoMostrador")
 -- (el recorrido de rebobinar -> separar queda corto) y fuera del camino entre las góndolas y el mostrador.
 -- Contra el lateral, bien al sur de la radio (z 11.4) y de la tele y la videocasetera (que se usan parados frente al
 -- mostrador, z ~14.5): no estorba el camino a ninguna de las tres, y queda lejos de la pasada hacia las góndolas (z 3 a 7).
-local CD_X, CD_Z = LATERAL_X + 2.2, 8.8
+local CD_X, CD_Z = LATERAL_X + 2.2, 8.8 + AV
 local cajaDanadas = parte("CajaDanadas", V3(1.3, 1.5, 1.3), V3(CD_X, 0.75, CD_Z), C3(150, 40, 36), Enum.Material.Plastic, mostrador)
 CollectionService:AddTag(cajaDanadas, "CajaDanadas")
 parte("CajaDanadasTapa", V3(1.5, 0.15, 1.5), V3(CD_X, 1.58, CD_Z), C3(110, 28, 26), Enum.Material.Plastic, mostrador, DECO)
@@ -374,7 +384,7 @@ end
 -- Sobre el lateral del mostrador, del lado de los empleados, con el parlante hacia +X. La usa Radio.lua (E cambia de
 -- estación, R mantenido la apaga). Tiene una lucecita en el dial para encontrarla en la oscuridad.
 do
-	local RX, RY, RZ = LATERAL_X + 0.1, 3.8 + 0.5, 11.4
+	local RX, RY, RZ = LATERAL_X + 0.1, 3.8 + 0.5, 11.4 + AV
 	local radio = parte("Radio", V3(0.9, 1.0, 1.9), V3(RX, RY, RZ), C3(70, 44, 30), Enum.Material.Wood, mostrador)
 	CollectionService:AddTag(radio, "Radio")
 	parte("RadioParlante", V3(0.05, 0.75, 0.85), V3(RX + 0.47, RY - 0.05, RZ - 0.4), C3(26, 26, 28), Enum.Material.Fabric, mostrador, DECO)
@@ -416,7 +426,9 @@ local GENEROS = {
 	{ x = 8, nombre = "DRAMA", clave = "DRAMA" },
 	{ x = 16, nombre = "INFANTIL", clave = "INFANTIL" },
 }
-local Z_DESDE, Z_HASTA = -9, 3
+-- Las góndolas terminan en z = -6 (antes -9): entre ellas y la pared divisoria (cara interior en z = -12) queda un pasillo
+-- de 6 studs para ir a la cocina, el patio, el depósito y el baño, en vez de 3.
+local Z_DESDE, Z_HASTA = -6, 3
 local LARGO = Z_HASTA - Z_DESDE
 local FILAS = 4
 local PASO_FILA = 1.35
@@ -520,13 +532,38 @@ local paredes = carpeta("EstantesPared", gondolas)
 local PALETA_PARED = { C3(160, 40, 36), C3(30, 30, 34), C3(220, 190, 50), C3(60, 150, 200), C3(110, 70, 90), C3(70, 130, 220) }
 for _, lado in { -1, 1 } do
 	local xCuerpo = lado * 23.4
-	parte("EstantePared", V3(1.2, 6.3, 23), V3(xCuerpo, 3.15, 5.5), COL_MADERA, Enum.Material.Wood, paredes)
+	-- Empiezan en z = -3 (antes -6): las puertas de la cocina y el patio (z -11.5..-8) quedan a 5 studs del estante.
+	local PARED_Z0, PARED_COLS = -3, 20
+	local paredZc = PARED_Z0 + PARED_COLS / 2
+	parte("EstantePared", V3(1.2, 6.3, PARED_COLS), V3(xCuerpo, 3.15, paredZc), COL_MADERA, Enum.Material.Wood, paredes)
 	for fila = 1, FILAS do
 		local y = 1.35 + (fila - 1) * PASO_FILA
-		parte("RepisaPared", V3(0.5, 0.12, 23), V3(lado * 22.95, y - 0.6, 5.5), COL_MADERA_OSC, Enum.Material.Wood, paredes, DECO)
-		for col = 0, 22 do
-			cajaCasete(paredes, lado * 22.65, y, -6 + col + 0.5, PALETA_PARED, "PARED", -lado)
+		parte("RepisaPared", V3(0.5, 0.12, PARED_COLS), V3(lado * 22.95, y - 0.6, paredZc), COL_MADERA_OSC, Enum.Material.Wood, paredes, DECO)
+		for col = 0, PARED_COLS - 1 do
+			cajaCasete(paredes, lado * 22.65, y, PARED_Z0 + col + 0.5, PALETA_PARED, "PARED", -lado)
 		end
+	end
+end
+
+-- ===== Ampliación del salón: islas de ofertas (dan algo de cobertura al correr) =====
+
+do
+	local ofertas = carpeta("Ofertas")
+	local zc = 24.5 + EXT / 2
+	for _, x in { -14, 14 } do
+		parte("OfertaCuerpo", V3(7, 2.6, 3), V3(x, 1.3, zc), COL_MADERA, Enum.Material.Wood, ofertas)
+		parte("OfertaTapa", V3(7.4, 0.2, 3.4), V3(x, 2.7, zc), COL_MADERA_OSC, Enum.Material.Wood, ofertas, DECO)
+		for i = 0, 6 do
+			local cx = x - 3 + i
+			parte("OfertaCasete", V3(0.85, 1.2, 0.25), V3(cx, 3.4, zc + (i % 2 == 0 and -0.6 or 0.5)) , aleatorio(COL_VHS), Enum.Material.SmoothPlastic, ofertas, DECO)
+		end
+		local cartelOferta = parte("OfertaCartel", V3(4, 1.2, 0.12), V3(x, 4.7, zc), C3(200, 40, 36), Enum.Material.SmoothPlastic, ofertas, DECO)
+		texto(cartelOferta, Enum.NormalId.Front, "OFERTA", Enum.Font.Arcade, C3(255, 240, 200))
+		texto(cartelOferta, Enum.NormalId.Back, "OFERTA", Enum.Font.Arcade, C3(255, 240, 200))
+	end
+	-- Un par de pilares de la estructura, para que el salón no sea una caja vacía.
+	for _, x in { -7.5, 7.5 } do
+		parte("Pilar", V3(1.6, ALTURA, 1.6), V3(x, ALTURA / 2, zc + 1), C3(176, 170, 156), Enum.Material.Concrete, ofertas)
 	end
 end
 
@@ -613,6 +650,7 @@ do
 	tecla("F", "Linterna (si se corta la luz)")
 	tecla("TAB", "Ocultar la ficha")
 	tecla("SHIFT", "Soltar el mouse (botones)")
+	tecla("CTRL", "Correr (se cansa)")
 	linea("EL TURNO", 28, Enum.Font.Arcade, AMARILLO, 24)
 	linea("1. Atendé al cliente en el mostrador", 32, Enum.Font.SourceSansBold, CREMA, 25)
 	linea("2. Rebobiná las cintas devueltas", 32, Enum.Font.SourceSansBold, CREMA, 25)
@@ -1239,13 +1277,13 @@ local function spot(nombre, etiqueta, zona, x, z)
 end
 -- Dónde aparece una bolsa de basura.
 spot("BasuraLocal", "BasuraSpot", "LOCAL", -20, 21)
-spot("BasuraMostrador", "BasuraSpot", "MOSTRADOR", -8, 5.2)
+spot("BasuraMostrador", "BasuraSpot", "MOSTRADOR", -8, 5.2 + AV)
 spot("BasuraBano", "BasuraSpot", "BANO", 23.1, -16.9)
 spot("BasuraCocina", "BasuraSpot", "COCINA", -44.5, -5.5)
 spot("BasuraDeposito", "BasuraSpot", "DEPOSITO", -19, -17)
 -- Dónde aparece una mancha para limpiar.
 spot("DerrameLocal", "DerrameSpot", "LOCAL", 11, 21.5)
-spot("DerrameMostrador", "DerrameSpot", "MOSTRADOR", -8.5, 7.8)
+spot("DerrameMostrador", "DerrameSpot", "MOSTRADOR", -8.5, 7.8 + AV)
 spot("DerrameBano", "DerrameSpot", "BANO", 15.8, -16.2)
 spot("DerrameCocina", "DerrameSpot", "COCINA", -33, -12.5)
 spot("DerramePatio", "DerrameSpot", "PATIO", 38, -12)
@@ -1309,7 +1347,7 @@ local function waypoint(x, z)
 end
 for _, x in { -20, -12, -4, 4, 12, 20 } do
 	-- 6 y 11: lado de los empleados; 20: lado de los clientes (el mostrador está en z 16).
-	for _, z in { -10.5, -3, 6, 11, 20 } do
+	for _, z in { -10.5, -3, 6, 11, 17, 27, 33 } do
 		waypoint(x, z)
 	end
 end
@@ -1692,6 +1730,13 @@ local estacionado = Autos.crear(C3(120, 30, 40), { conFaros = false })
 estacionado:PivotTo(CFrame.new(-22, -0.34, 98.5) * CFrame.Angles(0, math.rad(90), 0))
 estacionado.Parent = motel
 
+-- La calle, la ruta y el motel quedan donde estaban respecto del frente: se corren lo mismo que creció el salón.
+for _, d in calle:GetDescendants() do
+	if d:IsA("BasePart") then
+		d.CFrame = d.CFrame + V3(0, 0, EXT)
+	end
+end
+
 -- ===== Spawn (detrás del mostrador) =====
 
 local spawn = workspace:FindFirstChild("SpawnLocation")
@@ -1700,7 +1745,7 @@ if spawn then
 	spawn.Neutral = true
 	spawn.Transparency = 1
 	spawn.CanCollide = false
-	spawn.CFrame = CFrame.new(-6, 0.5, 6.5)
+	spawn.CFrame = CFrame.new(-6, 0.5, 6.5 + AV)
 	for _, d in spawn:GetChildren() do
 		if d:IsA("Decal") then
 			d.Transparency = 1

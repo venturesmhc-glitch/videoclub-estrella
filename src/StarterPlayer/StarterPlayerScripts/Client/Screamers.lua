@@ -114,10 +114,11 @@ function Screamers.reproducir(variante: number?)
 	estatica.Parent = fondo
 
 	-- Grito.
-	local id = cfg.Sonidos[variante or rng:NextInteger(1, #cfg.Sonidos)] or cfg.Sonidos[1]
+	local grito = cfg.Sonidos[variante or rng:NextInteger(1, #cfg.Sonidos)] or cfg.Sonidos[1]
 	local sonido = Instance.new("Sound")
-	sonido.SoundId = id
-	sonido.Volume = cfg.Volumen
+	sonido.SoundId = grito.Id
+	sonido.Volume = grito.Volumen
+	sonido.PlaybackSpeed = grito.Velocidad or 1
 	sonido.Parent = SoundService
 	sonido:Play()
 	Debris:AddItem(sonido, largo + 3)

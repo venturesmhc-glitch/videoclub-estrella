@@ -10,6 +10,7 @@
 	La figura desaparece sola si se la mira fijo un rato (o pasado un tiempo), pero entonces cuenta como no detectada.
 ]]
 
+local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -19,8 +20,10 @@ local AnomalyCatalog = require(ReplicatedStorage.Shared.AnomalyCatalog)
 local Catalogo = require(ReplicatedStorage.Shared.Catalogo)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Net = require(ReplicatedStorage.Shared.Net)
-local Silueta = require(script.Parent.Silueta)
+local Aracnido = require(script.Parent.Aracnido)
 local Reptante = require(script.Parent.Reptante)
+local Screamers = require(script.Parent.Screamers)
+local Temblor = require(script.Parent.Temblor)
 local AudioManager = require(script.Parent.AudioManager)
 local DialogUI = require(script.Parent.DialogUI)
 local TaskCard = require(script.Parent.TaskCard)
@@ -98,24 +101,31 @@ local function aplicarFigura(a, registro)
 	if not punto then
 		return nil
 	end
-	local modelo = Silueta.crear(true, true) -- sombra humana quieta: NO es el Socio
+	local criatura = Aracnido.crear() -- la criatura de patas largas que anda por el techo y las paredes: NO es el Socio
+	local modelo = criatura.modelo
 	-- Aparece sin aviso: el zumbido se corta un instante y suena un chasquido bajito (sin música ni grito).
 	AudioManager.cortar("Zumbido", 1.1)
 	AudioManager.efecto(Config.Sustos.Glitch.Id, { volumen = Config.Sustos.Glitch.Volumen * 0.7, retardo = 0.05 })
-	for _, p in modelo:GetChildren() do
-		p:SetAttribute("AnomaliaRef", a.id)
+	for _, p in modelo:GetDescendants() do
+		if p:IsA("BasePart") then
+			p:SetAttribute("AnomaliaRef", a.id)
+		end
 	end
+	CollectionService:AddTag(modelo, "ApagaLuces") -- las luces del local se van donde está (Client/LuzFluorescente)
 	-- Aparece colgada del techo, sobre su punto, y desde ahí camina por el techo y las paredes siguiéndote.
-	modelo.Parent = workspace
-	local animacion = Silueta.animacion(modelo)
+	local control = {}
+	registro.control = control
 	local detener = Reptante.iniciar(modelo, punto.Position, {
-		caminar = animacion and animacion.caminar or nil,
+		dibujar = criatura.actualizar,
+		control = control,
 	})
+	modelo.Parent = workspace -- (después de la primera pose: así no aparece un cuadro en el origen)
 	registro.modelo = modelo
 	return function()
 		detener()
-		modelo:Destroy()
+		criatura.destruir()
 		registro.modelo = nil
+		Temblor.fijarLocal(0)
 	end
 end
 
@@ -134,6 +144,28 @@ local function restaurarTodo()
 	end
 	activas, resueltas = {}, {}
 	detectadas = 0
+end
+
+-- La criatura no se marcó con Q: te salta encima y te hace un jumpscare (después desaparece).
+local function atacar(a, registro)
+	if registro.atacando or not registro.control or not registro.control.atacar then
+		return
+	end
+	registro.atacando = true
+	VHSEffects.susto()
+	AudioManager.efecto(Config.Sustos.Glitch.Id, { volumen = Config.Sustos.Glitch.Volumen * 4 })
+	registro.control.atacar(function()
+		if not registro.restaurar then
+			return -- justo la marcó con Q: se salvó
+		end
+		Screamers.reproducir()
+		task.delay(0.2, function()
+			if activas[a.id] == registro and registro.restaurar then
+				registro.restaurar()
+				registro.restaurar = nil
+			end
+		end)
+	end)
 end
 
 local function activar(a)
@@ -251,19 +283,18 @@ function AnomalySystem.init()
 				end
 			end
 			if registro and registro.modelo then
-				-- La figura se esfuma si se la mira fijo o pasado su tiempo de vida.
-				local pivote = registro.modelo:GetPivot()
-				local centro = pivote.Position + pivote.UpVector * 3 -- (cuelga del techo: "arriba" del cuerpo apunta hacia abajo)
+				-- Si no se la marcó con Q, al alcanzarte (o pasado su tiempo de vida) te salta encima.
+				local torso = registro.modelo:FindFirstChild("Torso")
+				local centro = torso and torso.Position or registro.modelo:GetPivot().Position -- (el pivote del modelo no sigue al cuerpo: se mide al torso)
 				local hacia = centro - camara.CFrame.Position
 				local mirada = camara.CFrame.LookVector:Dot(hacia.Unit)
-				if mirada > 0.93 and hacia.Magnitude < 60 then
-					registro.mirando += paso
-				else
-					registro.mirando = math.max(0, registro.mirando - paso)
-				end
-				if registro.mirando >= cfg.MirarParaDesaparecerSeg or os.clock() - registro.inicio > cfg.VidaFiguraSeg then
-					registro.restaurar()
-					registro.restaurar = nil -- la figura se fue sin que nadie la marcara
+				-- Efectos de cercanía: la cámara tiembla cada vez más y, si te alcanza, un sobresalto.
+				local ef = Config.Anomalias.Efecto
+				local d = hacia.Magnitude
+				local cerca = math.clamp(1 - d / ef.DistanciaTemblor, 0, 1)
+				Temblor.fijarLocal(cerca ^ 1.2 * ef.TemblorMax)
+				if not registro.atacando and (d < ef.DistanciaToque or os.clock() - registro.inicio > cfg.VidaFiguraSeg) then
+					atacar(a, registro)
 				end
 			end
 		end

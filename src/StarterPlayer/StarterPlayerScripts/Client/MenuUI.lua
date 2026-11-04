@@ -80,9 +80,15 @@ local TEXTOS = {
 	estatica = "Estática del filtro VHS",
 	calidad = "Calidad gráfica: %s",
 	salaConteo = "\nEl turno arranca solo en %d s.",
+	avisoTitulo = "ADVERTENCIA",
+	aviso1 = "Este es un juego de terror.",
+	aviso2 = "Contiene sustos fuertes, luces intermitentes, destellos y estática, sonidos muy intensos y escenas perturbadoras.",
+	aviso3 = "NO se recomienda para personas con epilepsia o sensibilidad a las luces intermitentes, con afecciones cardíacas, ansiedad o trastornos de pánico, ni para menores sensibles al terror.",
+	aviso4 = "Si te sentís mal en cualquier momento, dejá de jugar.",
+	avisoBoton = "ENTENDIDO, CONTINUAR",
 	ayudaTitulo = "CÓMO JUGAR",
 	ayudaTexto = table.concat({
-		"WASD  moverte",
+		"WASD  moverte      Ctrl izquierdo (mantener)  correr, pero se cansa",
 		"E  interactuar  (mantené E donde lo pida)",
 		"R (mantener)  segunda acción: rechazar, grabar encima",
 		"Tab  mostrar u ocultar tu ficha de socio      G  soltar lo que llevás en la mano",
@@ -560,6 +566,22 @@ local function construirUnirse()
 	end, UDim2.fromScale(0.25, 0.07))
 end
 
+-- Advertencia de terror (se ve una vez, antes del menú): sustos, luces intermitentes, epilepsia, afecciones cardíacas.
+local avisoVisto = false
+
+local function construirAviso()
+	local p = nuevaPantalla("aviso")
+	texto(p, { texto = TEXTOS.avisoTitulo, fuente = FUENTE_TITULO, color = Color3.fromRGB(235, 110, 100), tamano = UDim2.fromScale(0.7, 0.12), posicion = UDim2.fromScale(0.5, 0.15), ancla = Vector2.new(0.5, 0.5) })
+	texto(p, { texto = TEXTOS.aviso1, tamano = UDim2.fromScale(0.7, 0.07), posicion = UDim2.fromScale(0.5, 0.29), ancla = Vector2.new(0.5, 0.5), color = COLOR_ACENTO })
+	texto(p, { texto = TEXTOS.aviso2, tamano = UDim2.fromScale(0.7, 0.1), posicion = UDim2.fromScale(0.5, 0.42), ancla = Vector2.new(0.5, 0.5) })
+	texto(p, { texto = TEXTOS.aviso3, tamano = UDim2.fromScale(0.7, 0.13), posicion = UDim2.fromScale(0.5, 0.57), ancla = Vector2.new(0.5, 0.5), color = Color3.fromRGB(235, 150, 140) })
+	texto(p, { texto = TEXTOS.aviso4, tamano = UDim2.fromScale(0.7, 0.06), posicion = UDim2.fromScale(0.5, 0.7), ancla = Vector2.new(0.5, 0.5), color = COLOR_APAGADO })
+	boton(p, TEXTOS.avisoBoton, UDim2.fromScale(0.5, 0.84), function()
+		avisoVisto = true
+		mostrarPantalla("principal")
+	end, UDim2.fromScale(0.4, 0.085))
+end
+
 local function construirAyuda()
 	local p = nuevaPantalla("ayuda")
 	texto(p, { texto = TEXTOS.ayudaTitulo, fuente = FUENTE_TITULO, color = COLOR_ACENTO, tamano = UDim2.fromScale(0.7, 0.1), posicion = UDim2.fromScale(0.5, 0.14), ancla = Vector2.new(0.5, 0.5) })
@@ -830,7 +852,7 @@ local function alCambiarPartida(datos)
 	elseif datos.fase == "menu" then
 		enJuego = false
 		if pantallaActual == "lobby" or pantallaActual == "cargando" then
-			mostrarPantalla("principal")
+			mostrarPantalla(avisoVisto and "principal" or "aviso")
 		end
 	end
 	actualizarLobby()
@@ -873,6 +895,7 @@ function MenuUI.init()
 	construirLobby()
 	construirLogros()
 	actualizarLogros()
+	construirAviso()
 	construirAyuda()
 	construirAjustes()
 	mostrarPantalla("cargando")

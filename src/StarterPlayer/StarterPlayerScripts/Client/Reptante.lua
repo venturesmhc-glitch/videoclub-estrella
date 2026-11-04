@@ -11,6 +11,10 @@
 	  Reptante.iniciar(modelo, posicionInicial, opciones?) -> detener()
 	    modelo: modelo con el pivote en los pies (Silueta.crear). posicionInicial: de dónde parte (se lleva a la cáscara).
 	    opciones.caminar(bool): se llama con true mientras anda y false cuando se queda quieta (animación de caminar).
+	    opciones.dibujar(cf, dt, mirarA): si se pasa, se usa en vez de PivotTo (lo usa Aracnido para animar las patas).
+	    opciones.control: tabla a la que se le agrega control.atacar(alLlegar): la criatura deja la superficie y salta sobre
+	      la cámara; alLlegar() se llama cuando la alcanza (ahí se dispara el jumpscare).
+	La criatura se mueve a ráfagas: repta, arremete y se queda congelada un instante (Config.Anomalias.Reptar).
 	Los valores (velocidad, medidas de la caja) están en Config.Anomalias.Reptar.
 ]]
 
@@ -128,10 +132,26 @@ function Reptante.iniciar(modelo: Model, inicio: Vector3, opciones)
 	local siguienteCalculo = 0
 	local activo = true
 	local avanza = false
+	-- Ráfagas: "repta" | "arremete" | "pausa", cada una con su duración y su velocidad.
+	local modo, modoHasta = "pausa", 0
+	local rng = Random.new()
+	local function rango(r)
+		return rng:NextNumber(r[1], r[2])
+	end
+	local ataque -- { t0, alLlegar, llego } mientras salta sobre el jugador
+	if opciones.control then
+		opciones.control.atacar = function(alLlegar)
+			ataque = ataque or { t0 = os.clock(), alLlegar = alLlegar, llego = false }
+		end
+	end
 	local comienzo = os.clock()
 	local adelante = Vector3.new(0, 0, -1)
 	local cf = orientacion(pos, NORMAL.T, adelante)
-	modelo:PivotTo(cf)
+	if opciones.dibujar then
+		opciones.dibujar(cf.Rotation + pos, 1 / 60, nil) -- que las partes arranquen en su lugar, no en el origen
+	else
+		modelo:PivotTo(cf)
+	end
 
 	local function posicionJugador(): Vector3?
 		local raiz = jugador.Character and jugador.Character:FindFirstChild("HumanoidRootPart")
@@ -147,6 +167,37 @@ function Reptante.iniciar(modelo: Model, inicio: Vector3, opciones)
 		local ahora = os.clock()
 		local objetivo = posicionJugador()
 
+		-- Ataque: salta sobre la cámara (rápido, con la cabeza por delante) y avisa cuando llega.
+		if ataque then
+			local camara = workspace.CurrentCamera
+			local mira = camara.CFrame.LookVector
+			local arriba = Vector3.new(0, 1, 0)
+			local meta = camara.CFrame.Position + mira * 3.0 - arriba * Config.Anomalias.Aracnido.AlturaCuerpo
+			local falta = meta - pos
+			local paso = cfg.VelocidadSalto * dt
+			if falta.Magnitude <= paso or ahora - ataque.t0 > 0.7 then
+				pos = meta
+				if not ataque.llego then
+					ataque.llego = true
+					if ataque.alLlegar then
+						task.spawn(ataque.alLlegar)
+					end
+				end
+			else
+				pos += falta.Unit * paso
+			end
+			local hacia = Vector3.new(-mira.X, 0, -mira.Z)
+			local meta_cf = orientacion(pos, arriba, if hacia.Magnitude > 0.01 then hacia else Vector3.new(0, 0, -1))
+			cf = cf:Lerp(meta_cf, 1 - math.exp(-24 * dt))
+			local cfSalto = cf.Rotation + pos
+			if opciones.dibujar then
+				opciones.dibujar(cfSalto, dt, camara.CFrame.Position)
+			else
+				modelo:PivotTo(cfSalto)
+			end
+			return
+		end
+
 		-- Cada tanto vuelve a pensar el camino hacia el punto de la cáscara más cercano al jugador.
 		if objetivo and ahora >= siguienteCalculo then
 			siguienteCalculo = ahora + cfg.RecalculoSeg
@@ -157,11 +208,23 @@ function Reptante.iniciar(modelo: Model, inicio: Vector3, opciones)
 
 		-- Se queda colgada un momento antes de empezar a andar.
 		local puedeAndar = ahora - comienzo >= cfg.EsperaInicialSeg
+		if puedeAndar and ahora >= modoHasta then
+			if modo == "pausa" then
+				if rng:NextNumber() < cfg.ProbArremetida then
+					modo, modoHasta = "arremete", ahora + rango(cfg.ArremetidaSeg)
+				else
+					modo, modoHasta = "repta", ahora + rango(cfg.ReptarSeg)
+				end
+			else
+				modo, modoHasta = "pausa", ahora + rango(cfg.PausaSeg)
+			end
+		end
+		local velocidad = if modo == "arremete" then cfg.VelocidadArremetida elseif modo == "repta" then cfg.Velocidad else 0
 		local tramo = camino[1]
-		local mueve = puedeAndar and tramo ~= nil
+		local mueve = puedeAndar and tramo ~= nil and velocidad > 0
 		if mueve then
 			local falta = tramo.hasta - pos
-			local paso = cfg.Velocidad * dt
+			local paso = velocidad * dt
 			tramoSup = tramo.sup
 			if falta.Magnitude <= paso then
 				pos = tramo.hasta
@@ -185,7 +248,12 @@ function Reptante.iniciar(modelo: Model, inicio: Vector3, opciones)
 		-- La orientación sigue a la superficie y a la dirección con suavidad (en las esquinas "da la vuelta").
 		local meta = orientacion(pos, NORMAL[tramoSup] or NORMAL.T, adelante)
 		cf = cf:Lerp(meta, 1 - math.exp(-cfg.Suavizado * dt))
-		modelo:PivotTo(cf.Rotation + pos)
+		local cfFinal = cf.Rotation + pos
+		if opciones.dibujar then
+			opciones.dibujar(cfFinal, dt, objetivo)
+		else
+			modelo:PivotTo(cfFinal)
+		end
 	end)
 
 	return function()

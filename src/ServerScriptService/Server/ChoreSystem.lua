@@ -39,6 +39,7 @@ local bolsas = {} -- lista de { parte, zona, base = CFrame, dueno = Player? }
 local manchas = {} -- lista de { parte, zona }
 local cargando = {} -- Player -> bolsa
 local cepillos = {} -- Player -> modelo del cepillo que lleva en la mano izquierda
+local escobasSueltas = {} -- escobas que alguien soltó en el piso (se levantan con E)
 local carpeta
 
 local function carpetaMundo()
@@ -230,11 +231,20 @@ local function guardarCepillo(jugador: Player)
 	end
 end
 
-local function tomarCepillo(jugador: Player, molde: Model)
+local function tomarCepillo(jugador: Player, molde: Model): boolean
 	local personaje = jugador.Character
 	local raiz = personaje and personaje:FindFirstChild("HumanoidRootPart")
 	if not raiz or not molde.PrimaryPart then
-		return
+		return false
+	end
+	-- Las manos son una sola: con un casete o una bolsa no se puede tomar la escoba.
+	if TapeItem.enMano(jugador) then
+		Net.aviso(jugador, "Tenés un casete en la mano. Soltalo primero (G).")
+		return false
+	end
+	if cargando[jugador] then
+		Net.aviso(jugador, "Tenés una bolsa en las manos. Soltala primero (G).")
+		return false
 	end
 	local modelo = molde:Clone()
 	modelo.Name = "CepilloEnMano"
@@ -245,8 +255,8 @@ local function tomarCepillo(jugador: Player, molde: Model)
 			d.CanQuery = false
 			d.CanTouch = false
 			d.Massless = true
-		elseif d:IsA("Highlight") then
-			d:Destroy() -- el contorno es solo del cepillo colgado
+		elseif d:IsA("Highlight") or d:IsA("ProximityPrompt") then
+			d:Destroy() -- el contorno y el prompt son solo de la escoba del mundo
 		end
 	end
 	local agarre = Instance.new("Weld")
@@ -257,7 +267,60 @@ local function tomarCepillo(jugador: Player, molde: Model)
 	agarre.Parent = modelo.PrimaryPart
 	modelo.Parent = carpetaMundo() -- como la bolsa: en primera persona lo que cuelga del personaje se oculta
 	cepillos[jugador] = modelo
-	Net.aviso(jugador, "Tenés la escoba. Mantené E sobre una mancha para limpiarla.")
+	Net.aviso(jugador, "Tenés la escoba. Mantené E sobre una mancha para limpiarla. Con G la soltás.")
+	return true
+end
+
+-- Suelta la escoba en el piso, delante del jugador, apoyada de costado; se levanta de nuevo con E.
+local function soltarEscoba(jugador: Player): boolean
+	local modelo = cepillos[jugador]
+	local personaje = jugador.Character
+	local raiz = personaje and personaje:FindFirstChild("HumanoidRootPart")
+	if not modelo or not raiz or not modelo.PrimaryPart then
+		return false
+	end
+	cepillos[jugador] = nil
+	local agarre = modelo.PrimaryPart:FindFirstChild("AgarreMano")
+	if agarre then
+		agarre:Destroy()
+	end
+	local adelante = raiz.Position + raiz.CFrame.LookVector * 3
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = { personaje, carpetaMundo() }
+	local suelo = workspace:Raycast(adelante + Vector3.new(0, 3, 0), Vector3.new(0, -10, 0), params)
+	local y = (suelo and suelo.Position.Y or 0) + 0.3
+	local giro = CFrame.Angles(0, raiz.Orientation.Y * math.pi / 180 + math.pi / 2, 0)
+	for _, d in modelo:GetDescendants() do
+		if d:IsA("BasePart") then
+			d.Anchored = true
+		end
+	end
+	-- Acostada: el palo (eje Y del modelo) pasa a quedar horizontal.
+	modelo:PivotTo(CFrame.new(adelante.X, y, adelante.Z) * giro * CFrame.Angles(0, 0, math.rad(90)))
+	modelo.Name = "EscobaSuelta"
+	modelo.Parent = carpetaMundo()
+	table.insert(escobasSueltas, modelo)
+	Prompts.crear(modelo.PrimaryPart, {
+		clave = "escobaSuelta",
+		accion = "Levantar escoba",
+		objeto = "Escoba",
+		distancia = 6,
+		alActivar = function(otro)
+			if cepillos[otro] or not modelo.Parent then
+				return
+			end
+			if tomarCepillo(otro, modelo) then
+				local lugar = table.find(escobasSueltas, modelo)
+				if lugar then
+					table.remove(escobasSueltas, lugar)
+				end
+				modelo:Destroy()
+			end
+		end,
+	})
+	Net.aviso(jugador, "Soltaste la escoba.")
+	return true
 end
 
 --- Cambia el cepillo del mundo por una escoba de tamaño normal, apoyada de pie contra la pared del fondo del baño.
@@ -418,6 +481,10 @@ function ChoreSystem.limpiarTodo()
 	for jugador in table.clone(cepillos) do
 		guardarCepillo(jugador) -- cada noche empieza con el cepillo colgado en el baño
 	end
+	for _, escoba in escobasSueltas do
+		escoba:Destroy()
+	end
+	table.clear(escobasSueltas)
 end
 
 function ChoreSystem.estadoTexto(): string
@@ -455,12 +522,29 @@ function ChoreSystem.init()
 		end
 	end)
 
-	-- Con una bolsa en las manos no se pueden tomar casetes.
+		-- Con una bolsa o la escoba en las manos no se pueden tomar casetes.
 	TapeItem.restringir(function(jugador)
 		if cargando[jugador] then
-			return "Tenés las manos ocupadas con la bolsa."
+			return "Tenés las manos ocupadas con la bolsa. Soltala con G."
+		end
+		if cepillos[jugador] then
+			return "Tenés las manos ocupadas con la escoba. Soltala con G."
 		end
 		return nil
+	end)
+	-- G suelta lo que lleves en las manos (la escoba, la bolsa) si no tenés un casete.
+	TapeItem.alSoltar(function(jugador)
+		if cepillos[jugador] then
+			return soltarEscoba(jugador)
+		end
+		local bolsa = cargando[jugador]
+		if bolsa then
+			soltarBolsa(bolsa)
+			Net.aviso(jugador, "Soltaste la bolsa: volvió a su lugar.")
+			TaskSystem.sincronizar()
+			return true
+		end
+		return false
 	end)
 
 	-- El cepillito colgado del mundo se cambia por una escoba de tamaño normal apoyada en la misma pared del baño.

@@ -6,6 +6,19 @@
 
 local Config = {}
 
+-- El salón de ventas se agrandó hacia la calle: la pared del frente (con la puerta y las ventanas) se corrió estos studs.
+-- La vereda, la ruta, el motel y todo lo que dependía del frente (clientes, buzón, estatuas, la criatura de afuera)
+-- se corrieron lo mismo. build/videoclub.lua lee este valor.
+local EXT = 8
+-- Con ese espacio nuevo, el mostrador (y todo lo que va con él: cola de clientes, cinta devuelta, tareas de atrás) se
+-- adelantó estos studs hacia la puerta: atrás queda más lugar para trabajar y los clientes hacen cola delante.
+local AV = 3
+Config.Local = {
+	ExtensionFrente = EXT,
+	MostradorAvance = AV,
+	ZFrente = 26.5 + EXT, -- eje de la pared del frente (la cara interior queda 0.5 antes)
+}
+
 Config.Juego = {
 	Nombre = "Star Videoclub",
 	Version = "Alpha 0.1",
@@ -46,7 +59,7 @@ Config.Sustos = {
 -- La entidad que se ve a lo lejos, al costado del motel (Client/Calle): casi invisible en la oscuridad; solo se le
 -- ven los ojos brillantes, y únicamente si el jugador se acerca a la ventana. Es solo para dar miedo, no hace nada.
 Config.EntidadLejana = {
-	Posiciones = { Vector3.new(-66, 0, 104), Vector3.new(68, 0, 106), Vector3.new(-72, 0, 90), Vector3.new(74, 0, 92) },
+	Posiciones = { Vector3.new(-66, 0, 104 + EXT), Vector3.new(68, 0, 106 + EXT), Vector3.new(-72, 0, 90 + EXT), Vector3.new(74, 0, 92 + EXT) },
 	IntervaloMin = 35, -- cada cuántos segundos aparece (al azar entre los dos)
 	IntervaloMax = 80,
 	VisibleSegMin = 6, -- cuánto tiempo se queda
@@ -63,7 +76,7 @@ Config.Feedback = {
 
 -- La calle de afuera (Calle): autos que pasan y neones del motel. Solo decorado.
 Config.Calle = {
-	CarrilZ = { 40.5, 48 }, -- z de cada carril: el primero va hacia +X, el segundo hacia -X
+	CarrilZ = { 40.5 + EXT, 48 + EXT }, -- z de cada carril: el primero va hacia +X, el segundo hacia -X
 	LargoRuta = 220, -- los autos aparecen y desaparecen fuera de la vista
 	IntervaloMin = 18,
 	IntervaloMax = 40,
@@ -106,11 +119,11 @@ Config.Casetes = {
 	OffsetEnMano = CFrame.new(0.75, 0.95, -1.7) * CFrame.Angles(math.rad(-12), math.rad(180), math.rad(6)),
 	-- Donde queda la cinta que devuelve un cliente: 3.6 studs a un costado del punto de atención
 	-- (x -4.2), para que su botón "Tomar" no se superponga con "Atender" / "Rechazar cliente".
-	PosicionMostrador = Vector3.new(-7.8, 3.95, 16.2),
+	PosicionMostrador = Vector3.new(-7.8, 3.95, 16.2 + AV),
 	VidaMostradorSeg = 45, -- una cinta que nadie levanta del mostrador se retira sola pasado este tiempo
-	BuzonEntrada = Vector3.new(6, 3.5, 27.9), -- afuera de la ranura
-	BuzonRanura = Vector3.new(6, 3.5, 25.9), -- atravesando la ranura
-	BuzonCaida = Vector3.new(6, 2.75, 25.1), -- sobre la caja de devoluciones
+	BuzonEntrada = Vector3.new(6, 3.5, 27.9 + EXT), -- afuera de la ranura
+	BuzonRanura = Vector3.new(6, 3.5, 25.9 + EXT), -- atravesando la ranura
+	BuzonCaida = Vector3.new(6, 2.75, 25.1 + EXT), -- sobre la caja de devoluciones
 	BuzonAnimSeg = 0.5,
 	ColorCarcasa = Color3.fromRGB(28, 28, 32), -- carcasa de todos los VHS (el género va en la franja de la carátula)
 	ColorSinEtiqueta = Color3.fromRGB(14, 14, 16),
@@ -151,10 +164,10 @@ Config.Clientes = {
 	VelocidadCaminar = 9,
 	MaxEnCola = 4,
 	TimeoutCaminarSeg = 12, -- si se traba, se lo teletransporta al destino
-	Entrada = Vector3.new(0, 3, 31),
-	AfueraPuerta = Vector3.new(0, 3, 28.8),
-	AdentroPuerta = Vector3.new(0, 3, 24.2),
-	ColaBase = Vector3.new(-4.2, 3, 19.4),
+	Entrada = Vector3.new(0, 3, 31 + EXT),
+	AfueraPuerta = Vector3.new(0, 3, 28.8 + EXT),
+	AdentroPuerta = Vector3.new(0, 3, 24.2 + EXT),
+	ColaBase = Vector3.new(-4.2, 3, 19.4 + AV),
 	ColaPaso = 1.7,
 	PuertaAbiertaTransparencia = 1,
 	PaletaRopa = {
@@ -198,6 +211,14 @@ Config.Jugador = {
 	CamaraFOV = 70,
 	VelocidadCaminar = 12,
 	AlturaSalto = 3.5,
+	-- Correr (Sprint.lua): mantener Ctrl izquierdo. Se gasta la energía corriendo y se recupera sola.
+	Sprint = {
+		Velocidad = 19, -- studs/seg corriendo (caminando son 12)
+		DuracionSeg = 3.5, -- tiempo corriendo de corrido con la energía llena
+		RecargaSeg = 7, -- tiempo en recuperar toda la energía
+		UmbralRecuperar = 0.3, -- agotado: hasta juntar esta fracción no se vuelve a correr
+		FovExtra = 8, -- el campo de visión se abre esto mientras corrés
+	},
 }
 
 -- Filtro VHS. La intensidad base es 1; la cinta la sube (VHSEffects.setIntensidad).
@@ -302,7 +323,7 @@ Config.Socio = {
 	VelocidadPorProgreso = 7.4, -- se suma con progreso 1 (los jugadores corren a 12: no los alcanza si no se frenan)
 	PersecucionSeg = 30, -- cada aparición dura 30 s: después se va
 	EntreApariciones = { 55, 90 }, -- una vez que la noche lo activó, vuelve a aparecer pasado este rango (s) desde que se fue
-	VelocidadMirado = 0.22, -- mientras alguien lo mira no se frena del todo: avanza a esta fracción de su velocidad
+	VelocidadMirado = 0.6, -- mientras alguien lo mira se frena (pero sigue viniendo): avanza a esta fracción de su velocidad
 	DistanciaCaptura = 3.4,
 	DistanciaPeligro = 45, -- a esta distancia el peligro empieza a subir
 	AnguloVision = 58, -- grados: mitad del cono de visión de cada jugador
@@ -378,10 +399,10 @@ Config.Fantasma = {
 	Translucidez = 0.55, -- transparencia de la skin
 	PisoY = -0.35, -- altura del asfalto del estacionamiento
 	Plazas = { -- una por jugador, delante de las puertas del motel (frente en z = 105)
-		Vector3.new(-4.5, 0, 101),
-		Vector3.new(4.5, 0, 101),
-		Vector3.new(-13.5, 0, 101),
-		Vector3.new(13.5, 0, 101),
+		Vector3.new(-4.5, 0, 101 + EXT),
+		Vector3.new(4.5, 0, 101 + EXT),
+		Vector3.new(-13.5, 0, 101 + EXT),
+		Vector3.new(13.5, 0, 101 + EXT),
 	},
 	ColorLuz = Color3.fromRGB(190, 220, 255),
 	BrilloLuz = 0.8,
@@ -450,8 +471,14 @@ Config.Radio = {
 
 -- Screamers (Screamers.lua / Client/Screamers): sustos fuertes con la cara de la criatura a pantalla completa.
 Config.Screamer = {
-	Sonidos = { "rbxassetid://130285917830946", "rbxassetid://93093877629089", "rbxassetid://118385772421763" },
-	Volumen = 1.2,
+	-- Cada grito con su volumen, medidos con PlaybackLoudness para que suenen parejo (el primero llega a ~830, el segundo a
+	-- ~500). El tercero era casi mudo durante el 1,5 s del susto (silencio hasta 1,5 s y después muy bajo): se lo cambió por
+	-- el más fuerte, más grave (PlaybackSpeed 0,8) para que no se repita igual.
+	Sonidos = {
+		{ Id = "rbxassetid://130285917830946", Volumen = 1.2 },
+		{ Id = "rbxassetid://93093877629089", Volumen = 2 },
+		{ Id = "rbxassetid://130285917830946", Volumen = 1.3, Velocidad = 0.8 },
+	},
 	DuracionSeg = 1.5,
 	EntreAutomaticosSeg = 120, -- tiempo mínimo entre screamers automáticos
 }
@@ -488,16 +515,48 @@ Config.Anomalias = {
 	-- La sombra de la anomalía "FiguraAlFondo" camina por el techo y las paredes y te sigue desde ahí (Client/Reptante).
 	-- Medidas de la caja del local de ventas (la figura nunca baja al piso).
 	Reptar = {
-		Velocidad = 4.8, -- studs/seg (el jugador corre a 12: se la puede dejar atrás)
+		-- Se mueve a ráfagas, como un bicho: repta (Velocidad), arremete (VelocidadArremetida) y se queda congelada un instante.
+		-- El jugador camina a 12 y corre a 19 (con energía): caminando no la deja atrás, corriendo sí.
+		Velocidad = 7,
+		VelocidadArremetida = 16,
+		ProbArremetida = 0.4, -- cada ráfaga es una arremetida con esta probabilidad
+		ReptarSeg = { 0.5, 1.2 }, -- duración de cada ráfaga lenta
+		ArremetidaSeg = { 0.3, 0.6 }, -- y de cada arremetida
+		PausaSeg = { 0.15, 0.5 }, -- y de cada instante quieta
 		Techo = 11.95, -- altura del techo (cara de abajo en y = 12)
 		X = 23.9, -- paredes izquierda y derecha (x = -24 / 24)
 		ZFondo = -11.9, -- pared del fondo (z = -12)
-		ZFrente = 25.9, -- pared del frente (z = 26)
+		ZFrente = 25.9 + EXT, -- pared del frente (z = 26 más la ampliación del salón)
 		VentajaTecho = 1, -- prefiere el techo: lo elige aunque una pared esté hasta este tanto más cerca
 		Histeresis = 1.5, -- y no cambia de superficie por una diferencia menor a esto
 		RecalculoSeg = 0.4, -- cada cuánto vuelve a pensar el camino
 		Suavizado = 7, -- qué tan rápido gira el cuerpo al cambiar de superficie
+		VelocidadSalto = 48, -- studs/seg del salto final sobre el jugador (si no la marcó con Q)
 		EsperaInicialSeg = 1.5, -- se queda colgada un momento antes de empezar a andar
+	},
+	-- El cuerpo de la criatura (Client/Aracnido): patas por cinemática inversa.
+	Aracnido = {
+		AlturaCuerpo = 2.7, -- el torso flota a esta altura de la superficie
+		LargoMuslo = 3.6,
+		LargoPierna = 4.6,
+		Patas = { -- una por cada par: dónde sale de la cadera (z del torso) y dónde apoya el pie (a los costados del cuerpo)
+			{ cadera = -1.0, apoyo = 4.6, z = -3.8 },
+			{ cadera = -0.35, apoyo = 4.8, z = -1.5 },
+			{ cadera = 0.35, apoyo = 4.8, z = 1.2 },
+			{ cadera = 1.0, apoyo = 4.4, z = 3.8 },
+		},
+		UmbralPaso = 1.9, -- el pie da un paso cuando se aleja tanto de su posición de reposo
+		AlcanceMax = 7,
+		AdelantoMax = 1.8, -- cuánto adelanta el pie al dar el paso
+		PasoSeg = 0.2,
+		AlturaPaso = 1.2,
+		VolumenPaso = 0.45, -- los pasos suenan como chasquidos secos
+	},
+	-- Efectos cuando está cerca (AnomalySystem): temblor de cámara, las luces se van, la estática sube y, si te alcanza, un sobresalto.
+	Efecto = {
+		DistanciaTemblor = 30, -- desde acá empieza a temblar la cámara
+		TemblorMax = 0.85, -- peligro local máximo (0..1; ver Config.Temblor)
+		DistanciaToque = 6, -- si queda a esta distancia (de la cámara: justo arriba tuyo son ~4,5) y no la marcaste con Q, te salta encima
 	},
 	Figura = {
 		Color = Color3.fromRGB(5, 5, 7),
@@ -517,6 +576,9 @@ Config.Telefono = {
 
 Config.Final = {
 	GrabarEncimaSeg = 6, -- mantener apretado en la videocasetera con la cinta en la mano
+	-- "Grabar encima" (R en la videocasetera) sirve todas las noches, no solo para el final REBOBINAR:
+	ProgresoGrabarSinEtiqueta = -0.2, -- grabarle encima a la cinta sin etiqueta (noches 1 a 4 y Sin fin) calma al Socio
+	ProgresoGrabarAnomala = -0.08, -- grabarle encima a una cinta anómala: cuenta como separada y calma un poco al Socio
 	PausaFinalSeg = 30, -- tiempo que dura la pantalla del final antes de reiniciar
 }
 

@@ -58,7 +58,7 @@ end
 
 -- ===== Entidad lejana =====
 
-local ZFRENTE = 26.5 -- plano del vidrio del local
+local ZFRENTE = Config.Local.ZFrente -- plano del vidrio del local
 local entidad = nil -- { modelo, ojos = { Part }, hasta, deriva }
 
 local function crearEntidad(posicion: Vector3)

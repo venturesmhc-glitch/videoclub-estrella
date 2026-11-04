@@ -159,6 +159,12 @@ function TapeItem.restringir(fn)
 	table.insert(restricciones, fn)
 end
 
+--- Otro sistema (la escoba, la bolsa) atiende la tecla G antes que el casete: fn(jugador) devuelve true si soltó algo.
+local sustitutosSoltar = {}
+function TapeItem.alSoltar(fn)
+	table.insert(sustitutosSoltar, fn)
+end
+
 function TapeItem.alCambiar(fn)
 	table.insert(oyentesCambio, fn)
 end
@@ -307,7 +313,7 @@ function TapeItem.tomar(jugador: Player, casete): boolean
 	enMano[jugador] = casete
 	enMostrador[casete] = nil
 	if casete.sinEtiqueta then
-		Net.aviso(jugador, "Casete sin etiqueta: se reproduce en la videocasetera (mantené E). Con G lo soltás.")
+		Net.aviso(jugador, "Casete sin etiqueta: en la videocasetera se reproduce (mantené E) o se le graba encima (mantené R). Con G lo soltás.")
 	end
 	casete.dueno = jugador
 	casete.prompt.Enabled = false
@@ -416,6 +422,13 @@ end
 function TapeItem.init()
 	Net.obtener("DropTape").OnServerEvent:Connect(function(jugador)
 		if Net.limitar(jugador, "soltar", 0.4) then
+			if not enMano[jugador] then
+				for _, fn in sustitutosSoltar do
+					if fn(jugador) then
+						return
+					end
+				end
+			end
 			TapeItem.soltar(jugador)
 		end
 	end)

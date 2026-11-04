@@ -61,7 +61,15 @@ local function atender(linea: string, jugador: Player)
 	end
 	local mensaje = mensajePara(llamada.datos, jugador)
 	dejarDeSonar(linea)
-	Net.obtener("PhoneMessage"):FireClient(jugador, { speaker = mensaje.speaker, lineas = mensaje.lineas })
+	-- Lo que explica el contestador de Don Ernesto (cómo se trabaja, las anomalías...) lo leen todos los del equipo: si lo
+	-- viera solo quien atendió, los demás no sabrían qué hacer. Las voces raras (la cinta, el "compañero") son solo de
+	-- quien atendió.
+	local paquete = { speaker = mensaje.speaker, lineas = mensaje.lineas }
+	if llamada.datos.voz then
+		Net.obtener("PhoneMessage"):FireClient(jugador, paquete)
+	else
+		Net.obtener("PhoneMessage"):FireAllClients(paquete)
+	end
 	if linea == "interno" then
 		NightManager.emitir("INTERNO_ATENDIDO", { jugador = jugador })
 	end
