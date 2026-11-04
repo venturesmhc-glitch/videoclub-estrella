@@ -170,6 +170,16 @@ function AudioManager.radio(estacion: number)
 		capa.sonido.SoundId = definicion.Id
 	end
 	capa.volumenBase = Config.Radio.Volumen
+	-- Cada estación puede tener su velocidad y sus agudos (las premium son la misma pista con otro carácter).
+	capa.velocidad = definicion.Velocidad or 1
+	capa.sonido.PlaybackSpeed = capa.velocidad
+	local filtro = capa.sonido:FindFirstChild("EstacionEQ")
+	if not filtro then
+		filtro = Instance.new("EqualizerSoundEffect")
+		filtro.Name = "EstacionEQ"
+		filtro.Parent = capa.sonido
+	end
+	filtro.HighGain = definicion.Agudos or 0
 	if not capa.sonido.IsPlaying then
 		capa.sonido:Play()
 	end

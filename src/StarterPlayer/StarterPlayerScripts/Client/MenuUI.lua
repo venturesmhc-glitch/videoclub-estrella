@@ -22,6 +22,7 @@ local Idioma = require(ReplicatedStorage.Shared.Idioma)
 local AudioManager = require(script.Parent.AudioManager)
 local Rendimiento = require(script.Parent.Rendimiento)
 local VHSEffects = require(script.Parent.VHSEffects)
+local TiendaUI = require(script.Parent.TiendaUI)
 
 local MenuUI = {}
 
@@ -46,6 +47,7 @@ local TEXTOS = {
 	logroSi = "DESBLOQUEADO",
 	logroNo = "BLOQUEADO",
 	ayuda = "CÓMO JUGAR",
+	tienda = "TIENDA (B)",
 	volver = "VOLVER",
 	cargando = "CARGANDO...",
 	reuniendo = "REUNIENDO AL EQUIPO...",
@@ -389,6 +391,10 @@ local function construirPrincipal()
 	boton(p, TEXTOS.ayuda, UDim2.fromScale(0.5, 0.86), function()
 		mostrarPantalla("ayuda")
 	end, TAM_BOTON)
+	-- La tienda (cosméticos, filtros, radio y propinas) también se abre con B; acá un acceso chico arriba a la derecha.
+	boton(p, TEXTOS.tienda, UDim2.fromScale(0.9, 0.07), function()
+		TiendaUI.abrir()
+	end, UDim2.fromScale(0.16, 0.06))
 	table.insert(mensajes, texto(p, { texto = "", tamano = UDim2.fromScale(0.5, 0.04), posicion = UDim2.fromScale(0.5, 0.93), ancla = Vector2.new(0.5, 0.5), color = COLOR_APAGADO }))
 end
 

@@ -16,6 +16,8 @@ local ORDEN = {
 	"OSD",
 	"AudioManager",
 	"Rendimiento",
+	"Filtro",
+	"TiendaUI",
 	"MenuUI",
 	"Linterna",
 	"LuzFluorescente",

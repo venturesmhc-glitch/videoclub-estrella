@@ -15,6 +15,10 @@
 	  local huesos = SocioHuesos.nuevo(modelo, { distanciaBoca = 7, anguloBoca = 75 })   -- el modelo ya tiene que estar en el Workspace
 	  huesos.actualizar(dt, activo, observado, dioPaso, distanciaAlJugador, posicionDelJugador)  -- la posición es opcional: con ella la cabeza lo sigue
 	  huesos.sincronizarOjos()                        -- llamar después de cada PivotTo del modelo
+
+	Modo suave (opciones.suave = true, el Socio del local): las poses se alcanzan con transiciones cortas en vez de clavarse y
+	se suma un ciclo de marcha (piernas, brazos, cadera, torso) más la respiración. Hay que llamar en cada cuadro:
+	  huesos.suavizar(dt, velocidad)                  -- velocidad = studs/seg que se desplaza el cuerpo (la marcha sigue a la distancia)
 	  huesos.reposo()                                 -- vuelve a la pose original
 	  huesos.gritar(u, abre)                          -- screamer: u de 0 a 1, la cara se abre de golpe cuando u llega a `abre`
 ]]
@@ -42,6 +46,15 @@ function SocioHuesos.nuevo(modelo: Model, opciones)
 	local ojos = {} -- { parte, hueso (nombre), reposo (hueso en reposo respecto del pivote), desfase (ojo respecto del hueso) }
 	local iniciado = false
 	local pivote0
+
+	-- Modo suave (opciones.suave, lo usa el Socio en el local): las poses que piden los gestos no se clavan de golpe, el hueso
+	-- se acerca a ellas (objetivo) y encima se suma el ciclo de marcha y la respiración (aditivo). Sin modo suave (screamer,
+	-- vistas previas) cada pose se aplica al instante, como siempre.
+	local suave = opciones.suave == true
+	local objetivo = {} -- hueso -> Vector3 (ángulos que pidió la animación)
+	local aditivo = {} -- hueso -> Vector3 (marcha y respiración, se suman al objetivo)
+	local actual = {} -- hueso -> Vector3 (lo que se ve ahora)
+	local CERO = Vector3.zero
 
 	-- Pose de un hueso en el mundo, calculada encadenando CFrame (reposo) y Transform desde la malla:
 	-- no depende de que el motor haya actualizado TransformedWorldCFrame (el servidor no renderiza).
@@ -95,10 +108,18 @@ function SocioHuesos.nuevo(modelo: Model, opciones)
 	end
 
 	-- Gira el hueso con ángulos en el marco del modelo (X = derecha, Y = arriba, Z = atrás), da igual cómo vengan orientados los huesos.
+	local function aplicar(h, e: Vector3)
+		h.bone.Transform = h.R:Inverse() * (Q * CFrame.fromEulerAnglesXYZ(e.X, e.Y, e.Z) * Qinv) * h.R
+	end
+
 	local function rotar(nombre: string, rx: number, ry: number, rz: number)
 		local h = huesos[nombre]
 		if h then
-			h.bone.Transform = h.R:Inverse() * (Q * CFrame.fromEulerAnglesXYZ(rx, ry, rz) * Qinv) * h.R
+			local e = Vector3.new(rx, ry, rz)
+			objetivo[nombre] = e
+			if not suave then
+				aplicar(h, e)
+			end
 		end
 	end
 
@@ -122,7 +143,8 @@ function SocioHuesos.nuevo(modelo: Model, opciones)
 		end
 		local pivote = modelo:GetPivot()
 		-- Con la cara abierta ya no hay órbitas donde estén: los ojos desaparecen (volver a cerrarla los devuelve).
-		local transparencia = math.clamp((apertura - OJOS_VISIBLES_HASTA) / (OJOS_APAGADOS_DESDE - OJOS_VISIBLES_HASTA), 0, 1)
+		local abierta = suave and actual.FaceL and actual.FaceL.Y or apertura
+		local transparencia = math.clamp((abierta - OJOS_VISIBLES_HASTA) / (OJOS_APAGADOS_DESDE - OJOS_VISIBLES_HASTA), 0, 1)
 		for _, o in ojos do
 			local ahora = pivote:ToObjectSpace(mundoDe(huesos[o.hueso].bone, true))
 			o.parte.CFrame = pivote * (Qinv * (ahora * o.desfase) * Q)
@@ -136,6 +158,9 @@ function SocioHuesos.nuevo(modelo: Model, opciones)
 		for _, h in huesos do
 			h.bone.Transform = CFrame.new()
 		end
+		table.clear(objetivo)
+		table.clear(aditivo)
+		table.clear(actual)
 		apertura = 0
 		ctl.sincronizarOjos()
 	end
@@ -409,6 +434,9 @@ function SocioHuesos.nuevo(modelo: Model, opciones)
 
 	-- Piernas: cada paso de golpe cambia de pierna.
 	local function piernas(dioPaso: boolean, t: number)
+		if suave then
+			return -- en modo suave las piernas las mueve el ciclo de marcha
+		end
 		if dioPaso then
 			ultimoPaso = t
 			parLado = not parLado
@@ -425,6 +453,82 @@ function SocioHuesos.nuevo(modelo: Model, opciones)
 				rotar(n, 0, 0, 0)
 			end
 		end
+	end
+
+	-- ===== Marcha y respiración (solo en modo suave) =====
+	-- Ciclo de marcha continuo: la fase avanza con la distancia recorrida (ZANCADA studs = dos pasos), así los pies no patinan
+	-- ni dan pasos con el cuerpo quieto. Piernas y brazos van en contrafase, la cadera y el torso se retuercen un poco y el cuerpo se
+	-- inclina hacia adelante cuanto más rápido camina. Todo se suma (aditivo) a lo que piden los gestos. Quieto, solo respira.
+	local ZANCADA = 6.5
+	local fase = 0
+	local amplitud = 0 -- 0 quieto, 1 a la velocidad base del Socio
+	local tRespira = rng:NextNumber(0, 10)
+	local K_CUERPO = 9 -- qué rápido se acerca cada hueso a su pose (1/s)
+	local K_RAPIDO = { FaceL = 30, FaceR = 30 } -- la cara se parte de golpe
+	local K_MEDIO = 14 -- cabeza y cuello
+	local K_DEDOS = 22
+
+	local function velocidadDeHueso(nombre: string): number
+		local r = K_RAPIDO[nombre]
+		if r then
+			return r
+		end
+		if nombre == "Head" or nombre == "Neck2" or nombre == "Neck1" then
+			return K_MEDIO
+		end
+		if string.sub(nombre, 1, 6) == "Finger" then
+			return K_DEDOS
+		end
+		return K_CUERPO
+	end
+
+	local function marcha(dt: number, velocidad: number)
+		amplitud += (math.clamp(velocidad / 5, 0, 1.4) - amplitud) * (1 - math.exp(-dt * 6))
+		fase += velocidad / ZANCADA * 2 * math.pi * dt
+		tRespira += dt
+		local s, c = math.sin(fase), math.cos(fase)
+		local a = amplitud
+		local respira = math.sin(tRespira * 1.7)
+		local ladea = math.sin(tRespira * 0.63)
+
+		-- Cada pierna: el muslo oscila, la rodilla se dobla mientras la pierna pasa hacia adelante y el pie acompaña.
+		aditivo.UpperLeg_L = Vector3.new(rad(32) * s * a, 0, 0)
+		aditivo.UpperLeg_R = Vector3.new(-rad(32) * s * a, 0, 0)
+		aditivo.LowerLeg_L = Vector3.new(-rad(54) * math.max(0, c) * a, 0, 0)
+		aditivo.LowerLeg_R = Vector3.new(-rad(54) * math.max(0, -c) * a, 0, 0)
+		aditivo.Foot_L = Vector3.new(rad(10) * math.max(0, -c) * a, 0, 0)
+		aditivo.Foot_R = Vector3.new(rad(10) * math.max(0, c) * a, 0, 0)
+		aditivo.Pelvis = Vector3.new(0, rad(6) * s * a, rad(3.5) * s * a)
+
+		-- Torso: se inclina hacia adelante al caminar, contragira respecto de la cadera y respira.
+		aditivo.Spine1 = Vector3.new(-rad(5) * a, -rad(4) * s * a, rad(1.2) * ladea)
+		aditivo.Spine2 = Vector3.new(-rad(3) * a + rad(1.8) * respira, -rad(5) * s * a, rad(1.5) * math.sin(fase) * a)
+		aditivo.Neck2 = Vector3.new(rad(2) * a * math.abs(s) - rad(0.8) * respira, 0, 0)
+		aditivo.Head = Vector3.new(rad(1) * respira, rad(2) * ladea, 0)
+
+		-- Brazos en contrafase con las piernas; el codo se dobla cuando el brazo pasa hacia adelante.
+		aditivo.UpperArm_L = Vector3.new(-rad(20) * s * a + rad(1.5) * respira, 0, rad(1.2) * respira)
+		aditivo.UpperArm_R = Vector3.new(rad(20) * s * a + rad(1.5) * respira, 0, rad(1.2) * respira)
+		aditivo.Forearm_L = Vector3.new(rad(10) * math.max(0, s) * a, 0, 0)
+		aditivo.Forearm_R = Vector3.new(rad(10) * math.max(0, -s) * a, 0, 0)
+	end
+
+	--- Llamar en cada cuadro (Heartbeat) en modo suave. velocidad: studs/seg que se mueve el cuerpo (lo que se ve, no la lógica).
+	function ctl.suavizar(dt: number, velocidad: number?)
+		if not iniciado then
+			iniciar()
+		end
+		marcha(dt, velocidad or 0)
+		for nombre, h in huesos do
+			local meta = (objetivo[nombre] or CERO) + (aditivo[nombre] or CERO)
+			local antes = actual[nombre] or CERO
+			local ahora = antes:Lerp(meta, 1 - math.exp(-dt * velocidadDeHueso(nombre)))
+			if (ahora - antes).Magnitude > 1e-4 then
+				actual[nombre] = ahora
+				aplicar(h, ahora)
+			end
+		end
+		ctl.sincronizarOjos()
 	end
 
 	-- Screamer: antes de abrir, la cara tiembla casi cerrada y se agrieta; en `abre` se parte de golpe, del todo, y queda

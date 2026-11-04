@@ -318,7 +318,9 @@ Config.Socio = {
 	TextureId = "rbxassetid://138757344705907",
 	AlturaMalla = 8.2, -- altura en studs
 	Tinte = Color3.fromRGB(58, 60, 66), -- oscurece la textura
-	PasoSeg = 0.3, -- avanza a tirones: cada tanto da un paso corto de golpe
+	PasoSeg = 0.15, -- la lógica avanza cada tanto un paso corto; el cuerpo se desliza hasta ahí (SuavizadoMovimiento), así que se ve continuo con arrancadas leves
+	SuavizadoMovimiento = 7, -- qué tan rápido el cuerpo alcanza su posición lógica (1/s; más alto = más a tirones)
+	SuavizadoGiro = 8, -- y qué tan rápido gira hacia donde camina (1/s)
 	VelocidadBase = 4.6, -- studs/seg con progreso 0
 	VelocidadPorProgreso = 7.6, -- se suma con progreso 1 (los jugadores caminan a 12: casi los alcanza; solo la linterna lo frena)
 	PersecucionSeg = 30, -- cada aparición dura 30 s: después se va
@@ -439,9 +441,45 @@ Config.Espectador = {
 -- Compras con Robux (Tienda.lua). Los ids son de los "Developer Products" de la experiencia (Centro de creación > Monetización).
 -- Con 0 el producto no está creado: en Studio la compra se simula sin gastar nada y en el juego publicado no está disponible.
 Config.Tienda = {
-	Productos = { Asustar = 3726792104, Revivir = 3726792548 },
-	Precios = { Asustar = 10, Revivir = 15 }, -- solo para mostrarlos en los botones (el precio real es el del producto)
+	-- Los de id 0 todavía no están creados en Roblox: hay que crear un Developer Product por cada uno (con el precio de
+	-- Precios) y pegar su id acá.
+	Productos = {
+		Asustar = 3726792104, Revivir = 3726792548,
+		Companero = 0, Amuleto = 0, Pausa = 0,
+		PropinaChica = 0, PropinaMedia = 0, PropinaGrande = 0,
+		Gorra = 0, Chaleco = 0, Camiseta = 0,
+		FiltroBN = 0, Filtro8mm = 0, FiltroSepia = 0,
+		PaseRadio = 0,
+	},
+	Precios = { -- solo para mostrarlos en los botones (el precio real es el del producto)
+		Asustar = 10, Revivir = 15, Companero = 20, Amuleto = 25, Pausa = 25,
+		PropinaChica = 5, PropinaMedia = 25, PropinaGrande = 100,
+		Gorra = 25, Chaleco = 49, Camiseta = 39,
+		FiltroBN = 25, Filtro8mm = 39, FiltroSepia = 29,
+		PaseRadio = 79,
+	},
+	-- Lo que se ve en la tienda (tecla B / botón TIENDA del menú), en este orden. "tipo": "consumible" se paga cada vez;
+	-- "permanente" se compra una vez y queda en el perfil (se equipa y se saca desde la tienda). "ranura" dice dónde se equipa.
+	Catalogo = {
+		{ clave = "amuleto", producto = "Amuleto", categoria = "ayuda", tipo = "consumible", nombre = "Amuleto", descripcion = "Absorbe una captura del Socio esta noche." },
+		{ clave = "pausa", producto = "Pausa", categoria = "ayuda", tipo = "consumible", nombre = "Pausa de cinta", descripcion = "Congela al Socio unos segundos." },
+		{ clave = "companero", producto = "Companero", categoria = "ayuda", tipo = "consumible", nombre = "Revivir a un compañero", descripcion = "Un compañero que quedó fuera vuelve a la noche." },
+		{ clave = "revivir", producto = "Revivir", categoria = "ayuda", tipo = "consumible", nombre = "Revivir", descripcion = "Si quedaste fuera, volvés a jugar al instante." },
+		{ clave = "asustar", producto = "Asustar", categoria = "ayuda", tipo = "consumible", nombre = "Asustar a todos", descripcion = "Un screamer para los demás jugadores." },
+		{ clave = "gorra", producto = "Gorra", categoria = "aspecto", tipo = "permanente", ranura = "cabeza", nombre = "Gorra de Don Ernesto", descripcion = "La gorra roja del dueño del Videoclub." },
+		{ clave = "chaleco", producto = "Chaleco", categoria = "aspecto", tipo = "permanente", ranura = "torso", nombre = "Chaleco del Videoclub", descripcion = "El uniforme oficial, con la estrella en el pecho." },
+		{ clave = "camiseta", producto = "Camiseta", categoria = "aspecto", tipo = "permanente", ranura = "torso", nombre = "Camiseta del Socio", descripcion = "Negra, con el número 0000. No mires atrás." },
+		{ clave = "filtrobn", producto = "FiltroBN", categoria = "filtro", tipo = "permanente", ranura = "filtro", valor = "bn", nombre = "Filtro blanco y negro", descripcion = "La cinta en blanco y negro, como una cámara de seguridad." },
+		{ clave = "filtro8mm", producto = "Filtro8mm", categoria = "filtro", tipo = "permanente", ranura = "filtro", valor = "8mm", nombre = "Filtro 8 mm", descripcion = "Colores gastados y cálidos de película vieja." },
+		{ clave = "filtrosepia", producto = "FiltroSepia", categoria = "filtro", tipo = "permanente", ranura = "filtro", valor = "sepia", nombre = "Filtro sepia", descripcion = "Todo en tonos de fotografía antigua." },
+		{ clave = "paseradio", producto = "PaseRadio", categoria = "radio", tipo = "permanente", nombre = "Pase de Radio", descripcion = "Desbloquea las estaciones extra de la radio del local." },
+		{ clave = "propinachica", producto = "PropinaChica", categoria = "propina", tipo = "consumible", nombre = "Propina chica", descripcion = "Un cafecito para Don Ernesto." },
+		{ clave = "propinamedia", producto = "PropinaMedia", categoria = "propina", tipo = "consumible", nombre = "Propina", descripcion = "Para las cintas nuevas." },
+		{ clave = "propinagrande", producto = "PropinaGrande", categoria = "propina", tipo = "consumible", nombre = "Propina grande", descripcion = "Don Ernesto no lo va a olvidar." },
+	},
 	EnfriamientoAsustarSeg = 45, -- entre un "asustar a todos" y otro (para todo el servidor)
+	EnfriamientoPausaSeg = 60, -- entre una pausa de cinta y otra (para todo el servidor)
+	PausaSeg = 10, -- cuánto queda congelado el Socio
 	-- La máscara de Ghostface del depósito (Tienda.lua): mantener E sobre ella abre la compra de "Asustar a todos".
 	Mascara = { MantenerSeg = 1.2, Distancia = 8 },
 }
@@ -477,9 +515,20 @@ Config.Idioma = {
 Config.Radio = {
 	Inicial = 1,
 	Volumen = 0.2,
+	-- Premium = true: hace falta el Pase de Radio (tienda) para ponerla. "Velocidad" y "Agudos" (dB, negativo = más apagado)
+	-- son efectos sobre la pista; para una canción propia basta con cambiar el Id.
 	Estaciones = {
 		{ Nombre = "Radio", Id = "rbxassetid://75201584395115" },
+		{ Nombre = "Radio AM", Id = "rbxassetid://75201584395115", Premium = true, Agudos = -22, Velocidad = 1 },
+		{ Nombre = "Cinta gastada", Id = "rbxassetid://75201584395115", Premium = true, Agudos = -8, Velocidad = 0.86 },
 	},
+}
+
+-- Filtros de cinta de la tienda (Client/Filtro): correcciones de color sobre toda la imagen.
+Config.Filtros = {
+	bn = { Saturation = -1, Contrast = 0.18, Brightness = 0.02, TintColor = Color3.fromRGB(255, 255, 255) },
+	["8mm"] = { Saturation = -0.3, Contrast = 0.12, Brightness = 0.03, TintColor = Color3.fromRGB(255, 236, 204) },
+	sepia = { Saturation = -0.65, Contrast = 0.08, Brightness = 0.03, TintColor = Color3.fromRGB(255, 212, 158) },
 }
 
 -- Screamers (Screamers.lua / Client/Screamers): sustos fuertes con la cara de la criatura a pantalla completa.

@@ -25,7 +25,7 @@ local cargados = {} -- Player -> true cuando terminó de cargar (con datos o con
 local avisado = false
 
 local function perfilNuevo()
-	return { nocheAlcanzada = 1, finales = {}, empleadosMenos = 0, insignias = {}, mejorSinFin = 0 }
+	return { nocheAlcanzada = 1, finales = {}, empleadosMenos = 0, insignias = {}, mejorSinFin = 0, compras = {}, equipado = {} }
 end
 
 local function tieneFinal(perfil): boolean
@@ -40,6 +40,8 @@ local function paquetePerfil(perfil)
 		empleadosMenos = perfil.empleadosMenos,
 		insignias = perfil.insignias,
 		mejorSinFin = perfil.mejorSinFin,
+		compras = perfil.compras,
+		equipado = perfil.equipado,
 		sinFinDesbloqueado = tieneFinal(perfil),
 	}
 end
@@ -49,6 +51,19 @@ local function avisarSinAlmacen(motivo)
 		avisado = true
 		warn("[Persistencia] DataStore no disponible, se usan datos en memoria: " .. tostring(motivo))
 	end
+end
+
+local observadores = {} -- funciones que quieren enterarse cuando cambia el perfil de alguien (Cosmeticos)
+
+local function avisarCambio(jugador: Player)
+	for _, f in observadores do
+		task.spawn(f, jugador)
+	end
+end
+
+--- Pide que se llame a f(jugador) cuando se carga o cambia el perfil de un jugador.
+function Persistencia.suscribirPerfil(f)
+	table.insert(observadores, f)
 end
 
 local function clave(jugador: Player): string
@@ -69,6 +84,8 @@ local function cargar(jugador: Player)
 					perfil.empleadosMenos = tonumber(datos.empleadosMenos) or 0
 					perfil.insignias = typeof(datos.insignias) == "table" and datos.insignias or {}
 					perfil.mejorSinFin = tonumber(datos.mejorSinFin) or 0
+					perfil.compras = typeof(datos.compras) == "table" and datos.compras or {}
+					perfil.equipado = typeof(datos.equipado) == "table" and datos.equipado or {}
 				end
 				break
 			end
@@ -79,6 +96,7 @@ local function cargar(jugador: Player)
 	perfiles[jugador] = perfil
 	cargados[jugador] = true
 	Net.obtener("ProfileLoaded"):FireClient(jugador, paquetePerfil(perfil))
+	avisarCambio(jugador)
 end
 
 local function guardar(jugador: Player)
@@ -98,6 +116,7 @@ local function enviarPerfil(jugador: Player)
 	local perfil = perfiles[jugador]
 	if perfil then
 		Net.obtener("ProfileLoaded"):FireClient(jugador, paquetePerfil(perfil))
+		avisarCambio(jugador)
 	end
 end
 
@@ -143,6 +162,41 @@ function Persistencia.marcarInsignia(jugador: Player, clave: string): boolean
 	enviarPerfil(jugador)
 	task.spawn(guardar, jugador)
 	return true
+end
+
+--- ¿Compró esto (algo permanente de la tienda)?
+function Persistencia.tieneCompra(jugador: Player, clave: string): boolean
+	local perfil = perfiles[jugador]
+	return perfil ~= nil and perfil.compras[clave] == true
+end
+
+--- Anota una compra permanente. Devuelve true si era nueva.
+function Persistencia.marcarCompra(jugador: Player, clave: string): boolean
+	local perfil = perfiles[jugador]
+	if not perfil or perfil.compras[clave] then
+		return false
+	end
+	perfil.compras[clave] = true
+	enviarPerfil(jugador)
+	task.spawn(guardar, jugador)
+	return true
+end
+
+--- Lo que tiene puesto en cada ranura ("cabeza", "torso", "filtro"): { [ranura] = valor }.
+function Persistencia.equipado(jugador: Player)
+	local perfil = perfiles[jugador]
+	return perfil and perfil.equipado or {}
+end
+
+--- Equipa (valor) o saca (nil) lo de una ranura. La validación de que lo compró la hace la tienda.
+function Persistencia.equipar(jugador: Player, ranura: string, valor: string?)
+	local perfil = perfiles[jugador]
+	if not perfil then
+		return
+	end
+	perfil.equipado[ranura] = valor
+	enviarPerfil(jugador)
+	task.spawn(guardar, jugador)
 end
 
 --- Para pruebas: marca un final como alcanzado (habilita el modo Sin fin) sin pasar por el turno.

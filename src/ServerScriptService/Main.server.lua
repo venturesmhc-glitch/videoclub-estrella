@@ -28,6 +28,7 @@ local ORDEN = {
 	"SocioEntity",
 	"Screamers",
 	"Tienda",
+	"Cosmeticos",
 	"Insignias",
 	"CursedTapeSystem",
 	"CustomerSystem",

@@ -1,7 +1,7 @@
 --!nonstrict
 --[[
 	SocioEntity (servidor) — Fase 5.
-	El Socio N° 0000. Se mueve a tirones; cuando algún jugador lo mira con la linterna prendida apuntándole se arrastra a una fracción de su velocidad (Config.Socio.VelocidadMirado); mirarlo sin luz no lo frena.
+	El Socio N° 0000. Camina con un ciclo de marcha (SocioHuesos modo suave) y avanza a arrancadas cortas; cuando algún jugador lo mira con la linterna prendida apuntándole se arrastra a una fracción de su velocidad (Config.Socio.VelocidadMirado); mirarlo sin luz no lo frena.
 
 	"Mirar" lo decide el servidor: cada cliente informa hacia dónde apunta su cámara (remote LookReport)
 	y acá se valida (la cámara debe estar cerca de la cabeza del personaje) y se comprueba el cono de visión
@@ -26,6 +26,7 @@
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Net = require(ReplicatedStorage.Shared.Net)
@@ -48,6 +49,12 @@ local ultimoPaso = 0
 local esMalla = false -- true si el cuerpo es la criatura generada con IA
 local huesos -- controlador de SocioHuesos (solo si el cuerpo trae esqueleto)
 local temblor = CFrame.new()
+-- Lo que se ve del cuerpo: se acerca a la posición lógica (posicion / rotacion / temblor) en cada cuadro, así los pasos
+-- de la lógica no son saltos de un lugar a otro sino arrancadas cortas, y la marcha de los huesos sigue la velocidad visible.
+local posVisible = Vector3.new(0, 0, -16)
+local rotVisible = 0
+local temblorVisible = CFrame.new()
+local velVisible = 0
 local pasoAcumulado = 0
 local activo = false
 local posicion = Vector3.new(0, 0, -16) -- a nivel del piso
@@ -55,6 +62,8 @@ local rotacion = 0
 local progreso = 0
 local capturas = 0 -- total de la noche (para el estado de depuración)
 local capturasDe = {} -- Player -> veces que lo agarró esta noche
+local amuletos = {} -- Player -> true si lleva un amuleto (absorbe la próxima captura; se compra en la tienda)
+local pausadoHasta = 0 -- mientras os.clock() sea menor, el Socio queda congelado (pausa de cinta de la tienda)
 local activoDesde = 0 -- cuándo empezó la aparición actual (cada una dura Config.Socio.PersecucionSeg)
 local ciclo = false -- la noche ya lo activó: después de irse vuelve a aparecer cada tanto
 local reaparecerEn: number? = nil
@@ -88,7 +97,23 @@ local function construirModelo()
 		esMalla = true
 		alturaRaiz = 0.02
 		if malla:GetAttribute("ConHuesos") then
-			huesos = SocioHuesos.nuevo(modelo, { distanciaBoca = cfg.BocaDistancia, anguloBoca = cfg.BocaAngulo })
+			huesos = SocioHuesos.nuevo(modelo, { distanciaBoca = cfg.BocaDistancia, anguloBoca = cfg.BocaAngulo, suave = true })
+			RunService.Heartbeat:Connect(function(dt)
+				if not modelo or not modelo.Parent then
+					return
+				end
+				-- Desliza el cuerpo hacia donde lo manda la lógica y gira hacia donde camina.
+				local k = 1 - math.exp(-dt * cfg.SuavizadoMovimiento)
+				local antes = posVisible
+				posVisible = posVisible:Lerp(posicion, k)
+				local giro = (rotacion - rotVisible + math.pi) % (2 * math.pi) - math.pi
+				rotVisible += giro * (1 - math.exp(-dt * cfg.SuavizadoGiro))
+				temblorVisible = temblorVisible:Lerp(temblor, k)
+				local v = (posVisible - antes).Magnitude / math.max(dt, 1e-3)
+				velVisible += (v - velVisible) * (1 - math.exp(-dt * 8))
+				modelo:PivotTo(CFrame.new(posVisible.X, alturaRaiz, posVisible.Z) * CFrame.Angles(0, rotVisible, 0) * temblorVisible)
+				huesos.suavizar(dt, velVisible)
+			end)
 		end
 		return
 	end
@@ -112,7 +137,8 @@ local function construirModelo()
 	alturaRaiz = modelo:GetAttribute("AlturaRaiz") or alturaRaiz
 end
 
-local function colocar()
+-- salto: aparece de golpe en `posicion` (no se desliza desde donde estaba).
+local function colocar(salto: boolean?)
 	if not modelo then
 		return
 	end
@@ -120,11 +146,16 @@ local function colocar()
 		-- Cada paso lo sacude un poco (tiritón).
 		if (posicion - ultimaPosicion).Magnitude > 0.01 then
 			ultimaPosicion = posicion
-			temblor = CFrame.Angles(math.rad(rng:NextNumber(-3, 3)), math.rad(rng:NextNumber(-9, 9)), math.rad(rng:NextNumber(-3, 3)))
+			temblor = CFrame.Angles(math.rad(rng:NextNumber(-1.5, 1.5)), math.rad(rng:NextNumber(-4, 4)), math.rad(rng:NextNumber(-1.5, 1.5)))
 		end
-		modelo:PivotTo(CFrame.new(posicion.X, alturaRaiz, posicion.Z) * CFrame.Angles(0, rotacion, 0) * temblor)
 		if huesos then
-			huesos.sincronizarOjos()
+			-- El cuadro siguiente lo dibuja el Heartbeat (posVisible se acerca a posicion); un salto lo planta ya mismo.
+			if salto then
+				posVisible, rotVisible, temblorVisible, velVisible = posicion, rotacion, temblor, 0
+				modelo:PivotTo(CFrame.new(posicion.X, alturaRaiz, posicion.Z) * CFrame.Angles(0, rotacion, 0) * temblor)
+			end
+		else
+			modelo:PivotTo(CFrame.new(posicion.X, alturaRaiz, posicion.Z) * CFrame.Angles(0, rotacion, 0) * temblor)
 		end
 		return
 	end
@@ -348,7 +379,7 @@ function SocioEntity.activar(donde: Vector3?)
 	sinCapturaHasta = math.max(sinCapturaHasta, os.clock() + cfg.GraciaAparicionSeg)
 	ciclo = true -- desde ahora, durante la noche, va y viene: 30 s presente y un rato afuera
 	reaparecerEn = nil
-	colocar()
+	colocar(true)
 	modelo.Parent = workspace
 	if not yaEstaba then
 		Net.obtener("SocioPresencia"):FireAllClients(true)
@@ -391,6 +422,17 @@ function SocioEntity.presentarseEn(donde: Vector3)
 end
 
 local function capturar(jugador: Player)
+	if amuletos[jugador] then
+		-- El amuleto se rompe y se lleva la captura: no cuenta, el Socio retrocede y el jugador sigue donde estaba.
+		amuletos[jugador] = nil
+		jugador:SetAttribute("Amuleto", nil)
+		Net.avisoATodos(string.format("El amuleto de %s se rompió.", jugador.DisplayName))
+		SocioEntity.agregarProgreso(cfg.PorCaptura)
+		posicion = nodoMasLejanoDeTodos()
+		ruta = {}
+		colocar(true)
+		return
+	end
 	capturas += 1
 	local veces = (capturasDe[jugador] or 0) + 1
 	capturasDe[jugador] = veces
@@ -438,7 +480,7 @@ local function capturar(jugador: Player)
 	SocioEntity.agregarProgreso(cfg.PorCaptura)
 	posicion = nodoMasLejanoDeTodos()
 	ruta = {}
-	colocar()
+	colocar(true)
 
 	-- Si ya no queda nadie en pie, la noche fracasa.
 	for _, otro in Players:GetPlayers() do
@@ -447,6 +489,25 @@ local function capturar(jugador: Player)
 		end
 	end
 	NightManager.fracasar()
+end
+
+--- Le da un amuleto a un jugador (dura hasta que absorbe una captura o termina la noche). Devuelve false si ya lo tenía.
+function SocioEntity.darAmuleto(jugador: Player): boolean
+	if amuletos[jugador] then
+		return false
+	end
+	amuletos[jugador] = true
+	jugador:SetAttribute("Amuleto", true)
+	return true
+end
+
+function SocioEntity.tieneAmuleto(jugador: Player): boolean
+	return amuletos[jugador] == true
+end
+
+--- Congela al Socio ese tiempo (no se mueve ni captura). Sirve aunque todavía no esté en el local: no pasa nada.
+function SocioEntity.pausar(segundos: number)
+	pausadoHasta = math.max(pausadoHasta, os.clock() + segundos)
 end
 
 --- Vuelve a jugar un espectador (compró el revivir): sus capturas de la noche empiezan de nuevo.
@@ -545,6 +606,11 @@ function SocioEntity.init()
 		progreso = math.min(cfg.ProgresoMax, (cfg.PorNoche[datos.noche] or cfg.PorNoche[#cfg.PorNoche]) + pasadas * Config.SinFin.ProgresoSocioPorNoche)
 		capturas = 0
 		table.clear(capturasDe)
+		for jugador in amuletos do
+			jugador:SetAttribute("Amuleto", nil)
+		end
+		table.clear(amuletos)
+		pausadoHasta = 0
 		sustoUsado = false
 		sinCapturaHasta = 0
 	end)
@@ -579,6 +645,7 @@ function SocioEntity.init()
 	end)
 	Players.PlayerRemoving:Connect(function(jugador)
 		miradas[jugador], ignorados[jugador], ultimoPeligro[jugador], capturasDe[jugador] = nil, nil, nil, nil
+		amuletos[jugador] = nil
 	end)
 
 	task.spawn(function()
@@ -595,7 +662,7 @@ function SocioEntity.init()
 			elseif enTurno and not activo and ciclo and reaparecerEn and os.clock() >= reaparecerEn then
 				SocioEntity.activar()
 			end
-			local observado = enTurno and activo and alguienLoMira()
+			local observado = enTurno and activo and (alguienLoMira() or os.clock() < pausadoHasta)
 			ultimoObservado = observado
 			-- Solo lo frena la linterna: mirarlo sin luz no sirve. Alumbrado, se arrastra más lento (y sus pasos también) y se paraliza de cara.
 			local alumbrado = observado and alguienLoMira(true)

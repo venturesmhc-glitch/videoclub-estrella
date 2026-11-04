@@ -34,6 +34,7 @@ local Screamers = require(script.Parent.Screamers)
 local TareasMenores = require(script.Parent.TareasMenores)
 local NightData = require(ReplicatedStorage.Shared.NightData)
 local SocioEntity = require(script.Parent.SocioEntity)
+local Tienda = require(script.Parent.Tienda)
 local TapeItem = require(script.Parent.TapeItem)
 local TaskSystem = require(script.Parent.TaskSystem)
 
@@ -175,6 +176,12 @@ end
 function comandos.revivir()
 	SocioEntity.revivirJugador(jugador())
 	return "espectador=" .. tostring(Fantasmas.esFantasma(jugador()))
+end
+
+--- comprar CLAVE [userId]: prueba una compra de la tienda (en Studio sin id de producto se aplica sin pagar).
+function comandos.comprar(clave, objetivo)
+	Tienda.pedirCompra(jugador(), clave or "", { objetivo = tonumber(objetivo) })
+	return "compra pedida: " .. tostring(clave)
 end
 
 function comandos.socio()
