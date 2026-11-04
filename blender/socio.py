@@ -412,59 +412,87 @@ pared_hueca("L", "CaraL", "FaceL")
 pared_hueca("R", "CaraR", "FaceR")
 
 
-# ---- colmillos: una fila en el borde del corte de cada mitad (se cruzan al cerrarse) y otros adentro, sobre la pared
-def colmillo(bmx, base, direccion, largo, grosor):
-    tip = base + direccion * largo
-    tube(bmx, [base, tip], [(grosor, grosor * 0.8), (grosor * 0.12, grosor * 0.1)], 4)
+# ---- dientes: muchos y de varios tamaños, como la boca de IT. Dos filas en el borde del corte de cada mitad (se cruzan al cerrarse),
+# filas sobre las paredes de adentro, anillos concéntricos en el fondo y dientes en la mandíbula.
+# Cada diente es una pirámide (pocas caras): así caben cientos sin pasarse del límite de polígonos del importador.
+def colmillo(bmx, base, direccion, largo, grosor, lados=3, curva=None):
+    d = V(direccion).normalized()
+    a = d.cross(V((0, 0, 1)))
+    if a.length < 1e-3:
+        a = d.cross(V((1, 0, 0)))
+    a.normalize()
+    b = d.cross(a).normalized()
+    anillo = [bmx.verts.new(base + a * grosor * math.cos(2 * math.pi * i / lados) + b * grosor * math.sin(2 * math.pi * i / lados))
+              for i in range(lados)]
+    punta = bmx.verts.new(base + d * largo + (V(curva) * largo if curva else V((0, 0, 0))))
+    for i in range(lados):
+        bmx.faces.new((anillo[i], anillo[(i + 1) % lados], punta))
+    bmx.faces.new(anillo)  # la base cierra el sólido (queda enterrada en la pared)
 
 
 rng_c = random.Random(5)
 for lado, nombre, hueso in ((1, "ColmillosL", "FaceL"), (-1, "ColmillosR", "FaceR")):
     bmx = bmesh.new()
-    pasos = 18
-    for i in range(pasos):
-        z = 2.965 - i * 0.0235 - (0.012 if lado < 0 else 0.0)
-        hit = bvh.ray_cast(V((lado * 0.004, -0.6, z)), V((0, 1, 0)))
-        if hit[0] is None:
-            continue
-        p = hit[0] + V((0, 0.012, 0))
-        centro = 1 - abs(i - pasos * 0.55) / (pasos * 0.55)
-        largo = 0.035 + 0.045 * centro * rng_c.uniform(0.7, 1.1)
-        dirv = V((-lado * 0.9, 0.3, -0.12 + rng_c.uniform(-0.1, 0.1))).normalized()
-        colmillo(bmx, p, dirv, largo, 0.0075 + 0.003 * centro)
-    for _ in range(12):  # sobre la pared de adentro
-        x = lado * rng_c.uniform(0.025, 0.115)
-        z = rng_c.uniform(2.58, 2.94)
-        hit = bvh.ray_cast(V((x, -0.6, z)), V((0, 1, 0)))
-        if hit[0] is None:
-            continue
-        p = hit[0] + V((0, 0.02, 0))
-        dirv = (V((0, 0.0, 2.78)) - p).normalized()
-        colmillo(bmx, p, dirv, rng_c.uniform(0.025, 0.05), 0.0065)
+    pasos = 26
+    for fila in (0, 1):  # fila de adelante (grande, 4 lados) y fila de atrás (más corta, 3 lados)
+        for i in range(pasos):
+            z = 2.965 - i * 0.0165 - (0.008 if fila else 0.0) - (0.007 if lado < 0 else 0.0)
+            x = lado * (0.004 + 0.02 * fila)
+            hit = bvh.ray_cast(V((x, -0.6, z)), V((0, 1, 0)))
+            if hit[0] is None:
+                continue
+            p = hit[0] + V((0, 0.012, 0))
+            centro = 1 - abs(i - pasos * 0.55) / (pasos * 0.55)
+            largo = (0.032 + 0.05 * centro * rng_c.uniform(0.7, 1.15)) * (0.65 if fila else 1.0)
+            dirv = V((-lado * 0.9, 0.3 + 0.3 * fila, -0.12 + rng_c.uniform(-0.14, 0.14))).normalized()
+            colmillo(bmx, p, dirv, largo, (0.0075 + 0.003 * centro) * (0.8 if fila else 1.0), 3 if fila else 4)
+    # sobre la pared de adentro: filas de dientes que apuntan al centro de la boca
+    for fz in range(10):
+        for fx in range(6):
+            x = lado * (0.022 + fx * 0.019 + rng_c.uniform(-0.006, 0.006))
+            z = 2.57 + fz * 0.039 + rng_c.uniform(-0.012, 0.012) + (0.015 if fx % 2 else 0.0)
+            hit = bvh.ray_cast(V((x, -0.6, z)), V((0, 1, 0)))
+            if hit[0] is None:
+                continue
+            p = hit[0] + V((0, 0.02, 0))
+            dirv = ((CENTRO_CABEZA - p).normalized() + V((rng_c.uniform(-0.25, 0.25), rng_c.uniform(-0.2, 0.2), rng_c.uniform(-0.25, 0.25)))).normalized()
+            colmillo(bmx, p, dirv, rng_c.uniform(0.03, 0.068), rng_c.uniform(0.0058, 0.0088), 3)
     jitter(bmx, 0.0008, 40.0, 2.0 + lado)
     commit(nombre, bmx, M_DIENTE, rigido(hueso))
-# corona de colmillos en la pared del fondo, apuntando hacia adelante (se ven al abrirse la cara)
+
+# anillos concéntricos en el fondo de la boca, apuntando hacia adelante (se ven al abrirse la cara)
 bmx = bmesh.new()
-for i in range(22):
-    ang = 2 * math.pi * i / 22
-    x, z = 0.062 * math.cos(ang), 2.775 + 0.13 * math.sin(ang)
-    hit = bvh.ray_cast(V((x, 0.0, z)), V((0, 1, 0)))
-    if hit[0] is None:
-        continue
-    base = hit[0] - V((0, 0.03, 0))
-    dirv = V((-x * 2.0, -1.0, (2.775 - z) * 1.5)).normalized()
-    colmillo(bmx, base, dirv, rng_c.uniform(0.04, 0.07), 0.0085)
+for rx, rz, n in ((0.022, 0.05, 9), (0.044, 0.095, 15), (0.064, 0.138, 21)):
+    for i in range(n):
+        ang = 2 * math.pi * (i + 0.5 * (rx > 0.03)) / n
+        x, z = rx * math.cos(ang), 2.775 + rz * math.sin(ang)
+        hit = bvh.ray_cast(V((x, 0.0, z)), V((0, 1, 0)))
+        if hit[0] is None:
+            continue
+        base = hit[0] - V((0, 0.03, 0))
+        dirv = (V((-x * 2.0, -1.0, (2.775 - z) * 1.5)) + V((rng_c.uniform(-0.15, 0.15), 0, rng_c.uniform(-0.15, 0.15)))).normalized()
+        colmillo(bmx, base, dirv, rng_c.uniform(0.055, 0.105), rng_c.uniform(0.0085, 0.012), 3)
 jitter(bmx, 0.0008, 40.0, 3.0)
 commit("ColmillosFondo", bmx, M_DIENTE, rigido("Head"))
 bm.free()
 
-# ---- mandibula partida: cada mitad se va con su lado de la cara
+# ---- mandibula partida: cada mitad se va con su lado de la cara (con una fila de dientes que miran hacia arriba)
 U = [(-0.105, 0.03, 2.80), (-0.108, 0.02, 2.70), (-0.100, 0.0, 2.60), (-0.083, -0.035, 2.545),
      (-0.045, -0.062, 2.52), (0.0, -0.070, 2.515)]
 rad = [(0.015, 0.011)] * 3 + [(0.016, 0.012), (0.019, 0.014), (0.021, 0.015)]
 for signo, nombre, hueso in ((-1, "MandibulaR", "FaceR"), (1, "MandibulaL", "FaceL")):
     bmx = bmesh.new()
-    tube(bmx, [(x * -signo, y, z) for x, y, z in U], rad, 6, up=(0, 0, 1))
+    pts = [(x * -signo, y, z) for x, y, z in U]
+    tube(bmx, pts, rad, 6, up=(0, 0, 1))
+    for k in range(13):
+        t = k / 12 * (len(pts) - 1)
+        i0 = min(int(t), len(pts) - 2)
+        f = t - i0
+        p = V(pts[i0]) * (1 - f) + V(pts[i0 + 1]) * f
+        p = p + V((0, 0, 0.008))
+        centro = V((0, -0.02, p.z))
+        dirv = V((0, 0, 1)) * 0.8 + (centro - V((p.x, p.y, p.z))).normalized() * 0.5
+        colmillo(bmx, p, dirv, rng_c.uniform(0.016, 0.034), rng_c.uniform(0.0048, 0.0072), 3)
     jitter(bmx, 0.0025, 14.0, 4.0 + signo)
     commit(nombre, bmx, M_CRANEO, rigido(hueso))
 

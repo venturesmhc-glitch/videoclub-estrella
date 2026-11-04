@@ -319,11 +319,13 @@ Config.Socio = {
 	AlturaMalla = 8.2, -- altura en studs
 	Tinte = Color3.fromRGB(58, 60, 66), -- oscurece la textura
 	PasoSeg = 0.3, -- avanza a tirones: cada tanto da un paso corto de golpe
-	VelocidadBase = 3.2, -- studs/seg con progreso 0
-	VelocidadPorProgreso = 7.4, -- se suma con progreso 1 (los jugadores corren a 12: no los alcanza si no se frenan)
+	VelocidadBase = 4.6, -- studs/seg con progreso 0
+	VelocidadPorProgreso = 7.6, -- se suma con progreso 1 (los jugadores caminan a 12: casi los alcanza; solo la linterna lo frena)
 	PersecucionSeg = 30, -- cada aparición dura 30 s: después se va
 	EntreApariciones = { 55, 90 }, -- una vez que la noche lo activó, vuelve a aparecer pasado este rango (s) desde que se fue
-	VelocidadMirado = 0.6, -- mientras alguien lo mira se frena (pero sigue viniendo): avanza a esta fracción de su velocidad
+	VelocidadMirado = 0.4, -- mientras alguien lo mira Y lo alumbra con la linterna prendida se frena (pero sigue viniendo): avanza a esta fracción de su velocidad. Mirarlo sin luz no lo frena
+	LinternaAngulo = 22, -- grados: qué tan centrado tiene que estar en la luz para que cuente como alumbrado (la luz abre 29)
+	LinternaAlcance = 50, -- studs: a más distancia la luz no lo frena (la luz llega a 55)
 	DistanciaCaptura = 3.4,
 	BocaDistancia = 7, -- studs (unos 2 m): a menos de esto de un jugador la cara se parte en dos y se abre hacia los lados (SocioHuesos)
 	BocaAngulo = 75, -- grados que gira cada mitad de la cara cuando se abre del todo
@@ -386,12 +388,21 @@ Config.Temblor = {
 -- Parpadeo del Socio (Client/Parpadeo): desaparece un instante y vuelve. Las esperas (segundos entre parpadeos) van de
 -- "lejos" (peligro 0) a "cerca" (peligro 1); la duración de cada parpadeo también crece con el peligro.
 Config.Parpadeo = {
-	IntervaloMin = 0.9, IntervaloMax = 3.2, -- lejos
-	IntervaloMinCerca = 0.25, IntervaloMaxCerca = 0.9, -- encima
-	DuracionMin = 0.05, DuracionMax = 0.16, -- cuánto dura invisible
+	IntervaloMin = 0.45, IntervaloMax = 1.7, -- lejos
+	IntervaloMinCerca = 0.14, IntervaloMaxCerca = 0.5, -- encima
+	DuracionMin = 0.06, DuracionMax = 0.2, -- cuánto dura invisible
 	DuracionExtraCerca = 1.2, -- con el Socio encima dura hasta este tanto más (2.2 veces)
-	ProbDoble = 0.3, -- probabilidad de que sean dos parpadeos seguidos
+	ProbDoble = 0.45, -- probabilidad de que sean dos parpadeos seguidos
 	EntreDoblesMin = 0.07, EntreDoblesMax = 0.2,
+}
+
+-- La linterna (Client/Linterna): F. Se puede prender con el corte de luz y mientras el Socio anda suelto. Tiene batería: se gasta
+-- prendida y se recarga sola apagada. Alumbrar al Socio mirándolo es lo único que lo frena (Config.Socio.VelocidadMirado).
+Config.Linterna = {
+	BateriaSeg = 35, -- segundos de luz con la batería llena
+	RecargaSeg = 110, -- segundos para llenarla de cero con la linterna apagada
+	MinimaParaPrender = 0.08, -- tras agotarse, no se puede prender hasta recuperar esta fracción
+	ParpadeoBajo = 0.22, -- con menos batería que esto la luz titila
 }
 
 -- Jugador fuera de la noche (Fantasmas): él pasa a ser espectador (ve el local distorsionado, sin el monstruo) y una

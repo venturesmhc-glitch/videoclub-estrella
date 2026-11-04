@@ -1,7 +1,7 @@
 --!nonstrict
 --[[
 	SocioEntity (servidor) — Fase 5.
-	El Socio N° 0000. Se mueve a tirones; cuando algún jugador lo mira no se frena: se arrastra a una fracción de su velocidad (Config.Socio.VelocidadMirado).
+	El Socio N° 0000. Se mueve a tirones; cuando algún jugador lo mira con la linterna prendida apuntándole se arrastra a una fracción de su velocidad (Config.Socio.VelocidadMirado); mirarlo sin luz no lo frena.
 
 	"Mirar" lo decide el servidor: cada cliente informa hacia dónde apunta su cámara (remote LookReport)
 	y acá se valida (la cámara debe estar cerca de la cabeza del personaje) y se comprueba el cono de visión
@@ -236,9 +236,13 @@ local function personajes(): { Instance }
 	return lista
 end
 
-local function observadoPor(jugador: Player, params: RaycastParams): boolean
+-- conLuz: además de mirarlo, lo tiene que estar alumbrando con la linterna prendida (centrado en el haz y al alcance de la luz).
+local function observadoPor(jugador: Player, params: RaycastParams, conLuz: boolean?): boolean
 	local info = miradas[jugador]
 	if ignorados[jugador] or not info or os.clock() - info.t > cfg.LookVencimientoSeg then
+		return false
+	end
+	if conLuz and not info.luz then
 		return false
 	end
 	local camara = info.cf
@@ -247,18 +251,22 @@ local function observadoPor(jugador: Player, params: RaycastParams): boolean
 	if hacia.Magnitude < 0.1 then
 		return true
 	end
-	if camara.LookVector:Dot(hacia.Unit) < math.cos(math.rad(cfg.AnguloVision)) then
+	local angulo = conLuz and cfg.LinternaAngulo or cfg.AnguloVision
+	if camara.LookVector:Dot(hacia.Unit) < math.cos(math.rad(angulo)) then
+		return false
+	end
+	if conLuz and hacia.Magnitude > cfg.LinternaAlcance then
 		return false
 	end
 	return workspace:Raycast(camara.Position, hacia, params) == nil
 end
 
-local function alguienLoMira(): boolean
+local function alguienLoMira(conLuz: boolean?): boolean
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude
 	params.FilterDescendantsInstances = personajes()
 	for _, jugador in Players:GetPlayers() do
-		if not Fantasmas.esFantasma(jugador) and observadoPor(jugador, params) then
+		if not Fantasmas.esFantasma(jugador) and observadoPor(jugador, params, conLuz) then
 			return true
 		end
 	end
@@ -559,14 +567,14 @@ function SocioEntity.init()
 	end)
 
 	-- Lo que informa cada cliente: hacia dónde apunta su cámara.
-	Net.obtener("LookReport").OnServerEvent:Connect(function(jugador, camara)
+	Net.obtener("LookReport").OnServerEvent:Connect(function(jugador, camara, linterna)
 		if typeof(camara) ~= "CFrame" or not Net.limitar(jugador, "mirada", 0.08) then
 			return
 		end
 		local personaje = jugador.Character
 		local cabeza = personaje and personaje:FindFirstChild("Head")
 		if cabeza and (cabeza.Position - camara.Position).Magnitude <= cfg.LookToleranciaCamara then
-			miradas[jugador] = { cf = camara, t = os.clock() }
+			miradas[jugador] = { cf = camara, t = os.clock(), luz = linterna == true }
 		end
 	end)
 	Players.PlayerRemoving:Connect(function(jugador)
@@ -589,8 +597,9 @@ function SocioEntity.init()
 			end
 			local observado = enTurno and activo and alguienLoMira()
 			ultimoObservado = observado
-			-- Mientras lo miran no se queda quieto: se arrastra más lento (y sus pasos también).
-			local factor = observado and cfg.VelocidadMirado or 1
+			-- Solo lo frena la linterna: mirarlo sin luz no sirve. Alumbrado, se arrastra más lento (y sus pasos también) y se paraliza de cara.
+			local alumbrado = observado and alguienLoMira(true)
+			local factor = alumbrado and cfg.VelocidadMirado or 1
 			if animacion then
 				animacion.ralentizar(factor)
 			end
@@ -619,7 +628,7 @@ function SocioEntity.init()
 
 			if huesos then
 				-- Distancia al jugador más cercano que sigue en la noche: a menos de cfg.BocaDistancia ataca con la cara abierta.
-				local cercano
+				local cercano, posCercano
 				if enTurno and activo then
 					for _, jugador in Players:GetPlayers() do
 						local raiz = raizDe(jugador)
@@ -627,11 +636,12 @@ function SocioEntity.init()
 							local d = distanciaPlana(raiz.Position, posicion)
 							if not cercano or d < cercano then
 								cercano = d
+								posCercano = raiz.Position
 							end
 						end
 					end
 				end
-				huesos.actualizar(cfg.TickSeg, enTurno and activo, observado, dioPaso, cercano)
+				huesos.actualizar(cfg.TickSeg, enTurno and activo, alumbrado, dioPaso, cercano, posCercano)
 			end
 
 			-- La presión (el progreso, sin número) alimenta los bordes de la pantalla: una vez por segundo alcanza.

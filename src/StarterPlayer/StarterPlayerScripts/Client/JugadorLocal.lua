@@ -12,6 +12,7 @@ local StarterGui = game:GetService("StarterGui")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Net = require(ReplicatedStorage.Shared.Net)
+local Linterna = require(script.Parent.Linterna)
 
 local JugadorLocal = {}
 
@@ -32,7 +33,7 @@ local function ocultarInterfazRoblox()
 	end
 end
 
--- Le avisa al servidor hacia dónde apunta la cámara: así decide si el Socio está siendo mirado.
+-- Le avisa al servidor hacia dónde apunta la cámara (y si la linterna está prendida): así decide si el Socio está siendo mirado o alumbrado.
 local function informarMirada()
 	local remoto = Net.obtener("LookReport")
 	local acumulado = 0
@@ -44,7 +45,7 @@ local function informarMirada()
 		acumulado = 0
 		local camara = workspace.CurrentCamera
 		if camara then
-			remoto:FireServer(camara.CFrame)
+			remoto:FireServer(camara.CFrame, Linterna.estaEncendida()) -- con la linterna prendida: es lo que frena al Socio
 		end
 	end)
 end
