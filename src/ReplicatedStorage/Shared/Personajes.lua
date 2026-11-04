@@ -233,7 +233,7 @@ function Personajes.animar(modelo: Model)
 
 	local controlador = {}
 	local caminando = false
-	local congelado = false
+	local factor = 1 -- velocidad de las animaciones (1 normal, 0 congelado)
 	function controlador.caminar(valor: boolean)
 		if valor == caminando or not caminar then
 			return
@@ -241,24 +241,27 @@ function Personajes.animar(modelo: Model)
 		caminando = valor
 		if valor then
 			caminar:Play(0.15)
-			if congelado then
-				caminar:AdjustSpeed(0)
+			if factor ~= 1 then
+				caminar:AdjustSpeed(factor)
 			end
 		else
 			caminar:Stop(0.2)
 		end
 	end
-	--- Congela la pose en el cuadro actual (el Socio queda quieto, a medio paso, mientras lo miran).
-	function controlador.congelar(valor: boolean)
-		if valor == congelado then
+	--- Cambia la velocidad de las animaciones: 1 normal, 0.2 en cámara lenta, 0 congela la pose en el cuadro actual.
+	function controlador.ralentizar(valor: number)
+		if valor == factor then
 			return
 		end
-		congelado = valor
+		factor = valor
 		for _, pista in { quieto, caminar } do
 			if pista and pista.IsPlaying then
-				pista:AdjustSpeed(valor and 0 or 1)
+				pista:AdjustSpeed(valor)
 			end
 		end
+	end
+	function controlador.congelar(valor: boolean)
+		controlador.ralentizar(valor and 0 or 1)
 	end
 
 	function controlador.detener()

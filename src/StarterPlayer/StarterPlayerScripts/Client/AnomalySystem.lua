@@ -20,6 +20,7 @@ local Catalogo = require(ReplicatedStorage.Shared.Catalogo)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Silueta = require(script.Parent.Silueta)
+local Reptante = require(script.Parent.Reptante)
 local AudioManager = require(script.Parent.AudioManager)
 local DialogUI = require(script.Parent.DialogUI)
 local TaskCard = require(script.Parent.TaskCard)
@@ -104,11 +105,15 @@ local function aplicarFigura(a, registro)
 	for _, p in modelo:GetChildren() do
 		p:SetAttribute("AnomaliaRef", a.id)
 	end
-	local pos = Vector3.new(punto.Position.X, 0, punto.Position.Z)
-	modelo:PivotTo(CFrame.lookAt(pos, pos + Vector3.new(0, 0, 10)))
+	-- Aparece colgada del techo, sobre su punto, y desde ahí camina por el techo y las paredes siguiéndote.
 	modelo.Parent = workspace
+	local animacion = Silueta.animacion(modelo)
+	local detener = Reptante.iniciar(modelo, punto.Position, {
+		caminar = animacion and animacion.caminar or nil,
+	})
 	registro.modelo = modelo
 	return function()
+		detener()
 		modelo:Destroy()
 		registro.modelo = nil
 	end
@@ -164,7 +169,7 @@ local function reportar()
 		-- El Socio de verdad no es una anomalía: no se lo marca, se lo mira.
 		local socio = workspace:FindFirstChild("Socio0000")
 		if socio and instancia:IsDescendantOf(socio) then
-			DialogUI.aviso("Ese no es un recuerdo de la cinta: es el Socio. Con la Q no se lo marca: hay que mirarlo, porque solo se mueve cuando nadie lo ve.")
+			DialogUI.aviso("Ese no es un recuerdo de la cinta: es el Socio. Con la Q no se lo marca: hay que mirarlo, porque cuando lo mirás se arrastra mucho más lento.")
 			return
 		end
 		local portadaId = instancia:GetAttribute("PortadaId")
@@ -247,7 +252,8 @@ function AnomalySystem.init()
 			end
 			if registro and registro.modelo then
 				-- La figura se esfuma si se la mira fijo o pasado su tiempo de vida.
-				local centro = registro.modelo:GetPivot().Position + Vector3.new(0, 3, 0)
+				local pivote = registro.modelo:GetPivot()
+				local centro = pivote.Position + pivote.UpVector * 3 -- (cuelga del techo: "arriba" del cuerpo apunta hacia abajo)
 				local hacia = centro - camara.CFrame.Position
 				local mirada = camara.CFrame.LookVector:Dot(hacia.Unit)
 				if mirada > 0.93 and hacia.Magnitude < 60 then

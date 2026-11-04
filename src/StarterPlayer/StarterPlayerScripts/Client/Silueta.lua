@@ -13,6 +13,13 @@ local Personajes = require(ReplicatedStorage.Shared.Personajes)
 
 local Silueta = {}
 
+local animaciones = setmetatable({}, { __mode = "k" }) -- modelo -> controlador de animaciones (Personajes.animar)
+
+--- El controlador de animaciones de una silueta humana (caminar(bool)), o nil si no tiene.
+function Silueta.animacion(modelo: Model)
+	return animaciones[modelo]
+end
+
 function Silueta.crear(consultable: boolean, sombraHumana: boolean?): Model
 	local color = Config.Socio.Color
 	-- La criatura generada con IA, si carga en el cliente; si no, el cuerpo humano de respaldo.
@@ -91,7 +98,7 @@ function Silueta.crear(consultable: boolean, sombraHumana: boolean?): Model
 	if raiz then
 		raiz.PivotOffset = CFrame.new(0, -(modelo:GetAttribute("AlturaRaiz") or 3), 0)
 	end
-	Personajes.animar(modelo)
+	animaciones[modelo] = Personajes.animar(modelo)
 	return modelo
 end
 

@@ -8,7 +8,7 @@
 	  TituloCambiado   una portada de las góndolas muestra un título que no existe
 	  CaratulaAlterada una portada cambia de color y se tapa el título
 	  ObjetoMovido     un objeto del local aparece desplazado y girado
-	  FiguraAlFondo    una silueta al fondo de un pasillo (desaparece si se la mira fijo)
+	  FiguraAlFondo    una silueta que camina por el techo y las paredes y te sigue (desaparece si se la mira fijo)
 	Cada anomalía se activa en un minuto distinto de la noche.
 ]]
 

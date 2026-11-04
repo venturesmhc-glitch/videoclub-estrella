@@ -1,7 +1,7 @@
 --!nonstrict
 --[[
 	SocioEntity (servidor) — Fase 5.
-	El Socio N° 0000. No corre ni persigue: solo se mueve cuando ningún jugador lo está mirando.
+	El Socio N° 0000. Se mueve a tirones; cuando algún jugador lo mira no se frena: se arrastra a una fracción de su velocidad (Config.Socio.VelocidadMirado).
 
 	"Mirar" lo decide el servidor: cada cliente informa hacia dónde apunta su cámara (remote LookReport)
 	y acá se valida (la cámara debe estar cerca de la cabeza del personaje) y se comprueba el cono de visión
@@ -579,12 +579,13 @@ function SocioEntity.init()
 			end
 			local observado = enTurno and activo and alguienLoMira()
 			ultimoObservado = observado
-			-- Mientras lo miran queda congelado en la pose del momento (a medio paso).
+			-- Mientras lo miran no se queda quieto: se arrastra más lento (y sus pasos también).
+			local factor = observado and cfg.VelocidadMirado or 1
 			if animacion then
-				animacion.congelar(observado)
+				animacion.ralentizar(factor)
 			end
 
-			if enTurno and activo and not observado then
+			if enTurno and activo then
 				if os.clock() >= proximaRuta then
 					proximaRuta = os.clock() + cfg.RecalcularRutaSeg
 					actualizarRuta()
@@ -592,7 +593,7 @@ function SocioEntity.init()
 				-- Avanza a tirones: acumula el tiempo y da un paso de golpe, no se desliza.
 				pasoAcumulado += cfg.TickSeg
 				if pasoAcumulado >= cfg.PasoSeg then
-					mover(pasoAcumulado)
+					mover(pasoAcumulado * factor)
 					pasoAcumulado = 0
 				end
 				for _, jugador in Players:GetPlayers() do

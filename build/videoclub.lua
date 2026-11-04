@@ -619,7 +619,7 @@ do
 	linea("3. Las dañadas, a la caja roja", 32, Enum.Font.SourceSansBold, CREMA, 25)
 	linea("4. Cada cinta a la góndola de su género", 32, Enum.Font.SourceSansBold, CREMA, 25)
 	linea("5. Basura al patio; manchas con escoba", 32, Enum.Font.SourceSansBold, CREMA, 25)
-	linea('<font color="#E0584A"><b>El Socio N° 0000 solo se mueve cuando nadie lo mira.</b></font>', 60, Enum.Font.SourceSansBold, CREMA, 25, true)
+	linea('<font color="#E0584A"><b>El Socio N° 0000 se arrastra más lento cuando lo mirás.</b></font>', 60, Enum.Font.SourceSansBold, CREMA, 25, true)
 end
 
 -- ===== Depósito =====

@@ -95,10 +95,10 @@ Catalogo.Telefono = {
 			speaker = "Don Ernesto (por teléfono)",
 			lineas = {
 				"Soy Ernesto otra vez. Escuchame bien: desde anoche pasan cosas raras en el local.",
-				"A veces algo aparece cambiado: un título que no existe, una carátula rara, un objeto fuera de lugar, o una sombra parada al fondo de un pasillo.",
+				"A veces algo aparece cambiado: un título que no existe, una carátula rara, un objeto fuera de lugar, o una sombra que camina por el techo y las paredes.",
 				"Eso son anomalías. Cuando veas una, apuntale y apretá Q. Si acertás, queda registrada y el Socio se calma un poco. Si las dejás, se enoja.",
 				"En tu ficha, abajo de todo, figura cuántas encontraste. Cada uno ve las suyas, así que no se las puede copiar al compañero.",
-				"Ojo: la sombra quieta es una anomalía, no es él. El Socio es otra cosa: solo se mueve cuando nadie lo mira. A ese no se le apunta con la Q: se lo mira y no se le saca la vista de encima.",
+				"Ojo: la sombra que camina por el techo es una anomalía, no es él. El Socio es otra cosa: cuando lo mirás se arrastra mucho más lento. A ese no se le apunta con la Q: se lo mira y no se le saca la vista de encima.",
 			},
 		},
 		[1] = {

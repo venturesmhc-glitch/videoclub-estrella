@@ -92,7 +92,7 @@ local TEXTOS = {
 		"",
 		"Aguantá el turno noche hasta las 04:00.",
 		"Atendé clientes, rebobiná y reponé casetes, tirá la basura en el patio y limpiá las manchas.",
-		"El Socio N° 0000 solo se mueve cuando nadie lo mira.",
+		"El Socio N° 0000 se arrastra más lento cuando lo mirás.",
 	}, "\n"),
 }
 

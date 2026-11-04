@@ -302,6 +302,7 @@ Config.Socio = {
 	VelocidadPorProgreso = 7.4, -- se suma con progreso 1 (los jugadores corren a 12: no los alcanza si no se frenan)
 	PersecucionSeg = 30, -- cada aparición dura 30 s: después se va
 	EntreApariciones = { 55, 90 }, -- una vez que la noche lo activó, vuelve a aparecer pasado este rango (s) desde que se fue
+	VelocidadMirado = 0.22, -- mientras alguien lo mira no se frena del todo: avanza a esta fracción de su velocidad
 	DistanciaCaptura = 3.4,
 	DistanciaPeligro = 45, -- a esta distancia el peligro empieza a subir
 	AnguloVision = 58, -- grados: mitad del cono de visión de cada jugador
@@ -484,6 +485,20 @@ Config.Anomalias = {
 	RotacionMovida = 28, -- grados
 	LimiteFalsosReportes = 4, -- por noche; pasado esto el jugador pierde progreso del equipo
 	-- La sombra quieta de la anomalía "FiguraAlFondo": una persona normal, negra, con contorno de estática (Client/Silueta).
+	-- La sombra de la anomalía "FiguraAlFondo" camina por el techo y las paredes y te sigue desde ahí (Client/Reptante).
+	-- Medidas de la caja del local de ventas (la figura nunca baja al piso).
+	Reptar = {
+		Velocidad = 4.8, -- studs/seg (el jugador corre a 12: se la puede dejar atrás)
+		Techo = 11.95, -- altura del techo (cara de abajo en y = 12)
+		X = 23.9, -- paredes izquierda y derecha (x = -24 / 24)
+		ZFondo = -11.9, -- pared del fondo (z = -12)
+		ZFrente = 25.9, -- pared del frente (z = 26)
+		VentajaTecho = 1, -- prefiere el techo: lo elige aunque una pared esté hasta este tanto más cerca
+		Histeresis = 1.5, -- y no cambia de superficie por una diferencia menor a esto
+		RecalculoSeg = 0.4, -- cada cuánto vuelve a pensar el camino
+		Suavizado = 7, -- qué tan rápido gira el cuerpo al cambiar de superficie
+		EsperaInicialSeg = 1.5, -- se queda colgada un momento antes de empezar a andar
+	},
 	Figura = {
 		Color = Color3.fromRGB(5, 5, 7),
 		ColorContorno = Color3.fromRGB(175, 205, 255),
