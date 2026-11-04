@@ -211,7 +211,7 @@ Config.Jugador = {
 	CamaraFOV = 70,
 	VelocidadCaminar = 12,
 	AlturaSalto = 3.5,
-	-- Correr (Sprint.lua): mantener Ctrl izquierdo. Se gasta la energía corriendo y se recupera sola.
+	-- Correr (Sprint.lua): mantener Shift. Se gasta la energía corriendo y se recupera sola.
 	Sprint = {
 		Velocidad = 19, -- studs/seg corriendo (caminando son 12)
 		DuracionSeg = 3.5, -- tiempo corriendo de corrido con la energía llena
@@ -479,6 +479,8 @@ Config.Screamer = {
 		{ Id = "rbxassetid://93093877629089", Volumen = 2 },
 		{ Id = "rbxassetid://130285917830946", Volumen = 1.3, Velocidad = 0.8 },
 	},
+	-- Grito propio del screamer de la araña (anomalía FiguraAlFondo): el mismo audio fuerte pero más agudo, para que no suene al del Socio.
+	SonidoAracnido = { Id = "rbxassetid://93093877629089", Volumen = 2, Velocidad = 1.3 },
 	DuracionSeg = 1.5,
 	EntreAutomaticosSeg = 120, -- tiempo mínimo entre screamers automáticos
 }

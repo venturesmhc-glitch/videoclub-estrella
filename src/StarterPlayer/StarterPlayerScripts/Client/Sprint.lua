@@ -1,6 +1,6 @@
 --!nonstrict
 --[[
-	Sprint (cliente): mantener Ctrl izquierdo para correr. Le avisa al servidor (remote Sprint), que decide la velocidad y
+	Sprint (cliente): mantener Shift para correr. Le avisa al servidor (remote Sprint), que decide la velocidad y
 	gasta la energía. Muestra una barra fina abajo al centro cuando la energía no está llena, y abre un poco el campo de
 	visión mientras se corre (túnel de velocidad). En celulares no hay tecla: el botón CORRER aparece a la derecha.
 ]]
@@ -52,12 +52,12 @@ function Sprint.init()
 	relleno.Parent = barra
 
 	UserInputService.InputBegan:Connect(function(entrada, procesado)
-		if entrada.KeyCode == Enum.KeyCode.LeftControl and not procesado then
+		if (entrada.KeyCode == Enum.KeyCode.LeftShift or entrada.KeyCode == Enum.KeyCode.RightShift) and not procesado then
 			pedir(true)
 		end
 	end)
 	UserInputService.InputEnded:Connect(function(entrada)
-		if entrada.KeyCode == Enum.KeyCode.LeftControl then
+		if entrada.KeyCode == Enum.KeyCode.LeftShift or entrada.KeyCode == Enum.KeyCode.RightShift then
 			pedir(false)
 		end
 	end)

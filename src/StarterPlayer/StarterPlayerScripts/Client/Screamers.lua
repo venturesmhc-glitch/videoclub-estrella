@@ -6,9 +6,11 @@
 
 	Usa la misma malla del Socio (Personajes.crearSocioMalla) en un ViewportFrame; si no carga, queda un rostro hecho con
 	la interfaz (ojos y boca) para que el susto igual funcione.
+	La anomalía de la araña (FiguraAlFondo) tiene su propio screamer: reproducir(nil, "aracnido") muestra el modelo de
+	Client/Aracnido (no el del Socio) con su propio grito (Config.Screamer.SonidoAracnido).
 	No se muestra a los espectadores (el servidor tampoco se lo manda).
 
-	  Screamers.reproducir(variante?)
+	  Screamers.reproducir(variante?, criatura?)
 ]]
 
 local Debris = game:GetService("Debris")
@@ -22,6 +24,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Personajes = require(ReplicatedStorage.Shared.Personajes)
 local VHSEffects = require(script.Parent.VHSEffects)
+local Aracnido = require(script.Parent.Aracnido)
 
 local Screamers = {}
 
@@ -70,12 +73,15 @@ local function rostroDeRespaldo(padre: GuiObject)
 	parte(UDim2.fromScale(0.5, 0.28), UDim2.fromScale(0.5, 0.72), Color3.fromRGB(0, 0, 0))
 end
 
-function Screamers.reproducir(variante: number?)
+function Screamers.reproducir(variante: number?, criatura: string?)
 	if ocupado or Players.LocalPlayer:GetAttribute("Espectador") then
 		return
 	end
 	ocupado = true
-	armarCuerpo()
+	local esAracnido = criatura == "aracnido"
+	if not esAracnido then
+		armarCuerpo()
+	end
 	gui.Enabled = true
 
 	local fondo = Instance.new("Frame")
@@ -86,7 +92,22 @@ function Screamers.reproducir(variante: number?)
 
 	local camaraVista: Camera? = nil
 	local largo = cfg.DuracionSeg
-	if cuerpo then
+	local aracnido = nil -- la araña de la anomalía (su propio screamer, no el del Socio)
+	if esAracnido then
+		local vista = Instance.new("ViewportFrame")
+		vista.Size = UDim2.fromScale(1, 1)
+		vista.BackgroundTransparency = 1
+		vista.Ambient = Color3.fromRGB(170, 170, 178)
+		vista.LightColor = Color3.fromRGB(255, 255, 255)
+		vista.Parent = fondo
+		aracnido = Aracnido.crear()
+		aracnido.actualizar(CFrame.new(0, 0, 0), 1 / 60, Vector3.new(0, 3.6, -14))
+		aracnido.modelo.Parent = vista
+		camaraVista = Instance.new("Camera")
+		camaraVista.FieldOfView = 60
+		vista.CurrentCamera = camaraVista
+		camaraVista.Parent = vista
+	elseif cuerpo then
 		local vista = Instance.new("ViewportFrame")
 		vista.Size = UDim2.fromScale(1, 1)
 		vista.BackgroundTransparency = 1
@@ -114,7 +135,9 @@ function Screamers.reproducir(variante: number?)
 	estatica.Parent = fondo
 
 	-- Grito.
-	local grito = cfg.Sonidos[variante or rng:NextInteger(1, #cfg.Sonidos)] or cfg.Sonidos[1]
+	local grito = if esAracnido
+		then cfg.SonidoAracnido
+		else (cfg.Sonidos[variante or rng:NextInteger(1, #cfg.Sonidos)] or cfg.Sonidos[1])
 	local sonido = Instance.new("Sound")
 	sonido.SoundId = grito.Id
 	sonido.Volume = grito.Volumen
@@ -127,14 +150,21 @@ function Screamers.reproducir(variante: number?)
 	local alto = Config.Socio.AlturaMalla
 	local inicio = os.clock()
 	local conexion
-	conexion = RunService.RenderStepped:Connect(function()
+	conexion = RunService.RenderStepped:Connect(function(dt)
 		local t = (os.clock() - inicio) / largo
 		if t >= 1 then
 			conexion:Disconnect()
 			return
 		end
-		-- Se abalanza: la cámara pasa de lejos a pegada a la cara en el primer cuarto, con temblor.
-		if camaraVista then
+		if aracnido and camaraVista then
+			-- La araña se abalanza de frente: la cámara pasa de ver todo el cuerpo a quedar pegada a la cara, y las patas se agitan.
+			local acercamiento = math.clamp(t / 0.25, 0, 1)
+			local distancia = 13 - 10.6 * acercamiento ^ 2
+			local temblor = Vector3.new(rng:NextNumber(-0.2, 0.2), rng:NextNumber(-0.2, 0.2), 0) * (0.4 + acercamiento)
+			local posCamara = Vector3.new(0, 3.9, -2.05 - distancia) + temblor
+			aracnido.actualizar(CFrame.new(rng:NextNumber(-0.12, 0.12), 0, rng:NextNumber(-0.12, 0.12)), dt, posCamara)
+			camaraVista.CFrame = CFrame.lookAt(posCamara, Vector3.new(0, 3.2, -2.05))
+		elseif camaraVista then
 			local acercamiento = math.clamp(t / 0.25, 0, 1)
 			local distancia = 9 - 6.6 * acercamiento ^ 2
 			local temblor = Vector3.new(rng:NextNumber(-0.25, 0.25), rng:NextNumber(-0.25, 0.25), 0) * (0.4 + acercamiento)
@@ -150,6 +180,9 @@ function Screamers.reproducir(variante: number?)
 		local salida = TweenService:Create(fondo, TweenInfo.new(0.25), { BackgroundTransparency = 1 })
 		salida:Play()
 		task.delay(0.3, function()
+			if aracnido then
+				aracnido.destruir()
+			end
 			fondo:Destroy()
 			gui.Enabled = false
 			ocupado = false

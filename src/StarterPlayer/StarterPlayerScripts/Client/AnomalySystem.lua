@@ -158,7 +158,7 @@ local function atacar(a, registro)
 		if not registro.restaurar then
 			return -- justo la marcó con Q: se salvó
 		end
-		Screamers.reproducir()
+		Screamers.reproducir(nil, "aracnido") -- screamer propio de la araña (no el del Socio)
 		task.delay(0.2, function()
 			if activas[a.id] == registro and registro.restaurar then
 				registro.restaurar()
