@@ -106,6 +106,12 @@ function Screamers.reproducir(variante: number?, criatura: string?, captura: boo
 		vista.LightColor = Color3.fromRGB(255, 255, 255)
 		vista.Parent = fondo
 		aracnido = Aracnido.crear()
+		if aracnido.esTrepador then
+			vista.Ambient = Color3.fromRGB(70, 72, 82) -- piel negra: casi todo el volumen lo da la luz de frente
+			vista.LightColor = Color3.fromRGB(215, 225, 245)
+			vista.LightDirection = Vector3.new(0, -0.2, 1)
+			largo = cfg.DuracionTrepadorSeg
+		end
 		aracnido.actualizar(CFrame.new(0, 0, 0), 1 / 60, Vector3.new(0, 3.6, -14))
 		aracnido.modelo.Parent = vista
 		camaraVista = Instance.new("Camera")
@@ -192,7 +198,31 @@ function Screamers.reproducir(variante: number?, criatura: string?, captura: boo
 			yaAbrio = true
 			flashHasta = ahora + 0.09 -- destello blanco justo cuando se abre
 		end
-		if aracnido and camaraVista then
+		if aracnido and aracnido.esTrepador and camaraVista then
+			-- El Trepador (con esqueleto) viene a saltos con la cabeza torcida y, de golpe, abre la boca con los brazos en alto.
+			local abreT = cfg.TrepadorAbreEn
+			local abiertaT = t >= abreT
+			if abiertaT and not yaAbrio then
+				yaAbrio = true
+				flashHasta = ahora + 0.09 -- destello blanco justo cuando abre la boca
+			end
+			local avance
+			if not abiertaT then
+				avance = 11 * (math.floor(math.clamp(t / abreT, 0, 1) * 6) / 6) ^ 1.4 -- a saltos, cada vez más cerca
+			else
+				avance = 11 + 3.6 * math.clamp((t - abreT) / (1 - abreT), 0, 1)
+			end
+			local paso = math.floor(ahora * 24)
+			if paso ~= pasoCamara then
+				pasoCamara = paso
+				temblorSocio = Vector3.new(rng:NextNumber(-1, 1), rng:NextNumber(-1, 1), rng:NextNumber(-0.5, 0.5)) * (if abiertaT then 0.2 else 0.06)
+			end
+			local posCamara = Vector3.new(0, 4.2, -20.5) + temblorSocio
+			aracnido.gritar(t, abreT)
+			aracnido.actualizar(CFrame.new(0, 0, -avance), dt, posCamara)
+			camaraVista.CFrame = CFrame.lookAt(posCamara, Vector3.new(0, 3.5, -3.64 - avance))
+			camaraVista.FieldOfView = if abiertaT then 66 else 58
+		elseif aracnido and camaraVista then
 			-- La araña se abalanza de frente: la cámara pasa de ver todo el cuerpo a quedar pegada a la cara, y las patas se agitan.
 			local acercamiento = math.clamp(t / 0.25, 0, 1)
 			local distancia = 13 - 10.6 * acercamiento ^ 2

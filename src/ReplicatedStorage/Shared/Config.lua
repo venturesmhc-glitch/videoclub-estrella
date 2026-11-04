@@ -498,6 +498,9 @@ Config.Screamer = {
 	-- Screamer del Socio con esqueleto (SocioHuesos.gritar): se acerca a tirones y a los AbreEn de la duración abre la cara de golpe.
 	DuracionSocioSeg = 2.4,
 	AbreEn = 0.38,
+	-- Screamer del Trepador (Trepador.gritar): baja del techo, te mira torcido y a los TrepadorAbreEn abre la boca de par en par con los brazos en alto.
+	DuracionTrepadorSeg = 2.3,
+	TrepadorAbreEn = 0.42,
 	EntreAutomaticosSeg = 120, -- tiempo mínimo entre screamers automáticos
 }
 
@@ -569,6 +572,23 @@ Config.Anomalias = {
 		PasoSeg = 0.2,
 		AlturaPaso = 1.2,
 		VolumenPaso = 0.45, -- los pasos suenan como chasquidos secos
+	},
+	-- El Trepador (Client/Trepador): la criatura nueva de la anomalía "FiguraAlFondo". Modelo con esqueleto hecho en Blender
+	-- (blender/trepador.py -> assets/trepador/trepador.fbx), importado en ReplicatedStorage.TrepadorModelo. Seis extremidades
+	-- (cuatro brazos y dos patas) con cinemática inversa y marcha en trípode, cabeza que te sigue a tirones, mandíbula y dedos.
+	-- Si el molde no está en el lugar, se usa la criatura vieja de partes (Client/Aracnido).
+	Trepador = {
+		Escala = 0.035, -- el molde viene en unidades de 1 cm (100 por metro): 0,035 = 3,5 studs por metro
+		AlturaCuerpo = 3.8, -- altura del pecho sobre la superficie (para el salto sobre la cámara)
+		DistanciaSalto = 9, -- a cuánto de la cámara queda su origen al saltarte encima (la cara queda a unos 2 studs)
+		UmbralPaso = 2.4, -- un pie da un paso cuando se aleja tanto de su posición de reposo
+		AlcanceMax = 8,
+		AdelantoMax = 2.2,
+		PasoSeg = 0.2,
+		AlturaPaso = 1.7,
+		VolumenPaso = 0.5,
+		GestoCadaSeg = { 1.6, 4.2 }, -- cada tanto, parada, hace un gesto (giro de cabeza, olfateo, tamborileo, temblor, mano en alto)
+		Luz = { Rango = 12, Brillo = 0.45, Color = Color3.fromRGB(175, 190, 215) }, -- resplandor frío tenue: lo único que lo delata a oscuras
 	},
 	-- Efectos cuando está cerca (AnomalySystem): temblor de cámara, las luces se van, la estática sube y, si te alcanza, un sobresalto.
 	Efecto = {

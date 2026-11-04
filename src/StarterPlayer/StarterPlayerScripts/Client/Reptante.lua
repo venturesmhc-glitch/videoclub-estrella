@@ -11,9 +11,11 @@
 	  Reptante.iniciar(modelo, posicionInicial, opciones?) -> detener()
 	    modelo: modelo con el pivote en los pies (Silueta.crear). posicionInicial: de dónde parte (se lleva a la cáscara).
 	    opciones.caminar(bool): se llama con true mientras anda y false cuando se queda quieta (animación de caminar).
-	    opciones.dibujar(cf, dt, mirarA): si se pasa, se usa en vez de PivotTo (lo usa Aracnido para animar las patas).
+	    opciones.dibujar(cf, dt, mirarA): si se pasa, se usa en vez de PivotTo (lo usan Trepador y Aracnido para animar las patas).
 	    opciones.control: tabla a la que se le agrega control.atacar(alLlegar): la criatura deja la superficie y salta sobre
 	      la cámara; alLlegar() se llama cuando la alcanza (ahí se dispara el jumpscare).
+	    opciones.alturaCuerpo / distanciaAtaque: medidas de la criatura para el salto (a cuánto de la cámara queda su origen).
+	    opciones.alAtacar(true): se llama al empezar el salto (el Trepador recoge las patas y abre la boca).
 	La criatura se mueve a ráfagas: repta, arremete y se queda congelada un instante (Config.Anomalias.Reptar).
 	Los valores (velocidad, medidas de la caja) están en Config.Anomalias.Reptar.
 ]]
@@ -141,7 +143,12 @@ function Reptante.iniciar(modelo: Model, inicio: Vector3, opciones)
 	local ataque -- { t0, alLlegar, llego } mientras salta sobre el jugador
 	if opciones.control then
 		opciones.control.atacar = function(alLlegar)
-			ataque = ataque or { t0 = os.clock(), alLlegar = alLlegar, llego = false }
+			if not ataque then
+				ataque = { t0 = os.clock(), alLlegar = alLlegar, llego = false }
+				if opciones.alAtacar then
+					opciones.alAtacar(true) -- la criatura recoge las patas y abre la boca
+				end
+			end
 		end
 	end
 	local comienzo = os.clock()
@@ -172,7 +179,9 @@ function Reptante.iniciar(modelo: Model, inicio: Vector3, opciones)
 			local camara = workspace.CurrentCamera
 			local mira = camara.CFrame.LookVector
 			local arriba = Vector3.new(0, 1, 0)
-			local meta = camara.CFrame.Position + mira * 3.0 - arriba * Config.Anomalias.Aracnido.AlturaCuerpo
+			local meta = camara.CFrame.Position
+				+ mira * (opciones.distanciaAtaque or 3.0)
+				- arriba * (opciones.alturaCuerpo or Config.Anomalias.Aracnido.AlturaCuerpo)
 			local falta = meta - pos
 			local paso = cfg.VelocidadSalto * dt
 			if falta.Magnitude <= paso or ahora - ataque.t0 > 0.7 then

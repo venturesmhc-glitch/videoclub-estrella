@@ -118,6 +118,10 @@ local function aplicarFigura(a, registro)
 	local detener = Reptante.iniciar(modelo, punto.Position, {
 		dibujar = criatura.actualizar,
 		control = control,
+		-- La criatura nueva (Trepador) trae sus propias medidas y recoge las patas al saltar; la vieja usa los valores de Config.
+		alturaCuerpo = criatura.alturaCuerpo,
+		distanciaAtaque = criatura.distanciaAtaque,
+		alAtacar = criatura.ataque,
 	})
 	modelo.Parent = workspace -- (después de la primera pose: así no aparece un cuadro en el origen)
 	registro.modelo = modelo

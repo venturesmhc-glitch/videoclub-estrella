@@ -16,6 +16,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Trepador = require(script.Parent.Trepador)
 
 local Aracnido = {}
 
@@ -78,6 +79,11 @@ end
 
 --- Arma la criatura. Devuelve { modelo, actualizar(cf, dt, mirarA?), destruir() }.
 function Aracnido.crear()
+	-- La criatura nueva (modelo con esqueleto, Client/Trepador) si el molde está en el lugar; si no, esta de partes.
+	local trepador = Trepador.crear()
+	if trepador then
+		return trepador
+	end
 	local modelo = Instance.new("Model")
 	modelo.Name = "Aracnido"
 
