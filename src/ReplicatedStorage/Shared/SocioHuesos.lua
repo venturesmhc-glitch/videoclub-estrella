@@ -574,6 +574,10 @@ function SocioHuesos.nuevo(modelo: Model, opciones)
 		ctl.sincronizarOjos()
 	end
 
+	-- Para pruebas y vistas previas: los gestos por nombre (f(a, {s = lado})) y la pose de ataque.
+	ctl.gestos = GESTOS
+	ctl.ataque = ataque
+
 	return ctl
 end
 
