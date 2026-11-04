@@ -27,7 +27,7 @@
 	  Salas.datosDeEntrada(jugador) -> datos con los que llegó el jugador a un servidor de juego, o nil
 	  Salas.codigoNuevo() -> string
 	  Salas.listar() -> { { codigo, anfitrion, jugadores, maximo } } | nil, error     (solo salas públicas en espera)
-	  Salas.crearRegistro(jugador, publica, maximo, modo?) -> codigo, registro | nil, error
+	  Salas.crearRegistro(jugador, publica, maximo, modo?, noche?) -> codigo, registro | nil, error
 	  Salas.leer(codigo) -> registro | nil, esErrorDeRed
 	  Salas.agregar(jugador, codigo) -> registro | nil, error
 	  Salas.quitar(jugador, codigo)
@@ -35,7 +35,7 @@
 	  Salas.iniciar(codigo, anfitrion) -> registro | nil, error     (reserva el servidor de juego y marca "iniciando")
 	  Salas.teleportar(jugadores, codigo, registro) -> boolean
 	  Salas.retirar(codigo)
-	  Salas.crearSolo(jugador, modo?) -> ok, error         (partida en solitario: servidor de un solo lugar)
+	  Salas.crearSolo(jugador, modo?, noche?) -> ok, error       (partida en solitario: servidor de un solo lugar)
 	  Salas.irAlInicio(jugador)                      (vuelve a un servidor público)
 ]]
 
@@ -178,7 +178,7 @@ function Salas.listar()
 	return lista
 end
 
-function Salas.crearRegistro(jugador: Player, publica: boolean, maximo: number, modo: string?)
+function Salas.crearRegistro(jugador: Player, publica: boolean, maximo: number, modo: string?, noche: number?)
 	for _ = 1, 8 do
 		local codigo = Salas.codigoNuevo()
 		local okLeer, existente = pcall(function()
@@ -192,6 +192,7 @@ function Salas.crearRegistro(jugador: Player, publica: boolean, maximo: number, 
 				publica = publica,
 				maximo = maximo,
 				modo = modo == "sinfin" and "sinfin" or "historia",
+				noche = noche or 1,
 				anfitrionId = jugador.UserId,
 				anfitrion = jugador.DisplayName,
 				miembros = { miembroDe(jugador) },
@@ -353,6 +354,7 @@ function Salas.teleportar(jugadores: { Player }, codigo: string, registro): bool
 		publica = registro.publica,
 		maximo = registro.maximo,
 		modo = registro.modo or "historia",
+		noche = registro.noche or 1,
 		anfitrionId = registro.anfitrionId,
 		esperados = #registro.miembros, -- el servidor de juego espera a este equipo antes de empezar
 	}
@@ -363,7 +365,7 @@ function Salas.teleportar(jugadores: { Player }, codigo: string, registro): bool
 	return ok
 end
 
-function Salas.crearSolo(jugador: Player, modo: string?)
+function Salas.crearSolo(jugador: Player, modo: string?, noche: number?)
 	local ok, accessCode = pcall(reservarServidor)
 	if not ok or typeof(accessCode) ~= "string" then
 		warn("[Salas] ReserveServer falló: " .. tostring(accessCode))
@@ -372,6 +374,7 @@ function Salas.crearSolo(jugador: Player, modo: string?)
 	local datos = {
 		tipo = "solo", sala = "SOLO", publica = false, maximo = 1, anfitrionId = jugador.UserId, esperados = 1,
 		modo = modo == "sinfin" and "sinfin" or "historia",
+		noche = noche or 1,
 	}
 	local okTp, err = pcall(teletransportar, { jugador }, accessCode, datos)
 	if not okTp then

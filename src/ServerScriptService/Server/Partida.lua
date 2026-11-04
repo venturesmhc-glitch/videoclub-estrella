@@ -33,9 +33,10 @@ local Salas = require(script.Parent.Salas)
 
 local Partida = {}
 
--- sala = { tipo = "sala" | "solo", codigo, publica, maximo, modo = "historia" | "sinfin", anfitrionId?, esperados? }
--- (servidor de juego y modo local). estado.modo es "solo" | "multi"; estado.modoJuego es "historia" | "sinfin".
-local estado = { fase = "menu", modo = nil, modoJuego = nil, anfitrion = nil, sala = nil }
+-- sala = { tipo = "sala" | "solo", codigo, publica, maximo, modo = "historia" | "sinfin", noche, anfitrionId?, esperados? }
+-- (servidor de juego y modo local). estado.modo es "solo" | "multi"; estado.modoJuego es "historia" | "sinfin";
+-- estado.noche es la noche en la que arranca la historia (1, salvo que quien ya ganó haya elegido otra).
+local estado = { fase = "menu", modo = nil, modoJuego = nil, noche = nil, anfitrion = nil, sala = nil }
 
 local nube = Salas.enNube()
 local enEntrada = nube and not Salas.esServidorDeSala() -- servidor público: menú y salas de espera
@@ -60,6 +61,7 @@ local function paquete()
 		fase = estado.fase,
 		modo = estado.modo,
 		modoJuego = estado.modoJuego or (sala and sala.modo) or "historia",
+		noche = estado.noche or (sala and sala.noche) or 1,
 		anfitrion = estado.anfitrion and estado.anfitrion.DisplayName or nil,
 		anfitrionId = estado.anfitrion and estado.anfitrion.UserId or nil,
 		jugadores = nombres(),
@@ -85,6 +87,7 @@ local function paqueteDeEntrada(jugador: Player)
 		fase = "lobby",
 		modo = "multi",
 		modoJuego = registro.modo or "historia",
+		noche = registro.noche or 1,
 		anfitrion = registro.anfitrion,
 		anfitrionId = registro.anfitrionId,
 		jugadores = lista,
@@ -134,17 +137,30 @@ local function modoPedido(jugador: Player, datos): string?
 	return nil
 end
 
-local function empezar(modo: string, modoJuego: string?)
+-- La noche por la que empieza la historia: la 1, salvo que el jugador ya haya alcanzado un final (el mismo requisito
+-- que Sin fin) y haya elegido otra en el menú. Siempre se valida acá, nunca se confía en el número del cliente.
+local function nochePedida(jugador: Player, datos, modoJuego: string): number
+	if modoJuego ~= "historia" or typeof(datos) ~= "table" or typeof(datos.noche) ~= "number" then
+		return Config.Noche.NocheInicial
+	end
+	if not Persistencia.sinFinDesbloqueado(jugador) then
+		return Config.Noche.NocheInicial
+	end
+	return math.clamp(math.floor(datos.noche), Config.Noche.NocheInicial, Config.Noche.NochesImplementadas)
+end
+
+local function empezar(modo: string, modoJuego: string?, noche: number?)
 	if estado.fase == "jugando" then
 		return
 	end
 	estado.fase = "jugando"
 	estado.modo = modo
 	estado.modoJuego = modoJuego or (estado.sala and estado.sala.modo) or "historia"
+	-- Toda partida arranca en la noche 1 salvo que quien ya ganó haya elegido otra; la noche guardada no se usa.
+	estado.noche = noche or (estado.sala and estado.sala.noche) or Config.Noche.NocheInicial
 	NightManager.fijarModo(estado.modoJuego)
 	difundir()
-	-- Toda partida (solo o en equipo) empieza desde la noche 1: la noche guardada no se usa para arrancar.
-	NightManager.iniciarPartida(Config.Noche.NocheInicial)
+	NightManager.iniciarPartida(estado.noche)
 end
 
 function Partida.estado()
@@ -152,8 +168,8 @@ function Partida.estado()
 end
 
 --- Arranca sin pasar por el menú (pruebas y depuración).
-function Partida.forzarInicio(modo: string?, modoJuego: string?)
-	empezar(modo or "solo", modoJuego)
+function Partida.forzarInicio(modo: string?, modoJuego: string?, noche: number?)
+	empezar(modo or "solo", modoJuego, noche)
 end
 
 -- ===== Servidor de entrada: salas de espera =====
@@ -278,13 +294,14 @@ local function crearSala(jugador: Player, datos)
 	if not modoJuego then
 		return
 	end
+	local noche = nochePedida(jugador, datos, modoJuego)
 	if enEntrada then
 		if miSala[jugador] then
 			return
 		end
 		mensaje(jugador, "Creando la sala...")
 		task.spawn(function()
-			local codigo, registro = Salas.crearRegistro(jugador, publica, maximo, modoJuego)
+			local codigo, registro = Salas.crearRegistro(jugador, publica, maximo, modoJuego, noche)
 			if not codigo then
 				mensaje(jugador, registro or "No se pudo crear la sala.", true)
 				return
@@ -305,7 +322,7 @@ local function crearSala(jugador: Player, datos)
 	end
 	-- Modo local: este servidor pasa a ser la sala y quien la crea es el anfitrión.
 	estado.fase, estado.modo, estado.anfitrion = "lobby", "multi", jugador
-	estado.sala = { tipo = "sala", codigo = Salas.codigoNuevo(), publica = publica, maximo = maximo, modo = modoJuego }
+	estado.sala = { tipo = "sala", codigo = Salas.codigoNuevo(), publica = publica, maximo = maximo, modo = modoJuego, noche = noche }
 	estado.modoJuego = modoJuego
 	difundir()
 end
@@ -390,8 +407,9 @@ local function iniciarSolo(jugador: Player, datos)
 	if not modoJuego then
 		return
 	end
+	local noche = nochePedida(jugador, datos, modoJuego)
 	if not nube then
-		empezar("solo", modoJuego) -- Studio: no hay otro servidor adonde ir
+		empezar("solo", modoJuego, noche) -- Studio: no hay otro servidor adonde ir
 		return
 	end
 	if miSala[jugador] or not Net.limitar(jugador, "crearSala", 3) then
@@ -399,7 +417,7 @@ local function iniciarSolo(jugador: Player, datos)
 	end
 	mensaje(jugador, "Preparando tu partida...")
 	task.spawn(function()
-		local ok, err = Salas.crearSolo(jugador, modoJuego)
+		local ok, err = Salas.crearSolo(jugador, modoJuego, noche)
 		if not ok then
 			mensaje(jugador, err or "No se pudo preparar la partida.", true)
 		end
@@ -487,6 +505,7 @@ function Partida.init()
 					codigo = d.sala,
 					publica = d.publica ~= false,
 					modo = d.modo == "sinfin" and "sinfin" or "historia",
+					noche = math.clamp(math.floor(tonumber(d.noche) or 1), Config.Noche.NocheInicial, Config.Noche.NochesImplementadas),
 					maximo = math.clamp(tonumber(d.maximo) or Config.Partida.MaxJugadores, d.tipo == "solo" and 1 or 2, Config.Partida.MaxJugadores),
 					anfitrionId = d.anfitrionId,
 					esperados = tonumber(d.esperados) or 1,

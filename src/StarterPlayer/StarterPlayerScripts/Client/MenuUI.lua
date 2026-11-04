@@ -35,7 +35,9 @@ local TEXTOS = {
 	modoSinFin = "SIN FIN",
 	modoSinFinBloqueado = "SIN FIN (BLOQUEADO)",
 	sinFinAyuda = "El modo Sin fin se desbloquea al alcanzar un final de la historia.",
+	nocheElegida = "EMPEZAR EN LA NOCHE %d",
 	modoLobbyHistoria = "MODO: HISTORIA",
+	modoLobbyNoche = "MODO: HISTORIA · DESDE LA NOCHE %d",
 	modoLobbySinFin = "MODO: SIN FIN",
 	ajustes = "AJUSTES",
 	logros = "LOGROS",
@@ -115,7 +117,8 @@ local ajustesAbiertos = false
 local pantallaActual = "cargando"
 local ajustes = { Musica = 1, Ambiente = 1, Estatica = 1 } -- guardados solo en esta sesión
 local modoElegido = "historia" -- "historia" | "sinfin": lo que se manda al elegir UN JUGADOR o CREAR una sala
-local sinFinListo = false -- el servidor avisó que ya alcanzó un final (perfil)
+local sinFinListo = false -- el servidor avisó que ya alcanzó un final (perfil): habilita Sin fin y elegir la noche
+local nocheElegida = 1 -- noche por la que empieza la historia (solo se puede cambiar tras ganar; el servidor lo valida)
 local actualizarModo -- (se define con la pantalla principal)
 local perfilInsignias, mejorSinFin = {}, 0 -- logros desbloqueados y récord del modo Sin fin (perfil)
 local actualizarLogros -- (se define con la pantalla de logros)
@@ -326,11 +329,24 @@ local function construirPrincipal()
 	local TAM_BOTON = UDim2.fromScale(0.34, 0.075)
 	-- Modo de juego: HISTORIA (cinco noches con final) o SIN FIN (desbloqueable). Vale para UN JUGADOR y para las salas.
 	local TAM_MODO = UDim2.fromScale(0.17, 0.05)
-	local botonHistoria, marcarHistoria = selector(p, TEXTOS.modoHistoria, UDim2.fromScale(0.415, 0.38), TAM_MODO, function()
+	local botonHistoria, marcarHistoria = selector(p, TEXTOS.modoHistoria, UDim2.fromScale(0.415, 0.355), TAM_MODO, function()
 		modoElegido = "historia"
 		actualizarModo()
 	end)
-	local botonSinFin, marcarSinFin = selector(p, TEXTOS.modoSinFin, UDim2.fromScale(0.585, 0.38), TAM_MODO, function()
+	-- Quien ya alcanzó un final puede elegir en qué noche empieza la historia (flechas a los lados del número).
+	local TAM_NOCHE = UDim2.fromScale(0.045, 0.035)
+	local etiquetaNoche = texto(p, { texto = "", tamano = UDim2.fromScale(0.26, 0.035), posicion = UDim2.fromScale(0.5, 0.405), ancla = Vector2.new(0.5, 0.5), color = COLOR_ACENTO })
+	local function cambiarNoche(delta)
+		nocheElegida = math.clamp(nocheElegida + delta, Config.Noche.NocheInicial, Config.Noche.NochesImplementadas)
+		actualizarModo()
+	end
+	local botonAnterior = selector(p, "<", UDim2.fromScale(0.355, 0.405), TAM_NOCHE, function()
+		cambiarNoche(-1)
+	end)
+	local botonSiguiente = selector(p, ">", UDim2.fromScale(0.645, 0.405), TAM_NOCHE, function()
+		cambiarNoche(1)
+	end)
+	local botonSinFin, marcarSinFin = selector(p, TEXTOS.modoSinFin, UDim2.fromScale(0.585, 0.355), TAM_MODO, function()
 		if not sinFinListo then
 			ponerMensaje(TEXTOS.sinFinAyuda, true)
 			return
@@ -347,10 +363,16 @@ local function construirPrincipal()
 		botonSinFin.Text = sinFinListo and TEXTOS.modoSinFin or TEXTOS.modoSinFinBloqueado
 		botonSinFin.TextTransparency = sinFinListo and 0 or 0.45
 		botonHistoria.TextTransparency = 0
+		local verNoche = sinFinListo and modoElegido == "historia"
+		if not verNoche then
+			nocheElegida = Config.Noche.NocheInicial
+		end
+		etiquetaNoche.Visible, botonAnterior.Visible, botonSiguiente.Visible = verNoche, verNoche, verNoche
+		etiquetaNoche.Text = string.format(TEXTOS.nocheElegida, nocheElegida)
 	end
 	actualizarModo()
 	boton(p, TEXTOS.solo, UDim2.fromScale(0.5, 0.46), function()
-		enviar("solo", { modo = modoElegido })
+		enviar("solo", { modo = modoElegido, noche = nocheElegida })
 	end, TAM_BOTON)
 	boton(p, TEXTOS.multi, UDim2.fromScale(0.5, 0.56), function()
 		mostrarPantalla("salas")
@@ -506,7 +528,7 @@ local function construirCrear()
 	table.insert(mensajes, texto(p, { texto = "", tamano = UDim2.fromScale(0.6, 0.045), posicion = UDim2.fromScale(0.5, 0.69), ancla = Vector2.new(0.5, 0.5), color = COLOR_APAGADO }))
 	boton(p, TEXTOS.crearSala, UDim2.fromScale(0.5, 0.78), function()
 		ponerMensaje("")
-		enviar("crear", { publica = publica, maximo = maximo, modo = modoElegido })
+		enviar("crear", { publica = publica, maximo = maximo, modo = modoElegido, noche = nocheElegida })
 	end, UDim2.fromScale(0.34, 0.075))
 	boton(p, TEXTOS.volver, UDim2.fromScale(0.5, 0.9), function()
 		mostrarPantalla("salas")
@@ -747,7 +769,14 @@ local function actualizarLobby()
 	lobbyLista.Text = table.concat(lineas, "\n")
 	lobbyCodigo.Text = estadoPartida.codigo and string.format(TEXTOS.codigoSala, estadoPartida.codigo) or ""
 	lobbyTipo.Text = string.format(estadoPartida.publica == false and TEXTOS.salaPrivadaTipo or TEXTOS.salaPublicaTipo, #jugadores, maximo)
-	lobbyModo.Text = estadoPartida.modoJuego == "sinfin" and TEXTOS.modoLobbySinFin or TEXTOS.modoLobbyHistoria
+	local nocheSala = tonumber(estadoPartida.noche) or 1
+	if estadoPartida.modoJuego == "sinfin" then
+		lobbyModo.Text = TEXTOS.modoLobbySinFin
+	elseif nocheSala > 1 then
+		lobbyModo.Text = string.format(TEXTOS.modoLobbyNoche, nocheSala)
+	else
+		lobbyModo.Text = TEXTOS.modoLobbyHistoria
+	end
 	local soyAnfitrion = estadoPartida.anfitrionId == Players.LocalPlayer.UserId
 	lobbyEstado.Text = soyAnfitrion and TEXTOS.salaAnfitrion or string.format(TEXTOS.salaEspera, estadoPartida.anfitrion or "el anfitrión")
 	local iniciando = estadoPartida.iniciando == true
