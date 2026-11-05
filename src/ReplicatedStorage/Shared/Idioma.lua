@@ -224,7 +224,7 @@ local EN = {
 	["Tab  mostrar u ocultar tu ficha de socio      G  soltar lo que llevás en la mano"] = "Tab  show or hide your member card      G  drop what you're holding",
 	["Q  marcar algo fuera de lugar (apuntale)"] = "Q  mark something out of place (aim at it)",
 	["F  linterna      M  ajustes"] = "F  flashlight      M  settings",
-	["{  soltar o atrapar el mouse (para tocar botones, como comprar)"] = "{  free or lock the mouse (to click buttons, like buying)",
+	["Ctrl  soltar o atrapar el mouse (para tocar botones, como comprar)"] = "Ctrl  free or lock the mouse (to click buttons, like buying)",
 	["Aguantá el turno noche hasta las 04:00."] = "Survive the night shift until 04:00.",
 	["Atendé clientes, rebobiná y reponé casetes, tirá la basura en el patio y limpiá las manchas."] = "Serve customers, rewind and restock tapes, take the trash out to the yard and clean the stains.",
 	["El Socio N° 0000 se arrastra más lento cuando lo mirás."] = "Member No. 0000 crawls much slower when you look at him.",
@@ -232,8 +232,10 @@ local EN = {
 	-- Espectador, ratón y tienda
 	["No queda nadie en pie"] = "Nobody is left standing", ["ESTÁS FUERA DE LA NOCHE"] = "YOU'RE OUT OF THE NIGHT",
 	["Tus compañeros siguen jugando. Ellos ven tu estatua en el motel."] = "Your teammates are still playing. They can see your statue at the motel.",
-	["Desbloquear mouse: {"] = "Unlock mouse: {",
-	["MOUSE LIBRE · { para volver a jugar"] = "MOUSE FREE · { to go back to playing",
+	["Desbloquear mouse: Ctrl"] = "Unlock mouse: Ctrl",
+	["MOUSE LIBRE · Ctrl para volver a jugar"] = "MOUSE FREE · Ctrl to go back to playing",
+	["Tomar escoba"] = "Take broom", ["Guardar escoba"] = "Put broom back",
+	["La escoba ya la tiene alguien (o quedó tirada en el piso)."] = "Someone already has the broom (or it was left on the floor).",
 	-- Interfaz en juego
 	["EN MANO: nada"] = "IN HAND: nothing", ["EN MANO: casete sin etiqueta (G: soltar)"] = "IN HAND: unlabeled tape (G: drop)",
 	["EL SOCIO ESPERA SU CINTA"] = "THE MEMBER IS WAITING FOR HIS TAPE",

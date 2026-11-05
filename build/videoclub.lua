@@ -420,11 +420,13 @@ texto(cartel, Enum.NormalId.Back, "DEVOLUCIONES", Enum.Font.Arcade, C3(30, 30, 3
 -- ===== Góndolas (pasillos por género) =====
 
 local GENEROS = {
-	{ x = -16, nombre = "ACCIÓN", clave = "ACCION" },
-	{ x = -8, nombre = "TERROR", clave = "TERROR" },
+	-- Separadas de a 7 (antes de a 8) y las de los extremos más adentro: los pasillos de los costados, los que llevan a
+	-- las puertas del patio y la cocina, ganaron ~2 studs de ancho (de 5,4 a 7,4).
+	{ x = -14, nombre = "ACCIÓN", clave = "ACCION" },
+	{ x = -7, nombre = "TERROR", clave = "TERROR" },
 	{ x = 0, nombre = "COMEDIA", clave = "COMEDIA" },
-	{ x = 8, nombre = "DRAMA", clave = "DRAMA" },
-	{ x = 16, nombre = "INFANTIL", clave = "INFANTIL" },
+	{ x = 7, nombre = "DRAMA", clave = "DRAMA" },
+	{ x = 14, nombre = "INFANTIL", clave = "INFANTIL" },
 }
 -- Las góndolas terminan en z = -6 (antes -9): entre ellas y la pared divisoria (cara interior en z = -12) queda un pasillo
 -- de 6 studs para ir a la cocina, el patio, el depósito y el baño, en vez de 3.
@@ -649,7 +651,7 @@ do
 	tecla("Q", "Marcar una anomalía")
 	tecla("F", "Linterna (si se corta la luz)")
 	tecla("TAB", "Ocultar la ficha")
-	tecla("{", "Soltar el mouse (botones)")
+	tecla("CTRL", "Soltar el mouse (botones)")
 	tecla("SHIFT", "Correr (se cansa)")
 	linea("EL TURNO", 28, Enum.Font.Arcade, AMARILLO, 24)
 	linea("1. Atendé al cliente en el mostrador", 32, Enum.Font.SourceSansBold, CREMA, 25)
