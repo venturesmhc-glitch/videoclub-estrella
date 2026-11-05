@@ -1,8 +1,8 @@
 --!nonstrict
 --[[
-	Raton (cliente): la tecla { (LeftBracket) suelta y vuelve a atrapar el mouse (Shift ahora es para correr).
+	Raton (cliente): la tecla Ctrl suelta y vuelve a atrapar el mouse (Shift es para correr).
 	El juego es en primera persona y el mouse queda bloqueado en el centro, así que no se pueden tocar botones como
-	"Asustar a todos" o "Revivir". Con { se libera el mouse para hacer clic; otra vez { lo
+	"Asustar a todos" o "Revivir". Con Ctrl se libera el mouse para hacer clic; otra vez Ctrl lo
 	vuelve a atrapar. Mientras está libre la cámara no gira y se muestra un aviso abajo.
 
 	Para liberarlo se usa un botón "Modal" de 1 píxel (igual que el menú): mientras está visible, Roblox suelta el mouse.
@@ -64,7 +64,7 @@ function Raton.init()
 	pista.TextColor3 = Color3.fromRGB(236, 236, 226)
 	pista.TextTransparency = 0.55
 	pista.TextStrokeTransparency = 0.8
-	pista.Text = "Desbloquear mouse: {"
+	pista.Text = "Desbloquear mouse: Ctrl"
 	pista.Parent = gui
 
 	aviso = Instance.new("TextLabel")
@@ -77,7 +77,7 @@ function Raton.init()
 	aviso.Font = Enum.Font.Code
 	aviso.TextScaled = true
 	aviso.TextColor3 = Color3.fromRGB(236, 236, 226)
-	aviso.Text = "MOUSE LIBRE · { para volver a jugar"
+	aviso.Text = "MOUSE LIBRE · Ctrl para volver a jugar"
 	aviso.Visible = false
 	aviso.Parent = gui
 
@@ -85,7 +85,7 @@ function Raton.init()
 		if procesado then
 			return
 		end
-		if entrada.KeyCode == Enum.KeyCode.LeftBracket then -- la tecla de "[" y "{" (Shift ahora es para correr)
+		if entrada.KeyCode == Enum.KeyCode.LeftControl or entrada.KeyCode == Enum.KeyCode.RightControl then -- (Shift es para correr)
 			Raton.alternar()
 		end
 	end)

@@ -40,6 +40,7 @@ local manchas = {} -- lista de { parte, zona }
 local cargando = {} -- Player -> bolsa
 local cepillos = {} -- Player -> modelo del cepillo que lleva en la mano izquierda
 local escobasSueltas = {} -- escobas que alguien soltó en el piso (se levantan con E)
+local escobaFuera = false -- hay una sola escoba: mientras alguien la tiene (o está tirada) la de la pared desaparece
 local carpeta
 
 local function carpetaMundo()
@@ -223,15 +224,41 @@ end
 -- Está apoyada en la pared del baño (modelo con el tag "CepilloColgado"). Quien la toma lleva una copia en las manos;
 -- volver a usar la escoba apoyada la guarda. Sin la escoba no se puede limpiar una mancha.
 
+-- La escoba apoyada en la pared del baño: se esconde mientras la tiene alguien (o está en el piso) y vuelve al guardarla.
+local function mostrarColgada(visible: boolean)
+	for _, molde in CollectionService:GetTagged("CepilloColgado") do
+		if molde:IsA("Model") then
+			for _, d in molde:GetDescendants() do
+				if d:IsA("BasePart") then
+					if visible then
+						d.Transparency = d:GetAttribute("TransOriginal") or d.Transparency
+					else
+						if d:GetAttribute("TransOriginal") == nil then
+							d:SetAttribute("TransOriginal", d.Transparency)
+						end
+						d.Transparency = 1
+					end
+				elseif d:IsA("Highlight") then
+					d.Enabled = visible
+				elseif d:IsA("ProximityPrompt") then
+					d.ActionText = visible and "Tomar escoba" or "Guardar escoba"
+				end
+			end
+		end
+	end
+end
+
 local function guardarCepillo(jugador: Player)
 	local modelo = cepillos[jugador]
 	cepillos[jugador] = nil
 	if modelo then
 		modelo:Destroy()
+		escobaFuera = false -- vuelve a la pared
+		mostrarColgada(true)
 	end
 end
 
-local function tomarCepillo(jugador: Player, molde: Model): boolean
+local function tomarCepillo(jugador: Player, molde: Model, desdePared: boolean?): boolean
 	local personaje = jugador.Character
 	local raiz = personaje and personaje:FindFirstChild("HumanoidRootPart")
 	if not raiz or not molde.PrimaryPart then
@@ -248,6 +275,9 @@ local function tomarCepillo(jugador: Player, molde: Model): boolean
 	end
 	local modelo = molde:Clone()
 	modelo.Name = "CepilloEnMano"
+	-- (El clon hereda el tag y el atributo de la escoba de la pared: se los saco, si no se lo trataría como la de la pared.)
+	CollectionService:RemoveTag(modelo, "CepilloColgado")
+	modelo:SetAttribute("EsEscoba", nil)
 	for _, d in modelo:GetDescendants() do
 		if d:IsA("BasePart") then
 			d.Anchored = false
@@ -267,6 +297,10 @@ local function tomarCepillo(jugador: Player, molde: Model): boolean
 	agarre.Parent = modelo.PrimaryPart
 	modelo.Parent = carpetaMundo() -- como la bolsa: en primera persona lo que cuelga del personaje se oculta
 	cepillos[jugador] = modelo
+	if desdePared then
+		escobaFuera = true
+		mostrarColgada(false) -- hay una sola escoba: la de la pared desaparece
+	end
 	Net.aviso(jugador, "Tenés la escoba. Mantené E sobre una mancha para limpiarla. Con G la soltás.")
 	return true
 end
@@ -352,8 +386,10 @@ local function alternarCepillo(jugador: Player, molde: Model)
 	if cepillos[jugador] then
 		guardarCepillo(jugador)
 		Net.aviso(jugador, "Guardaste la escoba.")
+	elseif escobaFuera then
+		Net.aviso(jugador, "La escoba ya la tiene alguien (o quedó tirada en el piso).")
 	else
-		tomarCepillo(jugador, molde)
+		tomarCepillo(jugador, molde, true)
 	end
 end
 
@@ -485,6 +521,8 @@ function ChoreSystem.limpiarTodo()
 		escoba:Destroy()
 	end
 	table.clear(escobasSueltas)
+	escobaFuera = false
+	mostrarColgada(true) -- cada noche empieza con la escoba en su lugar
 end
 
 function ChoreSystem.estadoTexto(): string
@@ -565,7 +603,7 @@ function ChoreSystem.init()
 		if molde:IsA("Model") and molde.PrimaryPart then
 			Prompts.crear(molde.PrimaryPart, {
 				clave = "cepillo",
-				accion = "Tomar o guardar",
+				accion = "Tomar escoba",
 				objeto = "Escoba",
 				distancia = Config.Cepillo.DistanciaPrompt,
 				alActivar = function(jugador)

@@ -94,7 +94,7 @@ local TEXTOS = {
 		"Tab  mostrar u ocultar tu ficha de socio      G  soltar lo que llevás en la mano",
 		"Q  marcar algo fuera de lugar (apuntale)",
 		"F  linterna      M  ajustes",
-		"{  soltar o atrapar el mouse (para tocar botones, como comprar)",
+		"Ctrl  soltar o atrapar el mouse (para tocar botones, como comprar)",
 		"",
 		"Aguantá el turno noche hasta las 04:00.",
 		"Atendé clientes, rebobiná y reponé casetes, tirá la basura en el patio y limpiá las manchas.",
