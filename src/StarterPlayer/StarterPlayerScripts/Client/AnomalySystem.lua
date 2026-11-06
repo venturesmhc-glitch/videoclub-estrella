@@ -169,6 +169,14 @@ local function atacar(a, registro)
 end
 
 local function activar(a)
+	if a.tipo == "FiguraAlFondo" then
+		task.defer(function()
+			local ok, Pistas = pcall(require, script.Parent.Pistas)
+			if ok then
+				Pistas.pedir("MARCAR")
+			end
+		end)
+	end
 	local registro = { inicio = os.clock(), mirando = 0 }
 	local aplicar = APLICAR[a.tipo]
 	registro.restaurar = aplicar and aplicar(a, registro) or nil
@@ -263,9 +271,23 @@ function AnomalySystem.init()
 		local minuto = minutoActual()
 		local camara = workspace.CurrentCamera
 		local cercania = 0 -- qué tan cerca y de frente tiene una anomalía sin resolver (sube la estática del filtro)
+		-- Una amenaza a la vez: la criatura del techo espera a que el Socio se vaya y a que no haya otra criatura suelta.
+		local socioPresente = workspace:FindFirstChild("Socio0000") ~= nil
+		local criaturaViva = false
+		for id, r in activas do
+			if r.modelo and not resueltas[id] then
+				criaturaViva = true
+				break
+			end
+		end
 		for _, a in lista do
 			if not activas[a.id] and not resueltas[a.id] and minuto >= a.minuto then
-				activar(a)
+				if a.tipo ~= "FiguraAlFondo" or (not socioPresente and not criaturaViva) then
+					activar(a)
+					if a.tipo == "FiguraAlFondo" then
+						criaturaViva = true
+					end
+				end
 			end
 			local registro = activas[a.id]
 			if registro and not resueltas[a.id] then

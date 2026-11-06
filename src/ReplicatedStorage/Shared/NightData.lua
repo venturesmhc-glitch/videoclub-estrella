@@ -124,8 +124,6 @@ local NightData: { [number]: Noche } = {
 		cliente(95, "alquiler", "TERROR"),
 		buzon(130, "DRAMA", { danado = true }),
 		cliente(145, "devolucion", "DRAMA", { danado = true }),
-		evento(101, "BASURA", { zonas = { "LOCAL" } }),
-		evento(151, "DERRAME", { zonas = { "BANO" } }),
 		buzon(180, "ACCION"),
 		cliente(195, "alquiler", "INFANTIL"),
 		buzon(230, "TERROR"),
@@ -255,13 +253,8 @@ end
 -- La noche 1 dura la mitad (5 minutos reales): es la que tiene que enganchar, así que va más al hilo y con menos relleno.
 NightData[1].duracionSeg = 300
 ampliar(NightData[1], {
-	evento(48, "AVISO", { texto = "El local también necesita cuidados: regá la planta, ordená las fichas, contá la caja... (se marcan con un contorno)." }),
-	evento(50, "TAREA_MENOR", { ids = { "PLANTA" } }),
-	evento(70, "BASURA", { zonas = { "MOSTRADOR" } }),
+	-- La noche 1 enseña lo básico (clientes, casetes, teléfono): la basura, las manchas y las tareas del local entran desde la noche 2.
 	cliente(120, "alquiler", "ACCION"),
-	evento(125, "TAREA_MENOR", { ids = { "FICHAS" } }),
-	evento(200, "DERRAME", { zonas = { "MOSTRADOR" } }),
-	evento(210, "TAREA_MENOR", { ids = { "CAJA" } }),
 })
 
 ampliar(NightData[2], {
@@ -311,9 +304,11 @@ local function conJugadores(base: Noche, numero: number, cantidad: number): Noch
 		table.insert(eventos, cliente(26 + corrimiento, "alquiler", GENEROS[g]))
 		table.insert(eventos, cliente(135 + corrimiento, "devolucion", GENEROS[g % #GENEROS + 1]))
 		table.insert(eventos, buzon(78 + corrimiento, GENEROS[(g + 1) % #GENEROS + 1], anomalo and { anomalo = true } or nil))
-		table.insert(eventos, evento(48 + corrimiento, "BASURA", { zonas = { ZONAS_BASURA[(numero + p) % #ZONAS_BASURA + 1] } }))
-		table.insert(eventos, evento(108 + corrimiento, "DERRAME", { zonas = { ZONAS_DERRAME[(numero + p * 2) % #ZONAS_DERRAME + 1] } }))
-		table.insert(eventos, evento(180 + corrimiento, "TAREA_MENOR", { ids = { TAREAS_MENORES[(numero + p) % #TAREAS_MENORES + 1] } }))
+		if numero >= 2 then -- la noche 1 no tiene basura, manchas ni tareas del local
+			table.insert(eventos, evento(48 + corrimiento, "BASURA", { zonas = { ZONAS_BASURA[(numero + p) % #ZONAS_BASURA + 1] } }))
+			table.insert(eventos, evento(108 + corrimiento, "DERRAME", { zonas = { ZONAS_DERRAME[(numero + p * 2) % #ZONAS_DERRAME + 1] } }))
+			table.insert(eventos, evento(180 + corrimiento, "TAREA_MENOR", { ids = { TAREAS_MENORES[(numero + p) % #TAREAS_MENORES + 1] } }))
+		end
 	end
 	local noche: Noche = {
 		duracionSeg = base.duracionSeg,

@@ -68,6 +68,11 @@ local miradas = {} -- Player -> { cf, t }
 local ignorados = {} -- Player -> true
 local ultimoPeligro = {} -- Player -> { valor, t }
 local ultimoObservado = false
+local nocheActual = 1
+local sinMirada = 0 -- segundos seguidos sin que nadie lo mire
+local embistiendo = false -- hay un jugador cerca y nadie lo alumbra
+local desatado = false -- lleva un rato sin que nadie lo mire
+local bloqueos = {} -- funciones que, si devuelven true, impiden que reaparezca (otra amenaza está en juego)
 
 local ALTURA_CENTRO = 4.2 -- altura del torso respecto del piso
 
@@ -331,7 +336,36 @@ local function nodoMasLejanoDeTodos(): Vector3
 end
 
 local function velocidad(): number
-	return cfg.VelocidadBase + cfg.VelocidadPorProgreso * math.clamp(progreso, 0, cfg.ProgresoMax) / cfg.ProgresoMax
+	local v = cfg.VelocidadBase + cfg.VelocidadPorProgreso * math.clamp(progreso, 0, cfg.ProgresoMax) / cfg.ProgresoMax
+	local mult = 1
+	if embistiendo then
+		mult *= cfg.EmbestidaFactor
+	end
+	if desatado then
+		mult *= cfg.DesatadoFactor
+	end
+	return v * math.min(mult, cfg.MultiplicadorMax)
+end
+
+local function tardia(): boolean
+	return nocheActual >= cfg.NocheTardia
+end
+
+local function persecucionSeg(): number
+	return tardia() and cfg.PersecucionSegTarde or cfg.PersecucionSeg
+end
+
+local function entreApariciones(): { number }
+	return tardia() and cfg.EntreAparicionesTarde or cfg.EntreApariciones
+end
+
+local function bloqueado(): boolean
+	for _, fn in bloqueos do
+		if fn() then
+			return true
+		end
+	end
+	return false
 end
 
 -- ===== API =====
@@ -354,6 +388,11 @@ end
 
 function SocioEntity.agregarProgreso(delta: number)
 	progreso = math.clamp(progreso + delta, 0, cfg.ProgresoMax)
+end
+
+--- Otro sistema (las anomalías) pide que el Socio no reaparezca mientras fn() devuelva true: una amenaza a la vez.
+function SocioEntity.agregarBloqueo(fn: () -> boolean)
+	table.insert(bloqueos, fn)
 end
 
 function SocioEntity.ignorarMirada(jugador: Player, valor: boolean)
@@ -501,7 +540,16 @@ local function actualizarRuta()
 		return
 	end
 	local destino = raizDe(mejor).Position
-	if distancia < 9 then
+	local directo = distancia < 9
+	if not directo and distancia < cfg.PersecucionDirectaDistancia and modelo then
+		-- Si lo ve sin paredes en el medio va derecho: pasar por los waypoints lo hacía dar vueltas.
+		local params = RaycastParams.new()
+		params.FilterType = Enum.RaycastFilterType.Exclude
+		params.FilterDescendantsInstances = personajes()
+		local origen = Vector3.new(posicion.X, 3, posicion.Z)
+		directo = workspace:Raycast(origen, Vector3.new(destino.X, 3, destino.Z) - origen, params) == nil
+	end
+	if directo then
 		ruta = { Vector3.new(destino.X, 0, destino.Z) }
 	else
 		ruta = calcularRuta(posicion, destino)
@@ -562,6 +610,7 @@ function SocioEntity.init()
 
 	NightManager.suscribir("NOCHE_INICIA", function(datos)
 		SocioEntity.desactivar()
+		nocheActual = datos.noche
 		-- Pasada la última noche de la historia (modo Sin fin) el Socio arranca un poco más rápido cada noche.
 		local pasadas = math.max(0, datos.noche - #cfg.PorNoche)
 		progreso = math.min(cfg.ProgresoMax, (cfg.PorNoche[datos.noche] or cfg.PorNoche[#cfg.PorNoche]) + pasadas * Config.SinFin.ProgresoSocioPorNoche)
@@ -610,24 +659,38 @@ function SocioEntity.init()
 			task.wait(cfg.TickSeg)
 			local enTurno = NightManager.obtenerEstado().fase == "turno"
 			-- Cada aparición dura PersecucionSeg; después se va y vuelve a aparecer pasado un rato.
-			if enTurno and activo and os.clock() - activoDesde >= cfg.PersecucionSeg then
+			if enTurno and activo and os.clock() - activoDesde >= persecucionSeg() then
 				SocioEntity.desactivar()
 				ciclo = true
-				reaparecerEn = os.clock() + rng:NextNumber(cfg.EntreApariciones[1], cfg.EntreApariciones[2])
-			elseif enTurno and not activo and ciclo and reaparecerEn and os.clock() >= reaparecerEn then
+				local rango = entreApariciones()
+				reaparecerEn = os.clock() + rng:NextNumber(rango[1], rango[2])
+			elseif enTurno and not activo and ciclo and reaparecerEn and os.clock() >= reaparecerEn and not bloqueado() then
 				SocioEntity.activar()
 			end
 			local observado = enTurno and activo and alguienLoMira()
 			ultimoObservado = observado
 			-- Solo lo frena la linterna: mirarlo sin luz no sirve. Alumbrado, se arrastra más lento (y sus pasos también) y se paraliza de cara.
 			local alumbrado = observado and alguienLoMira(true)
+			sinMirada = if observado then 0 else sinMirada + cfg.TickSeg
+			desatado = enTurno and activo and sinMirada >= cfg.DesatadoDespuesSeg
 			local factor = alumbrado and cfg.VelocidadMirado or 1
 			if animacion then
 				animacion.ralentizar(factor)
 			end
 
 			local dioPaso = false
+			embistiendo = false
 			if enTurno and activo then
+				-- Embestida: con un jugador cerca y sin luz encima corre más.
+				if not alumbrado then
+					for _, jugador in Players:GetPlayers() do
+						local raiz = raizDe(jugador)
+						if raiz and distanciaPlana(raiz.Position, posicion) < cfg.EmbestidaDistancia then
+							embistiendo = true
+							break
+						end
+					end
+				end
 				if os.clock() >= proximaRuta then
 					proximaRuta = os.clock() + cfg.RecalcularRutaSeg
 					actualizarRuta()

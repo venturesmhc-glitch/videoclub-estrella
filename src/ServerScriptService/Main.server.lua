@@ -29,6 +29,7 @@ local ORDEN = {
 	"Screamers",
 	"Tienda",
 	"Insignias",
+	"Pistas",
 	"CursedTapeSystem",
 	"CustomerSystem",
 	"EndingSystem",

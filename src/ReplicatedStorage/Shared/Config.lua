@@ -323,6 +323,17 @@ Config.Socio = {
 	VelocidadPorProgreso = 7.6, -- se suma con progreso 1 (los jugadores caminan a 12: casi los alcanza; solo la linterna lo frena)
 	PersecucionSeg = 30, -- cada aparición dura 30 s: después se va
 	EntreApariciones = { 55, 90 }, -- una vez que la noche lo activó, vuelve a aparecer pasado este rango (s) desde que se fue
+	-- Desde la noche NocheTardia las apariciones son más largas y más seguidas (menos tiempo sin amenaza).
+	NocheTardia = 4,
+	PersecucionSegTarde = 40,
+	EntreAparicionesTarde = { 30, 55 },
+	-- Más amenaza: si nadie lo mira se "desata" y corre más, y con un jugador cerca y sin luz encima embiste.
+	DesatadoDespuesSeg = 3, -- segundos sin que nadie lo mire para que se desate
+	DesatadoFactor = 1.25,
+	EmbestidaDistancia = 18, -- studs al jugador más cercano
+	EmbestidaFactor = 1.35,
+	MultiplicadorMax = 1.6, -- tope de la suma de los dos
+	PersecucionDirectaDistancia = 32, -- studs: si ve al jugador sin paredes en el medio va derecho a él, sin pasar por los waypoints
 	VelocidadMirado = 0.4, -- mientras alguien lo mira Y lo alumbra con la linterna prendida se frena (pero sigue viniendo): avanza a esta fracción de su velocidad. Mirarlo sin luz no lo frena
 	LinternaAngulo = 22, -- grados: qué tan centrado tiene que estar en la luz para que cuente como alumbrado (la luz abre 29)
 	LinternaAlcance = 50, -- studs: a más distancia la luz no lo frena (la luz llega a 55)
@@ -337,12 +348,12 @@ Config.Socio = {
 	LookVencimientoSeg = 0.8, -- un reporte más viejo que esto no cuenta como "mirando"
 	LookToleranciaCamara = 10, -- la cámara informada debe estar cerca de la cabeza del personaje
 	TickSeg = 0.1,
-	RecalcularRutaSeg = 1.5,
+	RecalcularRutaSeg = 0.5, -- con 1,5 s perseguía el lugar donde el jugador ya no estaba
 	PeligroEnvioSeg = 0.2,
 	CapturasPorJugador = 2, -- a la segunda captura el jugador queda fuera de la noche (pasa a ser espectador); si caen todos, la noche fracasa
 	AturdimientoSeg = 3.5,
-	GraciaAparicionSeg = 8, -- al aparecer, no puede capturar durante este tiempo (da lugar a reaccionar)
-	GraciaCintaSeg = 90, -- desde que llega la cinta sin etiqueta no puede capturar: tiempo para agarrarla y verla con calma
+	GraciaAparicionSeg = 6, -- al aparecer, no puede capturar durante este tiempo (da lugar a reaccionar)
+	GraciaCintaSeg = 35, -- desde que llega la cinta sin etiqueta no puede capturar: tiempo para agarrarla y verla con calma
 	ProgresoMax = 1.5,
 	-- Progreso (0 a ProgresoMax): sube la velocidad del Socio. Se reinicia cada noche con PorNoche[noche].
 	PorNoche = { 0.05, 0.15, 0.3, 0.45, 0.6 },

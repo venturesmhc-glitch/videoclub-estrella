@@ -149,6 +149,21 @@ function AnomalyJudge.init()
 	end)
 	Net.obtener("AnomalyReport").OnServerEvent:Connect(alReportar)
 
+	-- Una amenaza a la vez: el Socio no reaparece mientras la criatura del techo de algún jugador está en juego.
+	SocioEntity.agregarBloqueo(function()
+		local estado = NightManager.obtenerEstado()
+		local ventana = (Config.Anomalias.VidaFiguraSeg + 4) * NightManager.escala()
+		for _, datos in porJugador do
+			for _, anomalia in datos.lista do
+				if anomalia.tipo == "FiguraAlFondo" and not datos.resueltas[anomalia.id]
+					and estado.minuto >= anomalia.minuto and estado.minuto < anomalia.minuto + ventana then
+					return true
+				end
+			end
+		end
+		return false
+	end)
+
 	-- Una anomalía que lleva un minuto (real) activa sin detectarse sube el progreso del Socio.
 	task.spawn(function()
 		while true do

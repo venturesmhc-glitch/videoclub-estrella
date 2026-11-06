@@ -22,6 +22,7 @@ local ORDEN = {
 	"DialogUI",
 	"TaskCard",
 	"AnomalySystem",
+	"Pistas",
 	"Tele",
 	"CursedTapeSystem",
 	"RulesUI",

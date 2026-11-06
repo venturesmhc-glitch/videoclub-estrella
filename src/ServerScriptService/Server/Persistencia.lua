@@ -25,7 +25,7 @@ local cargados = {} -- Player -> true cuando terminó de cargar (con datos o con
 local avisado = false
 
 local function perfilNuevo()
-	return { nocheAlcanzada = 1, finales = {}, empleadosMenos = 0, insignias = {}, mejorSinFin = 0 }
+	return { nocheAlcanzada = 1, finales = {}, empleadosMenos = 0, insignias = {}, mejorSinFin = 0, pistas = {} }
 end
 
 local function tieneFinal(perfil): boolean
@@ -69,6 +69,7 @@ local function cargar(jugador: Player)
 					perfil.empleadosMenos = tonumber(datos.empleadosMenos) or 0
 					perfil.insignias = typeof(datos.insignias) == "table" and datos.insignias or {}
 					perfil.mejorSinFin = tonumber(datos.mejorSinFin) or 0
+					perfil.pistas = typeof(datos.pistas) == "table" and datos.pistas or {}
 				end
 				break
 			end
@@ -143,6 +144,24 @@ function Persistencia.marcarInsignia(jugador: Player, clave: string): boolean
 	enviarPerfil(jugador)
 	task.spawn(guardar, jugador)
 	return true
+end
+
+--- Anota que ya se le mostró esta pista. Devuelve true si era la primera vez (hay que mostrarla), false si ya la había visto.
+function Persistencia.marcarPista(jugador: Player, id: string): boolean
+	local perfil = perfiles[jugador]
+	if not perfil or perfil.pistas[id] then
+		return false
+	end
+	perfil.pistas[id] = true
+	return true -- se guarda con el resto del perfil al salir o al terminar la noche
+end
+
+--- Para pruebas: olvida las pistas vistas.
+function Persistencia.olvidarPistas(jugador: Player)
+	local perfil = perfiles[jugador]
+	if perfil then
+		perfil.pistas = {}
+	end
 end
 
 --- Para pruebas: marca un final como alcanzado (habilita el modo Sin fin) sin pasar por el turno.

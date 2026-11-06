@@ -301,6 +301,16 @@ local EN = {
 	["Tenés las manos ocupadas con la bolsa. Soltala con G."] = "Your hands are full with the bag. Drop it with G.",
 	["Tenés las manos ocupadas con la escoba. Soltala con G."] = "Your hands are full with the broom. Drop it with G.",
 	["Tenés la escoba. Mantené E sobre una mancha para limpiarla. Con G la soltás."] = "You have the broom. Hold E on a stain to clean it. Drop it with G.",
+	-- Pistas contextuales (Server/Pistas)
+	["Llevás un casete. Entregáselo al cliente en el mostrador (E) o dejalo con G."] = "You are carrying a tape. Hand it to the customer at the counter (E) or drop it with G.",
+	["Una bolsa de basura: llevala al contenedor del patio (puerta del fondo, a la derecha). Con la bolsa en las manos no podés tomar casetes."] = "A trash bag: take it to the dumpster in the yard (back door, on the right). You can't pick up tapes while carrying it.",
+	["Una mancha en el piso: tomá la escoba apoyada en la pared del baño (E) y mantené E sobre la mancha. Con G soltás la escoba."] = "A stain on the floor: grab the broom leaning on the bathroom wall (E) and hold E on the stain. Drop the broom with G.",
+	["Cuidar el local: lo que tiene contorno se hace manteniendo E."] = "Looking after the store: anything with an outline is done by holding E.",
+	["El Socio solo se frena si lo mirás con la linterna prendida (F). Mirarlo sin luz no sirve, y la batería se gasta."] = "The Member only slows down if you look at him with the flashlight on (F). Looking without light does nothing, and the battery drains.",
+	["Mantené Shift para correr. Te cansás: la barrita de abajo muestra tu energía."] = "Hold Shift to run. You get tired: the little bar below shows your energy.",
+	["Una anomalía: apuntale y apretá Q antes de que se te tire encima."] = "An anomaly: aim at it and press Q before it jumps on you.",
+	["Se cortó la luz. Usá la linterna (F) y no la gastes: tiene batería."] = "The power is out. Use the flashlight (F) and don't waste it: it has a battery.",
+	["Para tocar botones (comprar, menús) soltá el mouse con Ctrl."] = "To click buttons (buy, menus) release the mouse with Ctrl.",
 	-- Advertencia de terror
 	["ADVERTENCIA"] = "WARNING",
 	["Este es un juego de terror."] = "This is a horror game.",
