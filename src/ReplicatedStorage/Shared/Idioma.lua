@@ -327,7 +327,6 @@ local EN = {
 	["Mantené Shift para correr. Te cansás: la barrita de abajo muestra tu energía."] = "Hold Shift to run. You get tired: the little bar below shows your energy.",
 	["Una anomalía: apuntale y apretá Q antes de que se te tire encima."] = "An anomaly: aim at it and press Q before it jumps on you.",
 	["Se cortó la luz. Usá la linterna (F) y no la gastes: tiene batería."] = "The power is out. Use the flashlight (F) and don't waste it: it has a battery.",
-	["Para tocar botones (comprar, menús) soltá el mouse con Ctrl."] = "To click buttons (buy, menus) release the mouse with Ctrl.",
 	-- Advertencia de terror
 	["ADVERTENCIA"] = "WARNING",
 	["Este es un juego de terror."] = "This is a horror game.",

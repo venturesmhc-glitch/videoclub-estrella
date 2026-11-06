@@ -28,7 +28,6 @@ Pistas.TEXTOS = {
 	CORRER = "Mantené Shift para correr. Te cansás: la barrita de abajo muestra tu energía.",
 	MARCAR = "Una anomalía: apuntale y apretá Q antes de que se te tire encima.",
 	LUZ = "Se cortó la luz. Usá la linterna (F) y no la gastes: tiene batería.",
-	MOUSE = "Para tocar botones (comprar, menús) soltá el mouse con Ctrl.",
 }
 
 function Pistas.dar(jugador: Player, id: string)
