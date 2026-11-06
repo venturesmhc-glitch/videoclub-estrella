@@ -291,6 +291,28 @@ local function distanciaPlana(a: Vector3, b: Vector3): number
 	return (Vector3.new(a.X, 0, a.Z) - Vector3.new(b.X, 0, b.Z)).Magnitude
 end
 
+-- ¿El cuerpo del Socio toca a este jugador? Cuenta la distancia a los pies y también la caja que ocupa el modelo (brazos incluidos):
+-- el cuerpo es enorme y antes, aunque se le superpusiera el personaje, no lo agarraba si el centro de los pies seguía lejos.
+local function tocaA(raiz: BasePart): boolean
+	if distanciaPlana(raiz.Position, posicion) < cfg.DistanciaCaptura then
+		return true
+	end
+	if not modelo or not modelo.Parent then
+		return false
+	end
+	local ok, caja, tam = pcall(function()
+		return modelo:GetBoundingBox()
+	end)
+	if not ok then
+		return false
+	end
+	local local_ = caja:PointToObjectSpace(raiz.Position)
+	local mitad = tam * 0.5 * cfg.CapturaCuerpo
+	local dx = math.max(math.abs(local_.X) - mitad.X, 0)
+	local dz = math.max(math.abs(local_.Z) - mitad.Z, 0)
+	return math.abs(local_.Y) <= tam.Y * 0.5 + 2 and math.sqrt(dx * dx + dz * dz) < cfg.CapturaMargen
+end
+
 local function nodoMasLejanoDeTodos(): Vector3
 	local mejor, mejorDist = nodos[1] and nodos[1].pos or Vector3.new(0, 0, -16), -1
 	for _, n in nodos do
@@ -619,7 +641,7 @@ function SocioEntity.init()
 				end
 				for _, jugador in Players:GetPlayers() do
 					local raiz = raizDe(jugador)
-					if raiz and os.clock() >= sinCapturaHasta and distanciaPlana(raiz.Position, posicion) < cfg.DistanciaCaptura then
+					if raiz and os.clock() >= sinCapturaHasta and tocaA(raiz) then
 						capturar(jugador)
 						break
 					end
