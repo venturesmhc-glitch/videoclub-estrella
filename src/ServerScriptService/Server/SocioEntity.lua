@@ -308,11 +308,8 @@ local function nodoMasLejanoDeTodos(): Vector3
 	return Vector3.new(mejor.X, 0, mejor.Z)
 end
 
-local embistiendo = false -- hay un jugador cerca y nadie lo alumbra: corre más
-
 local function velocidad(): number
-	local v = cfg.VelocidadBase + cfg.VelocidadPorProgreso * math.clamp(progreso, 0, cfg.ProgresoMax) / cfg.ProgresoMax
-	return embistiendo and v * cfg.EmbestidaFactor or v
+	return cfg.VelocidadBase + cfg.VelocidadPorProgreso * math.clamp(progreso, 0, cfg.ProgresoMax) / cfg.ProgresoMax
 end
 
 -- ===== API =====
@@ -482,16 +479,7 @@ local function actualizarRuta()
 		return
 	end
 	local destino = raizDe(mejor).Position
-	local directo = distancia < 9
-	if not directo and distancia < cfg.PersecucionDirectaDistancia and modelo then
-		-- Si lo ve sin paredes en el medio va derecho: pasar por los waypoints lo hacía dar vueltas.
-		local params = RaycastParams.new()
-		params.FilterType = Enum.RaycastFilterType.Exclude
-		params.FilterDescendantsInstances = personajes()
-		local origen = Vector3.new(posicion.X, 3, posicion.Z)
-		directo = workspace:Raycast(origen, Vector3.new(destino.X, 3, destino.Z) - origen, params) == nil
-	end
-	if directo then
+	if distancia < 9 then
 		ruta = { Vector3.new(destino.X, 0, destino.Z) }
 	else
 		ruta = calcularRuta(posicion, destino)
@@ -617,18 +605,7 @@ function SocioEntity.init()
 			end
 
 			local dioPaso = false
-			embistiendo = false
 			if enTurno and activo then
-				-- Embestida: con un jugador cerca y sin luz encima corre más.
-				if not alumbrado then
-					for _, jugador in Players:GetPlayers() do
-						local raiz = raizDe(jugador)
-						if raiz and distanciaPlana(raiz.Position, posicion) < cfg.EmbestidaDistancia then
-							embistiendo = true
-							break
-						end
-					end
-				end
 				if os.clock() >= proximaRuta then
 					proximaRuta = os.clock() + cfg.RecalcularRutaSeg
 					actualizarRuta()
