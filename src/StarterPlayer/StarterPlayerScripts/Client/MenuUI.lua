@@ -11,6 +11,7 @@
 
 local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
@@ -18,10 +19,12 @@ local UserInputService = game:GetService("UserInputService")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Catalogo = require(ReplicatedStorage.Shared.Catalogo)
+local NightData = require(ReplicatedStorage.Shared.NightData)
 local Idioma = require(ReplicatedStorage.Shared.Idioma)
 local AudioManager = require(script.Parent.AudioManager)
 local Rendimiento = require(script.Parent.Rendimiento)
 local VHSEffects = require(script.Parent.VHSEffects)
+local Linterna = require(script.Parent.Linterna)
 
 local MenuUI = {}
 
@@ -39,6 +42,12 @@ local TEXTOS = {
 	modoLobbySinFin = "MODO: SIN FIN",
 	ajustes = "AJUSTES",
 	logros = "LOGROS",
+	ranking = "RANKING",
+	rankingTitulo = "SIN FIN · MEJORES RACHAS",
+	rankingVacio = "Todavía no hay récords. Sé el primero.",
+	rankingNoches = "NOCHES",
+	rankingTu = "Tu récord: %d noches",
+	hoySinFin = "Hoy en Sin fin:",
 	logrosConteo = "%d / %d desbloqueados",
 	logrosRecord = "Récord en Sin fin: %d noches",
 	logroSi = "DESBLOQUEADO",
@@ -119,6 +128,9 @@ local sinFinListo = false -- el servidor avisó que ya alcanzó un final (perfil
 local actualizarModo -- (se define con la pantalla principal)
 local perfilInsignias, mejorSinFin = {}, 0 -- logros desbloqueados y récord del modo Sin fin (perfil)
 local actualizarLogros -- (se define con la pantalla de logros)
+local actualizarRanking -- (se define con la pantalla de ranking)
+local colorLinterna = 1 -- índice en Config.Tienda.ColoresLinterna (del perfil)
+local actualizarBotonLinterna -- (se define con los ajustes)
 
 -- ===== Utilidades de interfaz =====
 
@@ -338,9 +350,17 @@ local function construirPrincipal()
 		modoElegido = "sinfin"
 		actualizarModo()
 	end)
+	-- El modificador del día (Sin fin): se muestra al elegir ese modo.
+	local etiquetaDiario = texto(p, { texto = "", tamano = UDim2.fromScale(0.7, 0.03), posicion = UDim2.fromScale(0.5, 0.412), ancla = Vector2.new(0.5, 0.5), color = COLOR_ACENTO })
 	function actualizarModo()
 		if modoElegido == "sinfin" and not sinFinListo then
 			modoElegido = "historia"
+		end
+		if modoElegido == "sinfin" then
+			local ok, mod = pcall(NightData.modificadorDiario, workspace:GetServerTimeNow())
+			etiquetaDiario.Text = ok and mod and (Idioma.t(TEXTOS.hoySinFin) .. " " .. Idioma.t(mod.nombre) .. " · " .. Idioma.t(mod.descripcion)) or ""
+		else
+			etiquetaDiario.Text = ""
 		end
 		marcarHistoria(modoElegido == "historia")
 		marcarSinFin(modoElegido == "sinfin")
@@ -356,11 +376,17 @@ local function construirPrincipal()
 		mostrarPantalla("salas")
 		enviar("salas")
 	end, TAM_BOTON)
-	boton(p, TEXTOS.logros, UDim2.fromScale(0.5, 0.66), function()
+	local TAM_MITAD = UDim2.fromScale(0.165, 0.075)
+	boton(p, TEXTOS.logros, UDim2.fromScale(0.4125, 0.66), function()
 		enviar("perfil") -- por si el perfil cambió desde que se abrió el menú
 		actualizarLogros()
 		mostrarPantalla("logros")
-	end, TAM_BOTON)
+	end, TAM_MITAD)
+	boton(p, TEXTOS.ranking, UDim2.fromScale(0.5875, 0.66), function()
+		Net.obtener("Ranking"):FireServer({ pedir = true })
+		actualizarRanking(nil)
+		mostrarPantalla("ranking")
+	end, TAM_MITAD)
 	boton(p, TEXTOS.ajustes, UDim2.fromScale(0.5, 0.76), function()
 		mostrarPantalla("ajustes")
 	end, TAM_BOTON)
@@ -697,6 +723,80 @@ function actualizarLogros()
 	logrosRecord.Text = mejorSinFin > 0 and Idioma.t(string.format(TEXTOS.logrosRecord, mejorSinFin)) or ""
 end
 
+-- Ranking: las mejores rachas de noches seguidas en Sin fin (global).
+local rankingLista, rankingTu
+
+local function construirRanking()
+	local p = nuevaPantalla("ranking")
+	texto(p, { texto = TEXTOS.rankingTitulo, fuente = FUENTE_TITULO, color = COLOR_ACENTO, tamano = UDim2.fromScale(0.8, 0.1), posicion = UDim2.fromScale(0.5, 0.11), ancla = Vector2.new(0.5, 0.5) })
+	rankingLista = Instance.new("Frame")
+	rankingLista.Size = UDim2.fromScale(0.6, 0.6)
+	rankingLista.AnchorPoint = Vector2.new(0.5, 0)
+	rankingLista.Position = UDim2.fromScale(0.5, 0.2)
+	rankingLista.BackgroundTransparency = 1
+	rankingLista.Parent = p
+	local orden = Instance.new("UIListLayout")
+	orden.Padding = UDim.new(0, 5)
+	orden.SortOrder = Enum.SortOrder.LayoutOrder
+	orden.Parent = rankingLista
+	rankingTu = texto(p, { texto = "", tamano = UDim2.fromScale(0.5, 0.04), posicion = UDim2.fromScale(0.5, 0.855), ancla = Vector2.new(0.5, 0.5), color = COLOR_ACENTO })
+	boton(p, TEXTOS.volver, UDim2.fromScale(0.5, 0.94), function()
+		mostrarPantalla("principal")
+	end, UDim2.fromScale(0.25, 0.07))
+end
+
+-- datos = { lista = { { nombre, valor } }, mio } o nil (todavía no llegó la respuesta).
+function actualizarRanking(datos)
+	if not rankingLista then
+		return
+	end
+	for _, hijo in rankingLista:GetChildren() do
+		if hijo:IsA("Frame") then
+			hijo:Destroy()
+		end
+	end
+	local lista = datos and datos.lista or {}
+	if #lista == 0 then
+		local vacio = Instance.new("Frame")
+		vacio.Size = UDim2.new(1, 0, 0, 36)
+		vacio.BackgroundTransparency = 1
+		vacio.Parent = rankingLista
+		texto(vacio, { texto = datos and TEXTOS.rankingVacio or "...", tamano = UDim2.fromScale(1, 1), posicion = UDim2.fromScale(0.5, 0.5), ancla = Vector2.new(0.5, 0.5), color = COLOR_APAGADO })
+	end
+	for i, fila in lista do
+		local f = Instance.new("Frame")
+		f.LayoutOrder = i
+		f.Size = UDim2.new(1, 0, 0, 36)
+		f.BackgroundColor3 = COLOR_TEXTO
+		f.BackgroundTransparency = i == 1 and 0.86 or 0.95
+		f.BorderSizePixel = 0
+		f.Parent = rankingLista
+		local nombre = Instance.new("TextLabel")
+		nombre.BackgroundTransparency = 1
+		nombre.Font = FUENTE
+		nombre.TextSize = 22
+		nombre.TextXAlignment = Enum.TextXAlignment.Left
+		nombre.TextColor3 = i == 1 and COLOR_ACENTO or COLOR_TEXTO
+		nombre.Position = UDim2.new(0, 14, 0, 0)
+		nombre.Size = UDim2.new(0.7, 0, 1, 0)
+		nombre.Text = string.format("%d. %s", i, tostring(fila.nombre))
+		nombre.Parent = f
+		local valor = Instance.new("TextLabel")
+		valor.BackgroundTransparency = 1
+		valor.Font = FUENTE
+		valor.TextSize = 22
+		valor.TextXAlignment = Enum.TextXAlignment.Right
+		valor.TextColor3 = i == 1 and COLOR_ACENTO or COLOR_TEXTO
+		valor.AnchorPoint = Vector2.new(1, 0)
+		valor.Position = UDim2.new(1, -14, 0, 0)
+		valor.Size = UDim2.new(0.25, 0, 1, 0)
+		valor.Text = string.format("%d %s", tonumber(fila.valor) or 0, Idioma.t(TEXTOS.rankingNoches))
+		valor.Parent = f
+	end
+	local mio = datos and tonumber(datos.mio) or mejorSinFin
+	rankingTu.Text = mio > 0 and Idioma.t(string.format(TEXTOS.rankingTu, mio)) or ""
+end
+
 local botonSalirAlMenu
 
 local function construirAjustes()
@@ -724,6 +824,30 @@ local function construirAjustes()
 	botonCalidad.MouseLeave:Connect(function()
 		botonCalidad.Text = string.format(TEXTOS.calidad, Rendimiento.nivel())
 	end)
+	-- Color de la linterna: cosmético, con un Game Pass (el color de siempre es gratis). Solo aparece si el pase existe.
+	local botonLinterna = boton(p, "", UDim2.fromScale(0.5, 0.755), function()
+		local colores = Config.Tienda.ColoresLinterna
+		if Players.LocalPlayer:GetAttribute("PaseLinterna") then
+			colorLinterna = colorLinterna % #colores + 1
+			Net.obtener("Comprar"):FireServer({ producto = "color_linterna", indice = colorLinterna })
+			actualizarBotonLinterna()
+		else
+			Net.obtener("Comprar"):FireServer({ producto = "pase_linterna" })
+		end
+	end, UDim2.fromScale(0.34, 0.07))
+	function actualizarBotonLinterna()
+		local colores = Config.Tienda.ColoresLinterna
+		local actual = colores[colorLinterna] or colores[1]
+		Linterna.fijarColor(actual.color)
+		if Players.LocalPlayer:GetAttribute("PaseLinterna") then
+			botonLinterna.Text = Idioma.t(string.format("Linterna: %s", actual.nombre))
+		else
+			botonLinterna.Text = Idioma.t(string.format("Colores de linterna · pase R$ %d", Config.Tienda.PrecioPaseLinterna))
+		end
+		botonLinterna.Visible = Config.Tienda.Pases.LinternaColor ~= 0 or RunService:IsStudio()
+	end
+	actualizarBotonLinterna()
+	Players.LocalPlayer:GetAttributeChangedSignal("PaseLinterna"):Connect(actualizarBotonLinterna)
 	boton(p, TEXTOS.volver, UDim2.fromScale(0.5, 0.85), function()
 		mostrarPantalla(destinoVolver())
 	end, UDim2.fromScale(0.25, 0.07))
@@ -894,6 +1018,7 @@ function MenuUI.init()
 	construirUnirse()
 	construirLobby()
 	construirLogros()
+	construirRanking()
 	actualizarLogros()
 	construirAviso()
 	construirAyuda()
@@ -951,8 +1076,16 @@ function MenuUI.init()
 			sinFinListo = perfil.sinFinDesbloqueado == true
 			perfilInsignias = typeof(perfil.insignias) == "table" and perfil.insignias or {}
 			mejorSinFin = tonumber(perfil.mejorSinFin) or 0
+			colorLinterna = tonumber(perfil.colorLinterna) or 1
+			actualizarBotonLinterna()
 			actualizarModo()
 			actualizarLogros()
+		end
+	end)
+
+	Net.obtener("Ranking").OnClientEvent:Connect(function(datos)
+		if typeof(datos) == "table" then
+			actualizarRanking(datos)
 		end
 	end)
 

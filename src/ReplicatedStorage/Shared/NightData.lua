@@ -338,11 +338,25 @@ end
 -- Las noches se arman solas con la misma receta (clientes, cintas, basura, manchas, tareas del local, sustos, Socio) y
 -- van subiendo de dificultad hasta la noche Config.SinFin.NocheTopeDificultad. No hay final ni cinta final: la
 -- cinta sin etiqueta sigue llegando, pero ver la cinta no termina nada.
+-- Modificador del día (mismo para todos los servidores: sale de la fecha UTC). Solo vale en el modo Sin fin.
+NightData.Modificadores = {
+	{ id = "SIN_LINTERNA", nombre = "Sin linterna", descripcion = "Hoy no hay linterna: al Socio se lo frena solo con mirarlo." },
+	{ id = "SOCIO_RAPIDO", nombre = "Socio veloz", descripcion = "Hoy el Socio es mucho más rápido." },
+	{ id = "APAGON", nombre = "Apagón", descripcion = "Hoy la luz se corta desde el principio de cada noche." },
+	{ id = "SOCIO_TEMPRANO", nombre = "Turno sin pausa", descripcion = "Hoy el Socio anda suelto desde el primer minuto." },
+}
+
+--- El modificador del día. 'ahora' son segundos Unix (el servidor pasa os.time(); el cliente workspace:GetServerTimeNow()).
+function NightData.modificadorDiario(ahora: number?)
+	local dia = math.floor((ahora or os.time()) / 86400)
+	return NightData.Modificadores[dia % #NightData.Modificadores + 1]
+end
+
 local MODOS_CLIENTES = { "normal", "repetir", "mismo" }
 local TIPOS_SUSTO = { "tele", "luces", "ventana" }
 local sinFinCache: { [string]: Noche } = {}
 
-local function generarSinFin(n: number): Noche
+local function generarSinFin(n: number, modificador): Noche
 	local rng = Random.new(n * 7919 + 13)
 	local d = math.min(n, Config.SinFin.NocheTopeDificultad)
 	local eventos: { Evento } = {}
@@ -433,6 +447,13 @@ local function generarSinFin(n: number): Noche
 	if n == 1 then
 		table.insert(eventos, evento(5, "AVISO", { texto = "Sin fin: cada noche es peor y no hay final. Aguantá todo lo que puedas." }))
 	end
+	-- El modificador del día.
+	table.insert(eventos, evento(8, "AVISO", { texto = modificador.descripcion }))
+	if modificador.id == "APAGON" and n < 4 then
+		table.insert(eventos, evento(2, "CORTE_LUZ", { valor = true }))
+	elseif modificador.id == "SOCIO_TEMPRANO" then
+		table.insert(eventos, evento(3, "SOCIO_ACTIVA"))
+	end
 
 	return noche("Turno sin fin", "Resistir", modoClientes, eventos)
 end
@@ -440,9 +461,10 @@ end
 --- La noche del modo Sin fin (la cantidad de jugadores suma tareas igual que en la historia).
 function NightData.sinFin(numero: number, cantidad: number): Noche
 	cantidad = math.clamp(cantidad, 1, 4)
-	local clave = numero .. ":" .. cantidad
+	local modificador = NightData.modificadorDiario()
+	local clave = numero .. ":" .. cantidad .. ":" .. modificador.id
 	if not sinFinCache[clave] then
-		local base = generarSinFin(numero)
+		local base = generarSinFin(numero, modificador)
 		sinFinCache[clave] = if cantidad > 1 then conJugadores(base, numero, cantidad) else base
 	end
 	return sinFinCache[clave]

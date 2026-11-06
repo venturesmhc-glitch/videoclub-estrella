@@ -453,6 +453,17 @@ Config.Espectador = {
 -- Con 0 el producto no está creado: en Studio la compra se simula sin gastar nada y en el juego publicado no está disponible.
 Config.Tienda = {
 	Productos = { Asustar = 3726792104, Revivir = 3726792548 },
+	-- Game Pass cosmético: colores para la linterna (no cambia la dificultad). Con 0 todavía no está creado en Roblox:
+	-- en Studio se regala para poder probarlo y publicado el botón no aparece.
+	Pases = { LinternaColor = 0 },
+	PrecioPaseLinterna = 99, -- solo para mostrarlo (el precio real es el del pase)
+	ColoresLinterna = {
+		{ nombre = "Cálida", color = Color3.fromRGB(255, 244, 214) }, -- la de siempre (gratis)
+		{ nombre = "Fría", color = Color3.fromRGB(200, 225, 255) },
+		{ nombre = "Verde", color = Color3.fromRGB(170, 255, 190) },
+		{ nombre = "Roja", color = Color3.fromRGB(255, 140, 130) },
+		{ nombre = "Violeta", color = Color3.fromRGB(205, 165, 255) },
+	},
 	Precios = { Asustar = 10, Revivir = 15 }, -- solo para mostrarlos en los botones (el precio real es el del producto)
 	EnfriamientoAsustarSeg = 45, -- entre un "asustar a todos" y otro (para todo el servidor)
 	-- La máscara de Ghostface del depósito (Tienda.lua): mantener E sobre ella abre la compra de "Asustar a todos".

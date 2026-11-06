@@ -29,6 +29,9 @@ local agotada = false -- se quedó sin batería: no prende hasta recuperar un po
 local parteLuz, luz, boton, barra, relleno
 
 local function permitida(): boolean
+	if workspace:GetAttribute("ModDiario") == "SIN_LINTERNA" then
+		return false -- el modificador del día: no hay linterna
+	end
 	return habilitada or socioSuelto
 end
 
@@ -36,6 +39,16 @@ local function establecer(valor: boolean)
 	encendida = valor and permitida() and not agotada and bateria > 0
 	if luz then
 		luz.Enabled = encendida
+	end
+end
+
+local colorElegido: Color3? = nil
+
+--- Color de la luz (cosmético: Config.Tienda.ColoresLinterna).
+function Linterna.fijarColor(color: Color3)
+	colorElegido = color
+	if luz then
+		luz.Color = color
 	end
 end
 
@@ -74,6 +87,9 @@ function Linterna.init()
 	luz.Brightness = 5
 	luz.Color = Color3.fromRGB(255, 244, 214)
 	luz.Shadows = true
+	if colorElegido then
+		luz.Color = colorElegido
+	end
 	luz.Enabled = false
 	luz.Parent = parteLuz
 	parteLuz.Parent = workspace

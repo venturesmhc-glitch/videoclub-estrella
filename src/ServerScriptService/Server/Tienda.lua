@@ -20,6 +20,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local Net = require(ReplicatedStorage.Shared.Net)
 local Prompts = require(script.Parent.Prompts)
 local Fantasmas = require(script.Parent.Fantasmas)
+local Persistencia = require(script.Parent.Persistencia)
 local NightManager = require(script.Parent.NightManager)
 local Screamers = require(script.Parent.Screamers)
 local SocioEntity = require(script.Parent.SocioEntity)
@@ -105,9 +106,49 @@ local function pedirCompra(jugador: Player, producto: string)
 	end
 end
 
+-- ===== Pase cosmético: colores de linterna =====
+
+local function pasesDisponibles(): boolean
+	return cfg.Pases.LinternaColor ~= 0 or RunService:IsStudio()
+end
+
+local function verificarPase(jugador: Player)
+	local id = cfg.Pases.LinternaColor
+	local tiene = false
+	if id == 0 then
+		tiene = RunService:IsStudio() -- sin pase creado: en Studio se regala para probar
+	else
+		local ok, resultado = pcall(function()
+			return MarketplaceService:UserOwnsGamePassAsync(jugador.UserId, id)
+		end)
+		tiene = ok and resultado == true
+	end
+	jugador:SetAttribute("PaseLinterna", tiene)
+end
+
+local function pedirPase(jugador: Player)
+	if jugador:GetAttribute("PaseLinterna") then
+		return
+	end
+	local id = cfg.Pases.LinternaColor
+	if id == 0 then
+		Net.aviso(jugador, "Esta compra todavía no está disponible.")
+		return
+	end
+	local ok, err = pcall(function()
+		MarketplaceService:PromptGamePassPurchase(jugador, id)
+	end)
+	if not ok then
+		warn("[Tienda] No se pudo abrir la compra del pase: " .. tostring(err))
+		Net.aviso(jugador, "No se pudo abrir la compra. Probá de nuevo.")
+	end
+end
+
 function Tienda.pedirCompra(jugador: Player, producto: string)
 	pedirCompra(jugador, producto)
 end
+
+Tienda.pasesDisponibles = pasesDisponibles
 
 function Tienda.init()
 	-- La máscara de Ghostface del depósito: mantener E abre la compra de "Asustar a todos".
@@ -135,7 +176,32 @@ function Tienda.init()
 		if not Net.limitar(jugador, "comprar", 1.5) then
 			return
 		end
+		if datos.producto == "pase_linterna" then
+			pedirPase(jugador)
+			return
+		elseif datos.producto == "color_linterna" then
+			local indice = math.floor(tonumber(datos.indice) or 1)
+			-- El color de siempre es gratis; los demás piden el pase.
+			if indice == 1 or jugador:GetAttribute("PaseLinterna") then
+				Persistencia.fijarColorLinterna(jugador, indice)
+			end
+			return
+		end
 		pedirCompra(jugador, datos.producto)
+	end)
+
+	-- El pase se verifica al entrar y se activa en el momento de la compra.
+	Players.PlayerAdded:Connect(function(jugador)
+		task.spawn(verificarPase, jugador)
+	end)
+	for _, jugador in Players:GetPlayers() do
+		task.spawn(verificarPase, jugador)
+	end
+	MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(jugador, idPase, comprado)
+		if comprado and idPase == cfg.Pases.LinternaColor and idPase ~= 0 then
+			jugador:SetAttribute("PaseLinterna", true)
+			Net.aviso(jugador, "¡Gracias! Ya podés elegir el color de la linterna en Ajustes.")
+		end
 	end)
 
 	MarketplaceService.ProcessReceipt = function(recibo)

@@ -41,6 +41,7 @@ local DEFINICIONES: { [string]: string } = {
 	DropTape = "RemoteEvent", -- c>s: soltar el casete que se lleva en la mano (tecla G)
 	MenuAction = "RemoteEvent", -- c>s: { accion = "estado" | "salas" | "solo" | "crear" | "unirse" | "empezar" | "salir", ... } desde el menú
 	PartidaState = "RemoteEvent", -- s>c: { fase = "menu" | "lobby" | "jugando", modo, anfitrion, jugadores, codigo, publica, maximo }
+	Ranking = "RemoteEvent", -- c>s: { pedir = true } · s>c: { lista = { { nombre, valor } }, mio } mejores rachas del modo Sin fin
 	Pista = "RemoteEvent", -- s>c: { id, texto } pista contextual (una sola vez por perfil) · c>s: { pedir = id } el cliente pide una pista suya
 	Sprint = "RemoteEvent", -- c>s: { activo = bool } mantiene apretada la tecla de correr
 	Comprar = "RemoteEvent", -- c>s: { producto = "asustar" | "revivir" } pide abrir la compra con Robux

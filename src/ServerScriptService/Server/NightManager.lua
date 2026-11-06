@@ -176,6 +176,8 @@ function NightManager.iniciarNoche(noche: number)
 
 	local datos = NightData.deModo(modo, noche, #Players:GetPlayers())
 	datosNocheActual = datos
+	-- El modificador del día solo rige en Sin fin; los demás sistemas lo leen de este atributo.
+	workspace:SetAttribute("ModDiario", if modo == "sinfin" then NightData.modificadorDiario().id else nil)
 	escalaActual = Config.Noche.DuracionMinutosJuego / ((datos and datos.duracionSeg) or Config.Noche.DuracionRealSegundos)
 	eventos = datos and table.clone(datos.eventos) or {}
 	table.sort(eventos, function(a, b)

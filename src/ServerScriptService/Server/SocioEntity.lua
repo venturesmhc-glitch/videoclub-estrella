@@ -344,7 +344,11 @@ local function velocidad(): number
 	if desatado then
 		mult *= cfg.DesatadoFactor
 	end
-	return v * math.min(mult, cfg.MultiplicadorMax)
+	v *= math.min(mult, cfg.MultiplicadorMax)
+	if workspace:GetAttribute("ModDiario") == "SOCIO_RAPIDO" then
+		v *= 1.3
+	end
+	return v
 end
 
 local function tardia(): boolean
@@ -670,7 +674,8 @@ function SocioEntity.init()
 			local observado = enTurno and activo and alguienLoMira()
 			ultimoObservado = observado
 			-- Solo lo frena la linterna: mirarlo sin luz no sirve. Alumbrado, se arrastra más lento (y sus pasos también) y se paraliza de cara.
-			local alumbrado = observado and alguienLoMira(true)
+			-- Con el modificador "Sin linterna" no hay luz: alcanza con mirarlo para frenarlo.
+			local alumbrado = observado and (workspace:GetAttribute("ModDiario") == "SIN_LINTERNA" or alguienLoMira(true))
 			sinMirada = if observado then 0 else sinMirada + cfg.TickSeg
 			desatado = enTurno and activo and sinMirada >= cfg.DesatadoDespuesSeg
 			local factor = alumbrado and cfg.VelocidadMirado or 1
