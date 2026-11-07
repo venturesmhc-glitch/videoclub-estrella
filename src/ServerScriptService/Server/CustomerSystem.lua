@@ -28,6 +28,7 @@ local Net = require(ReplicatedStorage.Shared.Net)
 local NightData = require(ReplicatedStorage.Shared.NightData)
 local Personajes = require(ReplicatedStorage.Shared.Personajes)
 local NightManager = require(script.Parent.NightManager)
+local PhoneSystem = require(script.Parent.PhoneSystem)
 local Prompts = require(script.Parent.Prompts)
 local SocioEntity = require(script.Parent.SocioEntity)
 local TapeItem = require(script.Parent.TapeItem)
@@ -301,6 +302,52 @@ local function ciclo(cliente)
 end
 
 --- Un cliente llega al local (lo dispara el evento CLIENTE de NightData).
+-- Los clientes no llegan mientras Don Ernesto habla por teléfono (la llamada de bienvenida): se acumulan y, cuando termina, entran de a
+-- uno, separados por Config.Telefono.EntreClientesTrasLlamadaSeg, para que no caigan todos juntos.
+local retenidos = {}
+local vaciando = false
+local generacionRetenidos = 0
+
+local function vaciarRetenidos()
+	if vaciando or #retenidos == 0 or PhoneSystem.bloqueaClientes() then
+		return
+	end
+	vaciando = true
+	local generacion = generacionRetenidos
+	task.spawn(function()
+		task.wait(Config.Telefono.ClientesTrasLlamadaSeg)
+		while #retenidos > 0 and generacion == generacionRetenidos do
+			CustomerSystem.llegar(table.remove(retenidos, 1))
+			if #retenidos > 0 then
+				task.wait(Config.Telefono.EntreClientesTrasLlamadaSeg)
+			end
+		end
+		if generacion == generacionRetenidos then
+			vaciando = false
+		end
+	end)
+end
+
+--- Un cliente de los eventos de la noche: llega ya, o espera a que Don Ernesto termine de hablar.
+function CustomerSystem.llegarSiPuede(datos)
+	if PhoneSystem.bloqueaClientes() or vaciando then
+		if #retenidos >= cfg.MaxEnCola + 2 then
+			TaskSystem.registrarPerdido()
+			return
+		end
+		table.insert(retenidos, datos)
+		vaciarRetenidos()
+	else
+		CustomerSystem.llegar(datos)
+	end
+end
+
+local function olvidarRetenidos()
+	table.clear(retenidos)
+	generacionRetenidos += 1
+	vaciando = false
+end
+
 function CustomerSystem.llegar(datos)
 	if #cola >= cfg.MaxEnCola then
 		TaskSystem.registrarPerdido()
@@ -457,14 +504,19 @@ function CustomerSystem.init()
 	carpeta.Parent = workspace
 
 	TaskSystem.registrarFuentePedido(CustomerSystem.pedidoActual)
-	NightManager.suscribir("CLIENTE", CustomerSystem.llegar)
+	NightManager.suscribir("CLIENTE", CustomerSystem.llegarSiPuede)
+	PhoneSystem.alLiberar(vaciarRetenidos)
 	NightManager.suscribir("NOCHE_INICIA", function(datos)
+		olvidarRetenidos()
 		-- El modo se fija antes de limpiar: si algo fallara al limpiar no puede quedar el de la noche anterior.
 		local noche = NightData[datos.noche]
 		modoNoche = noche and noche.clientesModo or "normal"
 		reiniciar()
 	end)
-	NightManager.suscribir("NOCHE_TERMINA", reiniciar)
+	NightManager.suscribir("NOCHE_TERMINA", function()
+		olvidarRetenidos()
+		reiniciar()
+	end)
 	NightManager.suscribir("SOCIO_MOSTRADOR", function()
 		-- El Socio deja de moverse por el local y hace cola como un cliente más.
 		SocioEntity.desactivar()

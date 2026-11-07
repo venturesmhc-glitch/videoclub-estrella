@@ -545,6 +545,8 @@ Config.Cinta = {
 Config.Anomalias = {
 	PorNoche = { 0, 5, 6, 7, 8 }, -- más anomalías: menos tiempos muertos (en el modo Sin fin, desde la noche 6 se repite la última cantidad)
 	MinutoDesde = 22,
+	CriaturasPorNoche = { 0, 2, 2, 3, 3 }, -- veces que aparece la criatura del techo (una sola para todo el equipo; en Sin fin se repite la última)
+	DistanciaMarcarCriatura = 45, -- studs: desde qué distancia vale la Q sobre la criatura (el servidor lo valida)
 	MinutoHasta = 290,
 	DistanciaReporte = 35,
 	EstaticaDistancia = 28, -- una anomalía a esta distancia (y de frente) sube la estática del filtro
@@ -554,7 +556,7 @@ Config.Anomalias = {
 	RotacionMovida = 28, -- grados
 	LimiteFalsosReportes = 4, -- por noche; pasado esto el jugador pierde progreso del equipo
 	-- La sombra quieta de la anomalía "FiguraAlFondo": una persona normal, negra, con contorno de estática (Client/Silueta).
-	-- La sombra de la anomalía "FiguraAlFondo" camina por el techo y las paredes y te sigue desde ahí (Client/Reptante).
+	-- La sombra de la anomalía "FiguraAlFondo" camina por el techo y las paredes y te sigue desde ahí (Server/Criatura, Shared/Cascara).
 	-- Medidas de la caja del local de ventas (la figura nunca baja al piso).
 	Reptar = {
 		-- Se mueve a ráfagas, como un bicho: repta (Velocidad), arremete (VelocidadArremetida) y se queda congelada un instante.
@@ -613,6 +615,8 @@ Config.Telefono = {
 	SonarSeg = 18, -- cuánto suena antes de cortarse solo
 	MensajeSeg = 9, -- duración en pantalla de cada mensaje
 	LecturaExtraSeg = 1, -- segundos que se suman a cada línea del mensaje para poder leerla completa
+	ClientesTrasLlamadaSeg = 3, -- los clientes empiezan a llegar recién cuando Don Ernesto terminó de hablar, tantos segundos después
+	EntreClientesTrasLlamadaSeg = 18, -- y los que se acumularon mientras hablaba entran de a uno, separados por esto
 	Sonido = { Id = "rbxassetid://94426589952590", Volumen = 0.9, DistanciaMax = 70 }, -- timbre del teléfono (Creator Store)
 }
 

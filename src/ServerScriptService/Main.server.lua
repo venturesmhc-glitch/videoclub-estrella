@@ -26,6 +26,7 @@ local ORDEN = {
 	"Radio",
 	"AnomalyJudge",
 	"SocioEntity",
+	"Criatura",
 	"Screamers",
 	"Tienda",
 	"Insignias",
