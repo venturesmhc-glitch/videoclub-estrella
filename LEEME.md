@@ -65,6 +65,7 @@ Don Ernesto explica el trabajo y los controles. Suena hasta que alguien lo atien
 ## Cómo está armado
 - `src/` es la fuente de verdad del código (Luau). `node push.js` lo sincroniza a Studio.
 - `build/videoclub.lua` reconstruye el local (`node mcp-call.js execute_luau @build/videoclub.lua`) y `build/decoracion.lua` lo decora (corré siempre los dos, en ese orden, y antes `node push.js ReplicatedStorage` si cambió Config).
+- `build/agrupar.lua` (se corre después de `videoclub.lua` y `decoracion.lua`: `node mcp-call.js execute_luau @build/agrupar.lua`) mete las partes de cada objeto de la decoración en un Model con nombre (`MaquinaDePochoclos`, `Ficus 1`, `Sofa`, `TorreDeTelevisores`, `ExhibidorGiratorio 2`...) para poder seleccionarlo, moverlo o borrarlo entero en Studio. `decoracion.lua` borra y rehace toda la carpeta `Decoracion`: correrlo de nuevo pierde lo que hayas movido a mano (y hay que volver a agrupar).
 - Las tareas extra usan dos modelos de la toolbox guardados en el place, en `ServerStorage.Plantillas`: `trash bag` (bolsa) y `trash` (decal de suciedad); la máscara de la tienda es `ghostface.Mascara` (inventario, id 78464649977521).
   No viajan con el repo (viven en el `.rbxl`); si faltan, `ChoreSystem` usa una esfera negra y un círculo oscuro. Para ponerlos: `insert_asset` 10795701949 (trash bag) y 12900378954 (trash) y moverlos a esa carpeta.
 - `mcp-call.js` es un puente para llamar a las herramientas del servidor MCP de Studio; `studio-mcp.cmd` y `.mcp.json` lo conectan.
