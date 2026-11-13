@@ -6,3 +6,6 @@ foto.sh
 *.rbxl
 *.rbxlx
 *.rbxl.lock
+
+# Videos terminados de los reels (pesan; los scripts para rehacerlos están en promo/reel/)
+promo/reel/*.mp4
