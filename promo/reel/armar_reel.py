@@ -102,7 +102,7 @@ segmentos.append(("seg_a.mp4", D_INTRO))
 
 # ---------------------------------------------------------------- B. el Socio
 b_arriba = tarjeta("b_arriba", [("EL SOCIO N° 0000", 330, 24, AMARILLO), ("AHORA TE CAZA", 480, 28, ROJO)])
-b_abajo = tarjeta("b_abajo", [("Más rápido. Más agresivo.", 1450, 13, BLANCO), ("Si te toca, te graba.", 1540, 13, BLANCO)])
+b_abajo = tarjeta("b_abajo", [("No lo pierdas de vista.", 1450, 13, BLANCO), ("Si te toca, te graba.", 1540, 13, BLANCO)])
 flash = f"drawbox=x=0:y=0:w=iw:h=ih:color=white@0.85:t=fill:enable='between(t,{0.72 * D_SOCIO:.2f},{0.72 * D_SOCIO + 0.1:.2f})'"
 fc, et = con_texto(f"[0:v]{flash}", [(1, 0.25, D_SOCIO, False), (2, 0.9, D_SOCIO, False)])
 ff("-framerate", FPS, "-i", f"{CUADROS_SOCIO}/socio_%04d.png", "-loop", "1", "-t", D_SOCIO, "-i", b_arriba,
@@ -110,7 +110,7 @@ ff("-framerate", FPS, "-i", f"{CUADROS_SOCIO}/socio_%04d.png", "-loop", "1", "-t
 segmentos.append(("seg_b.mp4", D_SOCIO))
 
 # ---------------------------------------------------------------- C. la criatura
-c_arriba = tarjeta("c_arriba", [("UNA SOLA CRIATURA", 330, 22, AMARILLO), ("LA VE TODO EL EQUIPO", 480, 20, CIAN)])
+c_arriba = tarjeta("c_arriba", [("ALGO CAMINA POR EL TECHO", 330, 19, AMARILLO), ("TODO EL EQUIPO LO VE", 480, 20, CIAN)])
 c_abajo = tarjeta("c_abajo", [("Marcala con Q antes de que salte.", 1500, 13, BLANCO)])
 fc, et = con_texto("[0:v]null", [(1, 0.25, D_TREP, False), (2, 1.0, D_TREP, False)])
 ff("-framerate", FPS, "-i", f"{CUADROS_TREPADOR}/trepador_%04d.png", "-loop", "1", "-t", D_TREP, "-i", c_arriba,
@@ -120,15 +120,14 @@ segmentos.append(("seg_c.mp4", D_TREP))
 # ---------------------------------------------------------------- D. novedades (texto)
 d_nuevo = tarjeta("d_nuevo", [("NUEVO", 400, 34, ROJO)])
 lineas_d = [
-    ("MODO SIN FIN:", "RANKING", 640),
-    ("DESAFÍO DIARIO", "", 900),
-    ("PISTAS EN LA PARTIDA", "", 1100),
-    ("NOCHE 1 MÁS SIMPLE", "", 1300),
+    ("MODO SIN FIN:", "RANKING GLOBAL", 700),
+    ("DESAFÍO DIARIO", "", 1000),
+    ("UN LOCAL RENOVADO", "", 1200),
 ]
 d_tarjetas = []
 for i, (t1, t2, y) in enumerate(lineas_d):
     if t2:
-        d_tarjetas.append(tarjeta(f"d_{i}", [(t1, y, 21, AMARILLO), (t2, y + 110, 30, CIAN)]))
+        d_tarjetas.append(tarjeta(f"d_{i}", [(t1, y, 21, AMARILLO), (t2, y + 110, 26, CIAN)]))
     else:
         d_tarjetas.append(tarjeta(f"d_{i}", [(t1, y, 21, AMARILLO)]))
 entradas = []
@@ -142,11 +141,11 @@ ff(*fondo_estatica(D_FICHA, "0x10081a", 28), "-loop", "1", "-t", D_FICHA, "-i", 
 segmentos.append(("seg_d.mp4", D_FICHA))
 
 # ---------------------------------------------------------------- E. el local (capturas de Studio)
-e_titulo = tarjeta("e_titulo", [("EL VIDEOCLUB,", 330, 24, AMARILLO), ("REDISEÑADO", 480, 28, CIAN)])
+e_titulo = tarjeta("e_titulo", [("ASÍ SE VE", 330, 26, AMARILLO), ("EL VIDEOCLUB", 480, 26, CIAN)])
 fotos = [
     ("h4_salon.jpg", "Alfombras, afiches y neones"),
     ("h2_pochoclos.jpg", "Pochoclos y arcades"),
-    ("h1_puerta.jpg", "Entrada despejada: todo se lee"),
+    ("h1_puerta.jpg", "Abierto las 24 horas"),
 ]
 for i, (foto, pie) in enumerate(fotos):
     e_pie = tarjeta(f"e_pie{i}", [(pie, 1470, 12, BLANCO)])

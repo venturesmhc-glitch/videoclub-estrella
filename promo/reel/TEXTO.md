@@ -6,7 +6,7 @@ Reemplazá `[LINK]` por el link del juego (en Instagram el link va en la bio: en
 ```
 Actualización en Star Videoclub.
 
-El Socio N° 0000 ahora te caza. Una criatura que ve todo el equipo. Sin fin con ranking y desafío diario. Y el videoclub, rediseñado.
+El Socio N° 0000 ahora te caza. Algo camina por el techo y todo el equipo lo ve. Sin fin con ranking global y desafío diario. Y un videoclub renovado.
 
 ¿Cuántas noches aguantás? Link en la bio.
 ```
