@@ -105,6 +105,9 @@ function CriaturaVista.init()
 			aparecer(datos.cf)
 		elseif datos.accion == "ataca" then
 			-- Salta sobre alguien: el sobresalto (sonido y estática) es para quien va a recibir el golpe.
+			if objeto and objeto.ataque then
+				objeto.ataque(true) -- el Trepador recoge las patas y abre la boca (la araña de partes no tiene este gesto)
+			end
 			if datos.objetivo == Players.LocalPlayer.UserId and objeto then
 				VHSEffects.susto()
 				AudioManager.efecto(Config.Sustos.Glitch.Id, { volumen = Config.Sustos.Glitch.Volumen * 4 })

@@ -49,23 +49,27 @@ function Cascara.puntoEn(s: string, p: Vector3): Vector3
 	return Vector3.new(p.X, p.Y, cfg.ZFondo)
 end
 
---- La superficie (techo o pared) más cercana al jugador, con una ventaja para el techo y la superficie actual
---- (histéresis: no cambia de pared por una diferencia chica).
-function Cascara.elegirSuperficie(p: Vector3, actual: string?): string
-	local mejor, mejorPeso = "T", math.huge
-	for s in Cascara.NORMAL do
-		local d = (Cascara.puntoEn(s, p) - p).Magnitude
-		if s == "T" then
-			d -= cfg.VentajaTecho
-		end
-		if s == actual then
-			d -= cfg.Histeresis
-		end
-		if d < mejorPeso then
-			mejor, mejorPeso = s, d
+--- La superficie por la que anda un rato: el techo o una de las paredes. El jugador casi nunca está a menos de unos pasos de una
+--- pared, así que "la más cercana" siempre era el techo: se sortea (Config.Anomalias.Reptar.ProbPared de que sea una pared; entre las
+--- paredes, más probable la más cercana al jugador) y se mantiene hasta el próximo sorteo (CambioSuperficieSeg).
+local PAREDES = { "EP", "EN", "NP", "NN" }
+function Cascara.sortearSuperficie(p: Vector3, rng: Random): string
+	if rng:NextNumber() >= cfg.ProbPared then
+		return "T"
+	end
+	local pesos, total = {}, 0
+	for i, s in PAREDES do
+		pesos[i] = 1 / ((Cascara.puntoEn(s, p) - p).Magnitude + 8)
+		total += pesos[i]
+	end
+	local r = rng:NextNumber() * total
+	for i, s in PAREDES do
+		r -= pesos[i]
+		if r <= 0 then
+			return s
 		end
 	end
-	return mejor
+	return "T"
 end
 
 -- Punto de la arista entre el techo y la pared `pared` a la altura de lado `p`.

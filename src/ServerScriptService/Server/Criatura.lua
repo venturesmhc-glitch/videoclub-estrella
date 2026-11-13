@@ -34,6 +34,16 @@ local envioAcumulado = 0
 
 local ENVIO_SEG = 1 / 20 -- posición hacia los clientes: 20 veces por segundo
 
+-- Medidas de la criatura según el modelo que dibujan los clientes: el Trepador (esqueleto de Blender, ReplicatedStorage.TrepadorModelo)
+-- es más alto y salta desde más lejos que la araña de partes. Devuelve (altura del pecho sobre la superficie, a cuánto de la cabeza queda al saltar).
+local function medidas(): (number, number)
+	if ReplicatedStorage:FindFirstChild("TrepadorModelo") then
+		local t = Config.Anomalias.Trepador
+		return t.AlturaCuerpo, t.DistanciaSalto
+	end
+	return Config.Anomalias.Aracnido.AlturaCuerpo, 3.0
+end
+
 local function raizDe(jugador: Player): BasePart?
 	if Fantasmas.esFantasma(jugador) then
 		return nil -- quien quedó fuera de la noche no es blanco
@@ -52,7 +62,7 @@ end
 
 -- Dónde está el cuerpo (el torso flota sobre la superficie en la dirección de su "arriba").
 local function centroDe(c): Vector3
-	return c.pos + Cascara.NORMAL[c.tramoSup] * Config.Anomalias.Aracnido.AlturaCuerpo
+	return c.pos + Cascara.NORMAL[c.tramoSup] * (medidas())
 end
 
 local function jugadorMasCercano(desde: Vector3): (Player?, BasePart?)
@@ -104,6 +114,8 @@ local function aparecer()
 		superficie = "T",
 		tramoSup = "T",
 		camino = {},
+		superficieElegida = "T", -- techo o pared por la que anda ahora (se vuelve a sortear cada CambioSuperficieSeg)
+		cambiaSuperficieEn = 0,
 		adelante = adelante,
 		modo = "pausa",
 		modoHasta = 0,
@@ -130,7 +142,8 @@ local function pasoAtaque(c, dt: number)
 	end
 	local arriba = Vector3.new(0, 1, 0)
 	local mira = raiz.CFrame.LookVector
-	local meta = cabezaDe(raiz) + mira * 3.0 - arriba * Config.Anomalias.Aracnido.AlturaCuerpo
+	local alturaCuerpo, distanciaSalto = medidas()
+	local meta = cabezaDe(raiz) + mira * distanciaSalto - arriba * alturaCuerpo
 	local falta = meta - c.pos
 	local paso = cfg.VelocidadSalto * dt
 	local llego = falta.Magnitude <= paso or ahora - c.ataque.t0 > 0.7
@@ -164,7 +177,11 @@ local function paso(dt: number)
 		if objetivo and ahora >= c.siguienteCalculo then
 			c.siguienteCalculo = ahora + cfg.RecalculoSeg
 			local dentro = Cascara.limitar(objetivo)
-			local meta = Cascara.elegirSuperficie(dentro, c.superficie)
+			if ahora >= c.cambiaSuperficieEn then
+				c.cambiaSuperficieEn = ahora + rango(cfg.CambioSuperficieSeg)
+				c.superficieElegida = Cascara.sortearSuperficie(dentro, rng)
+			end
+			local meta = c.superficieElegida
 			c.camino = Cascara.armarCamino(c.superficie, c.pos, meta, Cascara.puntoEn(meta, dentro))
 		end
 
