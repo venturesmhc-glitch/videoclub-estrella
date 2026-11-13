@@ -7,7 +7,7 @@ El archivo terminado es `promo/reel/reel_actualizacion.mp4` (no se sube a git: e
 | Seg. | Bloque | Texto en pantalla |
 |---|---|---|
 | 0 – 2,4 | Cinta con "● REC" y fecha 1997 | ACTUALIZACIÓN · STAR VIDEOCLUB |
-| 2,5 – 6,1 | El Socio N° 0000 se acerca a tirones y abre la cara (Blender) | EL SOCIO N° 0000 TE BUSCA · No lo pierdas de vista. Si te toca, te graba. |
+| 2,5 – 6,1 | El Socio N° 0000 se acerca a tirones y abre la cara (Blender) | EL SOCIO N° 0000 TE PERSIGUE · No lo pierdas de vista. Si te toca, te graba. |
 | 6,2 – 9,7 | El Trepador avanza hacia la cámara (Blender) | ALGO CAMINA POR EL TECHO, NO MIRÉS ARRIBA · Marcala con Q antes de que salte. |
 | 9,8 – 13,8 | Tarjeta de novedades | NUEVO: MODO SIN FIN: RANKING GLOBAL · DESAFÍO DIARIO · UN LOCAL RENOVADO |
 | 13,9 – 19,6 | Tres capturas del local en Studio con zoom lento | ASÍ SE VE EL VIDEOCLUB · Alfombras, afiches y neones · Pochoclos y arcades · Abierto las 24 horas |
