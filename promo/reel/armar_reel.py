@@ -101,7 +101,7 @@ ff(*fondo_estatica(D_INTRO), "-loop", "1", "-t", D_INTRO, "-i", a_titulo, "-loop
 segmentos.append(("seg_a.mp4", D_INTRO))
 
 # ---------------------------------------------------------------- B. el Socio
-b_arriba = tarjeta("b_arriba", [("EL SOCIO N° 0000", 330, 24, AMARILLO), ("AHORA TE CAZA", 480, 28, ROJO)])
+b_arriba = tarjeta("b_arriba", [("EL SOCIO N° 0000", 330, 24, AMARILLO), ("NO DUERME", 480, 30, ROJO)])
 b_abajo = tarjeta("b_abajo", [("No lo pierdas de vista.", 1450, 13, BLANCO), ("Si te toca, te graba.", 1540, 13, BLANCO)])
 flash = f"drawbox=x=0:y=0:w=iw:h=ih:color=white@0.85:t=fill:enable='between(t,{0.72 * D_SOCIO:.2f},{0.72 * D_SOCIO + 0.1:.2f})'"
 fc, et = con_texto(f"[0:v]{flash}", [(1, 0.25, D_SOCIO, False), (2, 0.9, D_SOCIO, False)])
@@ -110,7 +110,7 @@ ff("-framerate", FPS, "-i", f"{CUADROS_SOCIO}/socio_%04d.png", "-loop", "1", "-t
 segmentos.append(("seg_b.mp4", D_SOCIO))
 
 # ---------------------------------------------------------------- C. la criatura
-c_arriba = tarjeta("c_arriba", [("ALGO CAMINA POR EL TECHO", 330, 19, AMARILLO), ("TODO EL EQUIPO LO VE", 480, 20, CIAN)])
+c_arriba = tarjeta("c_arriba", [("ALGO CAMINA POR EL TECHO", 330, 19, AMARILLO), ("NO MIRÉS ARRIBA", 480, 24, CIAN)])
 c_abajo = tarjeta("c_abajo", [("Marcala con Q antes de que salte.", 1500, 13, BLANCO)])
 fc, et = con_texto("[0:v]null", [(1, 0.25, D_TREP, False), (2, 1.0, D_TREP, False)])
 ff("-framerate", FPS, "-i", f"{CUADROS_TREPADOR}/trepador_%04d.png", "-loop", "1", "-t", D_TREP, "-i", c_arriba,

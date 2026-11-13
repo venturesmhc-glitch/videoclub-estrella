@@ -7,8 +7,8 @@ El archivo terminado es `promo/reel/reel_actualizacion.mp4` (no se sube a git: e
 | Seg. | Bloque | Texto en pantalla |
 |---|---|---|
 | 0 – 2,4 | Cinta con "● REC" y fecha 1997 | ACTUALIZACIÓN · STAR VIDEOCLUB |
-| 2,5 – 6,1 | El Socio N° 0000 se acerca a tirones y abre la cara (Blender) | EL SOCIO N° 0000 AHORA TE CAZA · No lo pierdas de vista. Si te toca, te graba. |
-| 6,2 – 9,7 | El Trepador avanza hacia la cámara (Blender) | ALGO CAMINA POR EL TECHO, TODO EL EQUIPO LO VE · Marcala con Q antes de que salte. |
+| 2,5 – 6,1 | El Socio N° 0000 se acerca a tirones y abre la cara (Blender) | EL SOCIO N° 0000 NO DUERME · No lo pierdas de vista. Si te toca, te graba. |
+| 6,2 – 9,7 | El Trepador avanza hacia la cámara (Blender) | ALGO CAMINA POR EL TECHO, NO MIRÉS ARRIBA · Marcala con Q antes de que salte. |
 | 9,8 – 13,8 | Tarjeta de novedades | NUEVO: MODO SIN FIN: RANKING GLOBAL · DESAFÍO DIARIO · UN LOCAL RENOVADO |
 | 13,9 – 19,6 | Tres capturas del local en Studio con zoom lento | ASÍ SE VE EL VIDEOCLUB · Alfombras, afiches y neones · Pochoclos y arcades · Abierto las 24 horas |
 | 19,7 – 23,1 | Pantalla final con el logo | ¡JUGÁ STAR VIDEOCLUB! · Buscalo en Roblox · Terror analógico · 1 a 4 jugadores |
@@ -31,5 +31,5 @@ python promo/reel/armar_reel.py <trabajo> <capturas> <carpeta>/socio <carpeta>/t
 - Para cambiar textos, tiempos o capturas se edita `armar_reel.py` (los textos están al principio de cada bloque).
 
 ## Antes de publicarlo
-El reel anuncia cosas que tienen que estar **publicadas** (Alt+P en Studio): el Socio más agresivo, la criatura compartida, el ranking y el desafío diario
+El reel anuncia cosas que tienen que estar **publicadas** (Alt+P en Studio): el Socio más agresivo, la criatura compartida (la ven todos los jugadores), el ranking y el desafío diario
 de Sin fin y el local renovado. Texto sugerido para la publicación: `promo/reel/TEXTO.md`.
