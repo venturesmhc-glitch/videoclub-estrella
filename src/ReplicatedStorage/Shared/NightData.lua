@@ -124,8 +124,6 @@ local NightData: { [number]: Noche } = {
 		cliente(95, "alquiler", "TERROR"),
 		buzon(130, "DRAMA", { danado = true }),
 		cliente(145, "devolucion", "DRAMA", { danado = true }),
-		evento(101, "BASURA", { zonas = { "LOCAL" } }),
-		evento(151, "DERRAME", { zonas = { "BANO" } }),
 		buzon(180, "ACCION"),
 		cliente(195, "alquiler", "INFANTIL"),
 		buzon(230, "TERROR"),
@@ -255,13 +253,8 @@ end
 -- La noche 1 dura la mitad (5 minutos reales): es la que tiene que enganchar, así que va más al hilo y con menos relleno.
 NightData[1].duracionSeg = 300
 ampliar(NightData[1], {
-	evento(48, "AVISO", { texto = "El local también necesita cuidados: regá la planta, ordená las fichas, contá la caja... (se marcan con un contorno)." }),
-	evento(50, "TAREA_MENOR", { ids = { "PLANTA" } }),
-	evento(70, "BASURA", { zonas = { "MOSTRADOR" } }),
+	-- La noche 1 enseña lo básico (clientes, casetes, teléfono): la basura, las manchas y las tareas del local entran desde la noche 2.
 	cliente(120, "alquiler", "ACCION"),
-	evento(125, "TAREA_MENOR", { ids = { "FICHAS" } }),
-	evento(200, "DERRAME", { zonas = { "MOSTRADOR" } }),
-	evento(210, "TAREA_MENOR", { ids = { "CAJA" } }),
 })
 
 ampliar(NightData[2], {
@@ -311,9 +304,11 @@ local function conJugadores(base: Noche, numero: number, cantidad: number): Noch
 		table.insert(eventos, cliente(26 + corrimiento, "alquiler", GENEROS[g]))
 		table.insert(eventos, cliente(135 + corrimiento, "devolucion", GENEROS[g % #GENEROS + 1]))
 		table.insert(eventos, buzon(78 + corrimiento, GENEROS[(g + 1) % #GENEROS + 1], anomalo and { anomalo = true } or nil))
-		table.insert(eventos, evento(48 + corrimiento, "BASURA", { zonas = { ZONAS_BASURA[(numero + p) % #ZONAS_BASURA + 1] } }))
-		table.insert(eventos, evento(108 + corrimiento, "DERRAME", { zonas = { ZONAS_DERRAME[(numero + p * 2) % #ZONAS_DERRAME + 1] } }))
-		table.insert(eventos, evento(180 + corrimiento, "TAREA_MENOR", { ids = { TAREAS_MENORES[(numero + p) % #TAREAS_MENORES + 1] } }))
+		if numero >= 2 then -- la noche 1 no tiene basura, manchas ni tareas del local
+			table.insert(eventos, evento(48 + corrimiento, "BASURA", { zonas = { ZONAS_BASURA[(numero + p) % #ZONAS_BASURA + 1] } }))
+			table.insert(eventos, evento(108 + corrimiento, "DERRAME", { zonas = { ZONAS_DERRAME[(numero + p * 2) % #ZONAS_DERRAME + 1] } }))
+			table.insert(eventos, evento(180 + corrimiento, "TAREA_MENOR", { ids = { TAREAS_MENORES[(numero + p) % #TAREAS_MENORES + 1] } }))
+		end
 	end
 	local noche: Noche = {
 		duracionSeg = base.duracionSeg,
@@ -343,11 +338,25 @@ end
 -- Las noches se arman solas con la misma receta (clientes, cintas, basura, manchas, tareas del local, sustos, Socio) y
 -- van subiendo de dificultad hasta la noche Config.SinFin.NocheTopeDificultad. No hay final ni cinta final: la
 -- cinta sin etiqueta sigue llegando, pero ver la cinta no termina nada.
+-- Modificador del día (mismo para todos los servidores: sale de la fecha UTC). Solo vale en el modo Sin fin.
+NightData.Modificadores = {
+	{ id = "SIN_LINTERNA", nombre = "Sin linterna", descripcion = "Hoy no hay linterna: al Socio se lo frena solo con mirarlo." },
+	{ id = "SOCIO_RAPIDO", nombre = "Socio veloz", descripcion = "Hoy el Socio es mucho más rápido." },
+	{ id = "APAGON", nombre = "Apagón", descripcion = "Hoy la luz se corta desde el principio de cada noche." },
+	{ id = "SOCIO_TEMPRANO", nombre = "Turno sin pausa", descripcion = "Hoy el Socio anda suelto desde el primer minuto." },
+}
+
+--- El modificador del día. 'ahora' son segundos Unix (el servidor pasa os.time(); el cliente workspace:GetServerTimeNow()).
+function NightData.modificadorDiario(ahora: number?)
+	local dia = math.floor((ahora or os.time()) / 86400)
+	return NightData.Modificadores[dia % #NightData.Modificadores + 1]
+end
+
 local MODOS_CLIENTES = { "normal", "repetir", "mismo" }
 local TIPOS_SUSTO = { "tele", "luces", "ventana" }
 local sinFinCache: { [string]: Noche } = {}
 
-local function generarSinFin(n: number): Noche
+local function generarSinFin(n: number, modificador): Noche
 	local rng = Random.new(n * 7919 + 13)
 	local d = math.min(n, Config.SinFin.NocheTopeDificultad)
 	local eventos: { Evento } = {}
@@ -438,6 +447,13 @@ local function generarSinFin(n: number): Noche
 	if n == 1 then
 		table.insert(eventos, evento(5, "AVISO", { texto = "Sin fin: cada noche es peor y no hay final. Aguantá todo lo que puedas." }))
 	end
+	-- El modificador del día.
+	table.insert(eventos, evento(8, "AVISO", { texto = modificador.descripcion }))
+	if modificador.id == "APAGON" and n < 4 then
+		table.insert(eventos, evento(2, "CORTE_LUZ", { valor = true }))
+	elseif modificador.id == "SOCIO_TEMPRANO" then
+		table.insert(eventos, evento(3, "SOCIO_ACTIVA"))
+	end
 
 	return noche("Turno sin fin", "Resistir", modoClientes, eventos)
 end
@@ -445,9 +461,10 @@ end
 --- La noche del modo Sin fin (la cantidad de jugadores suma tareas igual que en la historia).
 function NightData.sinFin(numero: number, cantidad: number): Noche
 	cantidad = math.clamp(cantidad, 1, 4)
-	local clave = numero .. ":" .. cantidad
+	local modificador = NightData.modificadorDiario()
+	local clave = numero .. ":" .. cantidad .. ":" .. modificador.id
 	if not sinFinCache[clave] then
-		local base = generarSinFin(numero)
+		local base = generarSinFin(numero, modificador)
 		sinFinCache[clave] = if cantidad > 1 then conJugadores(base, numero, cantidad) else base
 	end
 	return sinFinCache[clave]

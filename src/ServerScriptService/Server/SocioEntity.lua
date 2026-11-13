@@ -89,6 +89,11 @@ local ultimoSentido = 0
 local destinoBusqueda: Vector3? = nil
 local huboMirada = false
 local proximaRutaIA = 0
+local nocheActual = 1
+local sinMirada = 0 -- segundos seguidos sin que nadie lo mire
+local embistiendo = false -- (caza) hay un jugador cerca y nadie lo alumbra: corre más
+local desatado = false -- (caza) lleva un rato sin que nadie lo mire: corre más
+local bloqueos = {} -- funciones que, si devuelven true, impiden que reaparezca (otra amenaza está en juego)
 
 local ALTURA_CENTRO = 4.2 -- altura del torso respecto del piso
 
@@ -321,6 +326,28 @@ local function distanciaPlana(a: Vector3, b: Vector3): number
 	return (Vector3.new(a.X, 0, a.Z) - Vector3.new(b.X, 0, b.Z)).Magnitude
 end
 
+-- ¿El cuerpo del Socio toca a este jugador? Cuenta la distancia a los pies y también la caja que ocupa el modelo (brazos incluidos):
+-- el cuerpo es enorme y antes, aunque se le superpusiera el personaje, no lo agarraba si el centro de los pies seguía lejos.
+local function tocaA(raiz: BasePart): boolean
+	if distanciaPlana(raiz.Position, posicion) < cfg.DistanciaCaptura then
+		return true
+	end
+	if not modelo or not modelo.Parent then
+		return false
+	end
+	local ok, caja, tam = pcall(function()
+		return modelo:GetBoundingBox()
+	end)
+	if not ok then
+		return false
+	end
+	local local_ = caja:PointToObjectSpace(raiz.Position)
+	local mitad = tam * 0.5 * cfg.CapturaCuerpo
+	local dx = math.max(math.abs(local_.X) - mitad.X, 0)
+	local dz = math.max(math.abs(local_.Z) - mitad.Z, 0)
+	return math.abs(local_.Y) <= tam.Y * 0.5 + 2 and math.sqrt(dx * dx + dz * dz) < cfg.CapturaMargen
+end
+
 local function nodoMasLejanoDeTodos(): Vector3
 	local mejor, mejorDist = nodos[1] and nodos[1].pos or Vector3.new(0, 0, -16), -1
 	for _, n in nodos do
@@ -344,12 +371,40 @@ end
 
 local function velocidad(): number
 	local caza = cfg.VelocidadBase + cfg.VelocidadPorProgreso * presion()
+	local v = caza
 	if fase == "acecho" then
-		return caza * cfg.AcechoVelocidad
+		v = caza * cfg.AcechoVelocidad
 	elseif fase == "busqueda" then
-		return caza * 0.6
+		v = caza * 0.6
+	else
+		-- En la caza, quien está encima sin luz o lleva rato sin que lo miren corre más (con un tope).
+		local mult = 1
+		if embistiendo then
+			mult *= cfg.EmbestidaFactor
+		end
+		if desatado then
+			mult *= cfg.DesatadoFactor
+		end
+		v = caza * math.min(mult, cfg.MultiplicadorMax)
 	end
-	return caza
+	if workspace:GetAttribute("ModDiario") == "SOCIO_RAPIDO" then
+		v *= 1.3
+	end
+	return v
+end
+
+-- Las noches tardías le dan menos descanso entre apariciones.
+local function entreApariciones(): { number }
+	return nocheActual >= cfg.NocheTardia and cfg.EntreAparicionesTarde or cfg.EntreApariciones
+end
+
+local function bloqueado(): boolean
+	for _, fn in bloqueos do
+		if fn() then
+			return true
+		end
+	end
+	return false
 end
 
 -- ===== IA: sentidos, emboscadas y fases =====
@@ -499,7 +554,7 @@ local function rutaHacia(destino: Vector3)
 	local d = distanciaPlana(destino, posicion)
 	local de = Vector3.new(posicion.X, 3, posicion.Z)
 	local a = Vector3.new(destino.X, 3, destino.Z)
-	if d < 9 and not workspace:Raycast(de, a - de, paramsVista()) then
+	if d < (cfg.PersecucionDirectaDistancia or 9) and not workspace:Raycast(de, a - de, paramsVista()) then
 		ruta = { Vector3.new(destino.X, 0, destino.Z) }
 	else
 		ruta = calcularRuta(posicion, destino)
@@ -526,6 +581,11 @@ end
 
 function SocioEntity.agregarProgreso(delta: number)
 	progreso = math.clamp(progreso + delta, 0, cfg.ProgresoMax)
+end
+
+--- Otro sistema (las anomalías) pide que el Socio no reaparezca mientras fn() devuelva true: una amenaza a la vez.
+function SocioEntity.agregarBloqueo(fn: () -> boolean)
+	table.insert(bloqueos, fn)
 end
 
 function SocioEntity.ignorarMirada(jugador: Player, valor: boolean)
@@ -776,15 +836,15 @@ local function pensar(observado: boolean, alumbrado: boolean): (number, boolean)
 		if embestida then
 			if ahora >= embestida.hasta then
 				if embestida.fase == "aviso" then
-					embestida = { fase = "carga", hasta = ahora + cfg.EmbestidaSeg }
+					embestida = { fase = "carga", hasta = ahora + cfg.LanceSeg }
 					Net.obtener("SocioEvento"):FireAllClients("embiste")
 				else
 					embestida = nil
-					proximaEmbestida = ahora + rng:NextNumber(cfg.EmbestidaCada[1], cfg.EmbestidaCada[2])
+					proximaEmbestida = ahora + rng:NextNumber(cfg.LanceCada[1], cfg.LanceCada[2])
 				end
 			end
 			if embestida then
-				factor = embestida.fase == "aviso" and 0 or cfg.EmbestidaFactor
+				factor = embestida.fase == "aviso" and 0 or cfg.LanceFactor
 				if embestida.fase == "aviso" then
 					encarar(raizCercana.Position)
 				end
@@ -792,8 +852,8 @@ local function pensar(observado: boolean, alumbrado: boolean): (number, boolean)
 					rutaHacia(posSentida)
 				end
 			end
-		elseif ahora >= proximaEmbestida and ve and distancia >= cfg.EmbestidaDist[1] and distancia <= cfg.EmbestidaDist[2] and not alumbrado then
-			embestida = { fase = "aviso", hasta = ahora + cfg.EmbestidaAvisoSeg }
+		elseif ahora >= proximaEmbestida and ve and distancia >= cfg.LanceDist[1] and distancia <= cfg.LanceDist[2] and not alumbrado then
+			embestida = { fase = "aviso", hasta = ahora + cfg.LanceAvisoSeg }
 			Net.obtener("SocioEvento"):FireAllClients("aviso")
 		end
 		-- Fin de la caza: se va, salvo que alguien siga muy cerca (entonces sigue un rato más).
@@ -900,6 +960,7 @@ function SocioEntity.init()
 
 	NightManager.suscribir("NOCHE_INICIA", function(datos)
 		SocioEntity.desactivar()
+		nocheActual = datos.noche
 		-- Pasada la última noche de la historia (modo Sin fin) el Socio arranca un poco más rápido cada noche.
 		local pasadas = math.max(0, datos.noche - #cfg.PorNoche)
 		progreso = math.min(cfg.ProgresoMax, (cfg.PorNoche[datos.noche] or cfg.PorNoche[#cfg.PorNoche]) + pasadas * Config.SinFin.ProgresoSocioPorNoche)
@@ -962,20 +1023,37 @@ function SocioEntity.init()
 			if enTurno and activo and (terminar or os.clock() - aparicionDesde >= cfg.AparicionMaxSeg) then
 				SocioEntity.desactivar()
 				ciclo = true
-				reaparecerEn = os.clock() + rng:NextNumber(cfg.EntreApariciones[1], cfg.EntreApariciones[2]) * (1 - (1 - cfg.TensionEntreMin) * presion())
-			elseif enTurno and not activo and ciclo and reaparecerEn and os.clock() >= reaparecerEn then
+				local rango = entreApariciones()
+					reaparecerEn = os.clock() + rng:NextNumber(rango[1], rango[2]) * (1 - (1 - cfg.TensionEntreMin) * presion())
+			elseif enTurno and not activo and ciclo and reaparecerEn and os.clock() >= reaparecerEn and not bloqueado() then
 				SocioEntity.activar()
 			end
 			local observado = enTurno and activo and (alguienLoMira() or os.clock() < pausadoHasta)
 			ultimoObservado = observado
 			-- Solo lo frena la linterna: mirarlo sin luz no sirve. Alumbrado, se arrastra más lento (y sus pasos también) y se paraliza de cara.
-			local alumbrado = observado and alguienLoMira(true)
+			-- Con el modificador diario "Sin linterna" no hay luz: alcanza con mirarlo para frenarlo.
+			local alumbrado = observado and (workspace:GetAttribute("ModDiario") == "SIN_LINTERNA" or alguienLoMira(true))
+			sinMirada = if observado then 0 else sinMirada + cfg.TickSeg
 			local factor = alumbrado and cfg.VelocidadMirado or 1
 			if animacion then
 				animacion.ralentizar(factor)
 			end
 
 			if enTurno and activo then
+				-- Solo en la caza: con un jugador cerca y sin luz encima, o tras un rato sin que lo miren, corre más (ver velocidad()).
+				embistiendo, desatado = false, false
+				if fase == "caza" and not embestida then
+					desatado = sinMirada >= cfg.DesatadoDespuesSeg
+					if not alumbrado then
+						for _, jugador in Players:GetPlayers() do
+							local raiz = raizDe(jugador)
+							if raiz and distanciaPlana(raiz.Position, posicion) < cfg.EmbestidaDistancia then
+								embistiendo = true
+								break
+							end
+						end
+					end
+				end
 				-- La pausa de cinta de la tienda lo congela por completo (no se mueve ni captura).
 				local pausado = os.clock() < pausadoHasta
 				if pausado then
@@ -989,7 +1067,7 @@ function SocioEntity.init()
 				end
 				for _, jugador in Players:GetPlayers() do
 					local raiz = raizDe(jugador)
-					if raiz and not pausado and os.clock() >= sinCapturaHasta and distanciaPlana(raiz.Position, posicion) < cfg.DistanciaCaptura then
+					if raiz and not pausado and os.clock() >= sinCapturaHasta and tocaA(raiz) then
 						capturar(jugador)
 						break
 					end

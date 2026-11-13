@@ -8,7 +8,6 @@
 	  TituloCambiado   una portada de las góndolas muestra un título que no existe
 	  CaratulaAlterada una portada cambia de color y se tapa el título
 	  ObjetoMovido     un objeto del local aparece desplazado y girado
-	  FiguraAlFondo    una silueta que camina por el techo y las paredes y te sigue (desaparece si se la mira fijo)
 	Cada anomalía se activa en un minuto distinto de la noche.
 ]]
 
@@ -37,7 +36,8 @@ export type Escena = {
 
 local AnomalyCatalog = {}
 
-AnomalyCatalog.Tipos = { "TituloCambiado", "CaratulaAlterada", "ObjetoMovido", "FiguraAlFondo" }
+-- (La criatura del techo ya no es una anomalía por jugador: es una sola para todo el equipo, ver Server/Criatura.)
+AnomalyCatalog.Tipos = { "TituloCambiado", "CaratulaAlterada", "ObjetoMovido" }
 AnomalyCatalog.ColoresExtranos = {
 	Color3.fromRGB(235, 235, 235),
 	Color3.fromRGB(8, 8, 8),

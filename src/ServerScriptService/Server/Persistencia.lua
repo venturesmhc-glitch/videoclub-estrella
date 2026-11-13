@@ -20,12 +20,16 @@ local Persistencia = {}
 
 local NOMBRE_ALMACEN = "VideoclubEstrella_v1"
 local almacen
+local ranking -- OrderedDataStore con la mejor racha de cada jugador en Sin fin
+local rankingLocal = {} -- UserId -> { nombre, valor }: lo que se vio en este servidor (también sirve si el almacén no está disponible)
+local nombres = {} -- UserId -> nombre
+local cacheRanking, cacheRankingT = nil, 0
 local perfiles = {} -- Player -> perfil
 local cargados = {} -- Player -> true cuando terminó de cargar (con datos o con los de por defecto)
 local avisado = false
 
 local function perfilNuevo()
-	return { nocheAlcanzada = 1, finales = {}, empleadosMenos = 0, insignias = {}, mejorSinFin = 0, compras = {}, equipado = {} }
+	return { nocheAlcanzada = 1, finales = {}, empleadosMenos = 0, insignias = {}, mejorSinFin = 0, compras = {}, equipado = {}, pistas = {}, colorLinterna = 1 }
 end
 
 local function tieneFinal(perfil): boolean
@@ -42,6 +46,7 @@ local function paquetePerfil(perfil)
 		mejorSinFin = perfil.mejorSinFin,
 		compras = perfil.compras,
 		equipado = perfil.equipado,
+		colorLinterna = perfil.colorLinterna,
 		sinFinDesbloqueado = tieneFinal(perfil),
 	}
 end
@@ -86,6 +91,8 @@ local function cargar(jugador: Player)
 					perfil.mejorSinFin = tonumber(datos.mejorSinFin) or 0
 					perfil.compras = typeof(datos.compras) == "table" and datos.compras or {}
 					perfil.equipado = typeof(datos.equipado) == "table" and datos.equipado or {}
+					perfil.pistas = typeof(datos.pistas) == "table" and datos.pistas or {}
+					perfil.colorLinterna = math.clamp(tonumber(datos.colorLinterna) or 1, 1, #Config.Tienda.ColoresLinterna)
 				end
 				break
 			end
@@ -148,8 +155,64 @@ function Persistencia.registrarSinFin(superadas: number)
 			perfil.mejorSinFin = superadas
 			enviarPerfil(jugador)
 			task.spawn(guardar, jugador)
+			rankingLocal[jugador.UserId] = { nombre = jugador.DisplayName, valor = superadas }
+			nombres[jugador.UserId] = jugador.DisplayName
+			cacheRanking = nil
+			if ranking then
+				task.spawn(function()
+					pcall(function()
+						ranking:SetAsync(tostring(jugador.UserId), superadas)
+					end)
+				end)
+			end
 		end
 	end
+end
+
+local function nombreDe(userId: number): string
+	if not nombres[userId] then
+		local ok, nombre = pcall(function()
+			return Players:GetNameFromUserIdAsync(userId)
+		end)
+		nombres[userId] = ok and nombre or "???"
+	end
+	return nombres[userId]
+end
+
+--- Las 10 mejores rachas del modo Sin fin: { { nombre, valor } } de mayor a menor. Se guarda 30 s para no pedirlo seguido.
+function Persistencia.ranking()
+	if cacheRanking and os.clock() - cacheRankingT < 30 then
+		return cacheRanking
+	end
+	local lista = {}
+	if ranking then
+		local ok, paginas = pcall(function()
+			return ranking:GetSortedAsync(false, 10)
+		end)
+		if ok and paginas then
+			local ok2, filas = pcall(function()
+				return paginas:GetCurrentPage()
+			end)
+			if ok2 then
+				for _, fila in filas do
+					table.insert(lista, { nombre = nombreDe(tonumber(fila.key) or 0), valor = fila.value })
+				end
+			end
+		end
+	end
+	if #lista == 0 then
+		for _, fila in rankingLocal do
+			table.insert(lista, fila)
+		end
+		table.sort(lista, function(a, b)
+			return a.valor > b.valor
+		end)
+		while #lista > 10 do
+			table.remove(lista)
+		end
+	end
+	cacheRanking, cacheRankingT = lista, os.clock()
+	return lista
 end
 
 --- Anota una insignia en el perfil. Devuelve true si era nueva (hay que avisarle al jugador), false si ya la tenía.
@@ -197,6 +260,33 @@ function Persistencia.equipar(jugador: Player, ranura: string, valor: string?)
 	perfil.equipado[ranura] = valor
 	enviarPerfil(jugador)
 	task.spawn(guardar, jugador)
+end
+
+--- Guarda el color de linterna elegido (índice en Config.Tienda.ColoresLinterna).
+function Persistencia.fijarColorLinterna(jugador: Player, indice: number)
+	local perfil = perfiles[jugador]
+	if perfil and indice >= 1 and indice <= #Config.Tienda.ColoresLinterna then
+		perfil.colorLinterna = indice
+		enviarPerfil(jugador)
+	end
+end
+
+--- Anota que ya se le mostró esta pista. Devuelve true si era la primera vez (hay que mostrarla), false si ya la había visto.
+function Persistencia.marcarPista(jugador: Player, id: string): boolean
+	local perfil = perfiles[jugador]
+	if not perfil or perfil.pistas[id] then
+		return false
+	end
+	perfil.pistas[id] = true
+	return true -- se guarda con el resto del perfil al salir o al terminar la noche
+end
+
+--- Para pruebas: olvida las pistas vistas.
+function Persistencia.olvidarPistas(jugador: Player)
+	local perfil = perfiles[jugador]
+	if perfil then
+		perfil.pistas = {}
+	end
 end
 
 --- Para pruebas: marca un final como alcanzado (habilita el modo Sin fin) sin pasar por el turno.
@@ -277,6 +367,19 @@ function Persistencia.init()
 	else
 		avisarSinAlmacen(resultado)
 	end
+
+	pcall(function()
+		ranking = DataStoreService:GetOrderedDataStore("VideoclubEstrella_SinFin_v1")
+	end)
+	Net.obtener("Ranking").OnServerEvent:Connect(function(jugador)
+		if not Net.limitar(jugador, "ranking", 2) then
+			return
+		end
+		task.spawn(function()
+			local perfil = perfiles[jugador]
+			Net.obtener("Ranking"):FireClient(jugador, { lista = Persistencia.ranking(), mio = perfil and perfil.mejorSinFin or 0 })
+		end)
+	end)
 
 	NightManager.registrarNocheInicial(Persistencia.nocheInicial)
 	NightManager.registrarRecordSinFin(Persistencia.mejorSinFin)

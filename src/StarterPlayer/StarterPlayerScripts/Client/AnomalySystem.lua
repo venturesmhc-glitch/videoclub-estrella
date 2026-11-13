@@ -2,12 +2,12 @@
 --[[
 	AnomalySystem (cliente) — Fase 3.
 	Genera, solo en la pantalla de este jugador, anomalías sutiles en el local (títulos de portadas cambiados,
-	carátulas alteradas, objetos movidos, una figura al fondo de un pasillo). Cada jugador ve cosas distintas.
+	carátulas alteradas, objetos movidos). Cada jugador ve cosas distintas. La criatura del techo no es de este sistema:
+	es una sola para todo el equipo (Server/Criatura y Client/CriaturaVista), aunque la Q para marcarla se atiende acá.
 
 	La semilla la manda el servidor (remote AnomalySeed); con ella se arma la misma lista que tiene el servidor.
 	Para marcar una anomalía hay que apuntarle y apretar Q (en móviles, el botón REPORTAR): el cliente solo
 	avisa y el servidor valida; si la acepta, manda "resolver" y la anomalía se corrige en pantalla.
-	La figura desaparece sola si se la mira fijo un rato (o pasado un tiempo), pero entonces cuenta como no detectada.
 ]]
 
 local CollectionService = game:GetService("CollectionService")
@@ -20,11 +20,7 @@ local AnomalyCatalog = require(ReplicatedStorage.Shared.AnomalyCatalog)
 local Catalogo = require(ReplicatedStorage.Shared.Catalogo)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Net = require(ReplicatedStorage.Shared.Net)
-local Aracnido = require(script.Parent.Aracnido)
-local Reptante = require(script.Parent.Reptante)
-local Screamers = require(script.Parent.Screamers)
-local Temblor = require(script.Parent.Temblor)
-local AudioManager = require(script.Parent.AudioManager)
+local CriaturaVista = require(script.Parent.CriaturaVista)
 local DialogUI = require(script.Parent.DialogUI)
 local TaskCard = require(script.Parent.TaskCard)
 local VHSEffects = require(script.Parent.VHSEffects)
@@ -96,48 +92,10 @@ local function aplicarMovido(a)
 	end
 end
 
-local function aplicarFigura(a, registro)
-	local punto = escena.instancias[a.objetivo]
-	if not punto then
-		return nil
-	end
-	local criatura = Aracnido.crear() -- la criatura de patas largas que anda por el techo y las paredes: NO es el Socio
-	local modelo = criatura.modelo
-	-- Aparece sin aviso: el zumbido se corta un instante y suena un chasquido bajito (sin música ni grito).
-	AudioManager.cortar("Zumbido", 1.1)
-	AudioManager.efecto(Config.Sustos.Glitch.Id, { volumen = Config.Sustos.Glitch.Volumen * 0.7, retardo = 0.05 })
-	for _, p in modelo:GetDescendants() do
-		if p:IsA("BasePart") then
-			p:SetAttribute("AnomaliaRef", a.id)
-		end
-	end
-	CollectionService:AddTag(modelo, "ApagaLuces") -- las luces del local se van donde está (Client/LuzFluorescente)
-	-- Aparece colgada del techo, sobre su punto, y desde ahí camina por el techo y las paredes siguiéndote.
-	local control = {}
-	registro.control = control
-	local detener = Reptante.iniciar(modelo, punto.Position, {
-		dibujar = criatura.actualizar,
-		control = control,
-		-- La criatura nueva (Trepador) trae sus propias medidas y recoge las patas al saltar; la vieja usa los valores de Config.
-		alturaCuerpo = criatura.alturaCuerpo,
-		distanciaAtaque = criatura.distanciaAtaque,
-		alAtacar = criatura.ataque,
-	})
-	modelo.Parent = workspace -- (después de la primera pose: así no aparece un cuadro en el origen)
-	registro.modelo = modelo
-	return function()
-		detener()
-		criatura.destruir()
-		registro.modelo = nil
-		Temblor.fijarLocal(0)
-	end
-end
-
 local APLICAR = {
 	TituloCambiado = aplicarTitulo,
 	CaratulaAlterada = aplicarCaratula,
 	ObjetoMovido = aplicarMovido,
-	FiguraAlFondo = aplicarFigura,
 }
 
 local function restaurarTodo()
@@ -148,28 +106,6 @@ local function restaurarTodo()
 	end
 	activas, resueltas = {}, {}
 	detectadas = 0
-end
-
--- La criatura no se marcó con Q: te salta encima y te hace un jumpscare (después desaparece).
-local function atacar(a, registro)
-	if registro.atacando or not registro.control or not registro.control.atacar then
-		return
-	end
-	registro.atacando = true
-	VHSEffects.susto()
-	AudioManager.efecto(Config.Sustos.Glitch.Id, { volumen = Config.Sustos.Glitch.Volumen * 4 })
-	registro.control.atacar(function()
-		if not registro.restaurar then
-			return -- justo la marcó con Q: se salvó
-		end
-		Screamers.reproducir(nil, "aracnido") -- screamer propio de la araña (no el del Socio)
-		task.delay(0.2, function()
-			if activas[a.id] == registro and registro.restaurar then
-				registro.restaurar()
-				registro.restaurar = nil
-			end
-		end)
-	end)
 end
 
 local function activar(a)
@@ -211,6 +147,11 @@ local function reportar()
 		local portadaId = instancia:GetAttribute("PortadaId")
 		local movibleId = instancia:GetAttribute("AnomaliaId")
 		local ref = instancia:GetAttribute("AnomaliaRef")
+		if ref == "CRIATURA" then
+			-- La criatura la ven todos: el servidor valida y la saca para el equipo entero.
+			Net.obtener("Criatura"):FireServer({ marcar = true })
+			return
+		end
 		for _, a in lista do
 			if activas[a.id] and not resueltas[a.id] and (a.objetivo == portadaId or a.objetivo == movibleId or a.id == ref) then
 				id = a.id
@@ -286,23 +227,9 @@ function AnomalySystem.init()
 					end
 				end
 			end
-			if registro and registro.modelo then
-				-- Si no se la marcó con Q, al alcanzarte (o pasado su tiempo de vida) te salta encima.
-				local torso = registro.modelo:FindFirstChild("Torso")
-				local centro = torso and torso.Position or registro.modelo:GetPivot().Position -- (el pivote del modelo no sigue al cuerpo: se mide al torso)
-				local hacia = centro - camara.CFrame.Position
-				local mirada = camara.CFrame.LookVector:Dot(hacia.Unit)
-				-- Efectos de cercanía: la cámara tiembla cada vez más y, si te alcanza, un sobresalto.
-				local ef = Config.Anomalias.Efecto
-				local d = hacia.Magnitude
-				local cerca = math.clamp(1 - d / ef.DistanciaTemblor, 0, 1)
-				Temblor.fijarLocal(cerca ^ 1.2 * ef.TemblorMax)
-				if not registro.atacando and (d < ef.DistanciaToque or os.clock() - registro.inicio > cfg.VidaFiguraSeg) then
-					atacar(a, registro)
-				end
-			end
 		end
-		VHSEffects.setAnomalia(cercania)
+		-- La estática del filtro sube con lo que tengas cerca y de frente: una anomalía quieta o la criatura del techo.
+		VHSEffects.setAnomalia(math.max(cercania, CriaturaVista.cercania()))
 	end)
 
 	UserInputService.InputBegan:Connect(function(entrada, procesado)

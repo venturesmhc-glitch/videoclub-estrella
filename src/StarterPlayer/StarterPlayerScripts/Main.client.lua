@@ -26,6 +26,8 @@ local ORDEN = {
 	"DialogUI",
 	"TaskCard",
 	"AnomalySystem",
+	"CriaturaVista",
+	"Pistas",
 	"Tele",
 	"CursedTapeSystem",
 	"RulesUI",

@@ -290,7 +290,7 @@ function Screamers.init()
 	task.spawn(armarCuerpo) -- la malla tarda un poco en cargar: se prepara antes del primer screamer
 	Net.obtener("Screamer").OnClientEvent:Connect(function(datos)
 		local tabla = typeof(datos) == "table"
-		Screamers.reproducir(tabla and datos.variante or nil, nil, tabla and datos.captura == true)
+		Screamers.reproducir(tabla and datos.variante or nil, tabla and datos.criatura or nil, tabla and datos.captura == true)
 	end)
 end
 

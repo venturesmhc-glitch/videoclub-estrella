@@ -96,8 +96,8 @@ Catalogo.Telefono = {
 			lineas = {
 				"Soy Ernesto otra vez. Escuchame bien: desde anoche pasan cosas raras en el local.",
 				"A veces algo aparece cambiado: un título que no existe, una carátula rara, un objeto fuera de lugar, o una sombra que camina por el techo y las paredes.",
-				"Eso son anomalías. Cuando veas una, apuntale y apretá Q. Si acertás, queda registrada y el Socio se calma un poco. Si las dejás, se enoja. Y a la que anda por el techo, si no la marcás a tiempo, se te tira encima. Y a la que anda por el techo, si no la marcás a tiempo, se te tira encima.",
-				"En tu ficha, abajo de todo, figura cuántas encontraste. Cada uno ve las suyas, así que no se las puede copiar al compañero.",
+				"Eso son anomalías. Cuando veas una, apuntale y apretá Q. Si acertás, queda registrada y el Socio se calma un poco. Si las dejás, se enoja. Y a la que anda por el techo, si no la marcás a tiempo, se te tira encima.",
+				"En tu ficha, abajo de todo, figura cuántas encontraste. Los cambios en el local los ve cada uno distintos, así que no se los puede copiar al compañero. La que anda por el techo, en cambio, es una sola y la ven todos: si alguien la marca, desaparece para el equipo.",
 				"Ojo: la sombra que camina por el techo es una anomalía, no es él. El Socio es otra cosa: cuando lo mirás se arrastra mucho más lento. A ese no se le apunta con la Q: se lo mira y no se le saca la vista de encima.",
 			},
 		},

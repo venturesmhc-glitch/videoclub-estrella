@@ -93,6 +93,8 @@ function PhoneUI.init()
 			for _, linea in datos.lineas do
 				DialogUI.mostrar({ speaker = datos.speaker, texto = linea, extraSeg = Config.Telefono.LecturaExtraSeg })
 			end
+			-- Terminó de leer: con todos listos, el servidor deja que lleguen los clientes (la llamada de bienvenida).
+			Net.obtener("PhoneAnswer"):FireServer({ fin = true })
 		end)
 	end)
 end

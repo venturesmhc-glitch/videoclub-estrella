@@ -20,6 +20,7 @@ local AnomalyJudge = require(script.Parent.AnomalyJudge)
 local ChoreSystem = require(script.Parent.ChoreSystem)
 local Partida = require(script.Parent.Partida)
 local CursedTapeSystem = require(script.Parent.CursedTapeSystem)
+local Criatura = require(script.Parent.Criatura)
 local CustomerSystem = require(script.Parent.CustomerSystem)
 local EndingSystem = require(script.Parent.EndingSystem)
 local Mundo = require(script.Parent.Mundo)
@@ -186,6 +187,12 @@ end
 
 function comandos.socio()
 	return SocioEntity.estadoTexto()
+end
+
+-- La criatura compartida del techo: la hace aparecer ahora.
+function comandos.criatura()
+	Criatura.forzar()
+	return Criatura.estadoTexto()
 end
 
 function comandos.capturar()

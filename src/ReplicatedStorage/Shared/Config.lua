@@ -343,6 +343,16 @@ Config.Socio = {
 	VelocidadPorProgreso = 8.5, -- se suma con progreso máximo: en las últimas noches corre casi como un jugador que sprinta
 	PersecucionSeg = 30, -- (en desuso: ahora cada aparición tiene fases, ver AcechoSeg / CazaSeg)
 	EntreApariciones = { 38, 62 }, -- una vez que la noche lo activó, vuelve a aparecer pasado este rango (s); con la presión alta se acorta (ver TensionEntreMin)
+	-- Desde la noche NocheTardia hay menos descanso entre apariciones.
+	NocheTardia = 4,
+	EntreAparicionesTarde = { 26, 46 },
+	-- En la CAZA corre más si nadie lo mira (se "desata") o si hay un jugador cerca y sin luz encima (con un tope).
+	DesatadoDespuesSeg = 3, -- segundos sin que nadie lo mire para que se desate
+	DesatadoFactor = 1.12,
+	EmbestidaDistancia = 18, -- studs al jugador más cercano
+	EmbestidaFactor = 1.15,
+	MultiplicadorMax = 1.25, -- tope de la suma de los dos
+	PersecucionDirectaDistancia = 32, -- studs: si ve al jugador sin paredes en el medio va derecho a él, sin pasar por los waypoints
 	-- ===== Rework: cada aparición tiene fases =====
 	-- ACECHO: te sigue desde lejos; si lo mirás se queda quieto y te mira; cuando mirás para otro lado reaparece más cerca.
 	-- CAZA: ruge, se apagan las luces y corre hacia vos (con embestidas). BUSQUEDA: si te pierde, va al último lugar donde te sintió.
@@ -359,11 +369,11 @@ Config.Socio = {
 	VisionSocio = 60, -- studs a los que te ve (con línea de visión)
 	OidoCaminando = 15, -- studs a los que te oye caminar (aunque no te vea)
 	OidoCorriendo = 40, -- y corriendo (por eso correr sin necesidad te delata)
-	EmbestidaCada = { 6, 10 }, -- cada tanto, en la caza, se detiene un instante (aviso) y se lanza
-	EmbestidaAvisoSeg = 0.5,
-	EmbestidaSeg = 0.9,
-	EmbestidaFactor = 1.75,
-	EmbestidaDist = { 7, 24 },
+	LanceCada = { 6, 10 }, -- cada tanto, en la caza, se detiene un instante (aviso) y se lanza
+	LanceAvisoSeg = 0.5,
+	LanceSeg = 0.9,
+	LanceFactor = 1.75,
+	LanceDist = { 7, 24 },
 	GraciaCapturaSeg = 7, -- después de agarrar a alguien no puede capturar durante este tiempo
 	PostCapturaSeg = { 20, 34 }, -- y se esfuma: reaparece pasado este rato (s), lejos y fuera de la vista
 	TensionEntreMin = 0.5, -- con presión máxima el descanso entre apariciones se reduce a esta fracción
@@ -382,7 +392,9 @@ Config.Socio = {
 	VelocidadMirado = 0.4, -- mientras alguien lo mira Y lo alumbra con la linterna prendida se frena (pero sigue viniendo): avanza a esta fracción de su velocidad. Mirarlo sin luz no lo frena
 	LinternaAngulo = 22, -- grados: qué tan centrado tiene que estar en la luz para que cuente como alumbrado (la luz abre 29)
 	LinternaAlcance = 50, -- studs: a más distancia la luz no lo frena (la luz llega a 55)
-	DistanciaCaptura = 4.2,
+	DistanciaCaptura = 3.4, -- studs hasta el pie del Socio (además cuenta el cuerpo: ver CapturaCuerpo)
+	CapturaCuerpo = 0.8, -- fracción del tamaño real del cuerpo (brazos incluidos) que cuenta como "tocar": si el modelo se superpone con el jugador, lo agarra
+	CapturaMargen = 1.2, -- studs de colchón alrededor de ese cuerpo
 	BocaDistancia = 7, -- studs (unos 2 m): a menos de esto de un jugador la cara se parte en dos y se abre hacia los lados (SocioHuesos)
 	BocaAngulo = 75, -- grados que gira cada mitad de la cara cuando se abre del todo
 	DistanciaPeligro = 45, -- a esta distancia el peligro empieza a subir
@@ -391,12 +403,12 @@ Config.Socio = {
 	LookVencimientoSeg = 0.8, -- un reporte más viejo que esto no cuenta como "mirando"
 	LookToleranciaCamara = 10, -- la cámara informada debe estar cerca de la cabeza del personaje
 	TickSeg = 0.1,
-	RecalcularRutaSeg = 1.5,
+	RecalcularRutaSeg = 0.5, -- con 1,5 s perseguía el lugar donde el jugador ya no estaba
 	PeligroEnvioSeg = 0.2,
 	CapturasPorJugador = 2, -- a la segunda captura el jugador queda fuera de la noche (pasa a ser espectador); si caen todos, la noche fracasa
 	AturdimientoSeg = 3.5,
 	GraciaAparicionSeg = 4, -- al aparecer, no puede capturar durante este tiempo (da lugar a reaccionar)
-	GraciaCintaSeg = 90, -- desde que llega la cinta sin etiqueta no puede capturar: tiempo para agarrarla y verla con calma
+	GraciaCintaSeg = 35, -- desde que llega la cinta sin etiqueta no puede capturar: tiempo para agarrarla y verla con calma
 	ProgresoMax = 1.5,
 	-- Progreso (0 a ProgresoMax): sube la velocidad del Socio. Se reinicia cada noche con PorNoche[noche].
 	PorNoche = { 0.05, 0.15, 0.3, 0.45, 0.6 },
@@ -532,6 +544,17 @@ Config.Tienda = {
 		{ clave = "propinamedia", producto = "PropinaMedia", categoria = "propina", tipo = "consumible", nombre = "Propina", descripcion = "Para las cintas nuevas." },
 		{ clave = "propinagrande", producto = "PropinaGrande", categoria = "propina", tipo = "consumible", nombre = "Propina grande", descripcion = "Don Ernesto no lo va a olvidar." },
 	},
+	-- Game Pass cosmético: colores para la linterna (no cambia la dificultad). Con 0 todavía no está creado en Roblox:
+	-- en Studio se regala para poder probarlo y publicado el botón no aparece.
+	Pases = { LinternaColor = 0 },
+	PrecioPaseLinterna = 99, -- solo para mostrarlo (el precio real es el del pase)
+	ColoresLinterna = {
+		{ nombre = "Cálida", color = Color3.fromRGB(255, 244, 214) }, -- la de siempre (gratis)
+		{ nombre = "Fría", color = Color3.fromRGB(200, 225, 255) },
+		{ nombre = "Verde", color = Color3.fromRGB(170, 255, 190) },
+		{ nombre = "Roja", color = Color3.fromRGB(255, 140, 130) },
+		{ nombre = "Violeta", color = Color3.fromRGB(205, 165, 255) },
+	},
 	EnfriamientoAsustarSeg = 45, -- entre un "asustar a todos" y otro (para todo el servidor)
 	EnfriamientoPausaSeg = 60, -- entre una pausa de cinta y otra (para todo el servidor)
 	PausaSeg = 10, -- cuánto queda congelado el Socio
@@ -626,9 +649,11 @@ Config.Cinta = {
 
 -- Anomalías por jugador (AnomalySystem). La cantidad por noche está en PorNoche.
 Config.Anomalias = {
-	PorNoche = { 0, 9, 11, 13, 15 }, -- más anomalías y más seguidas (en el modo Sin fin, desde la noche 6 se repite la última cantidad)
-	MinutoDesde = 12,
-	MinutoHasta = 300,
+	PorNoche = { 0, 5, 6, 7, 8 }, -- más anomalías: menos tiempos muertos (en el modo Sin fin, desde la noche 6 se repite la última cantidad)
+	MinutoDesde = 22,
+	CriaturasPorNoche = { 0, 2, 2, 3, 3 }, -- veces que aparece la criatura del techo (una sola para todo el equipo; en Sin fin se repite la última)
+	DistanciaMarcarCriatura = 45, -- studs: desde qué distancia vale la Q sobre la criatura (el servidor lo valida)
+	MinutoHasta = 290,
 	DistanciaReporte = 35,
 	EstaticaDistancia = 28, -- una anomalía a esta distancia (y de frente) sube la estática del filtro
 	VidaFiguraSeg = 25,
@@ -637,7 +662,7 @@ Config.Anomalias = {
 	RotacionMovida = 28, -- grados
 	LimiteFalsosReportes = 4, -- por noche; pasado esto el jugador pierde progreso del equipo
 	-- La sombra quieta de la anomalía "FiguraAlFondo": una persona normal, negra, con contorno de estática (Client/Silueta).
-	-- La sombra de la anomalía "FiguraAlFondo" camina por el techo y las paredes y te sigue desde ahí (Client/Reptante).
+	-- La sombra de la anomalía "FiguraAlFondo" camina por el techo y las paredes y te sigue desde ahí (Server/Criatura, Shared/Cascara).
 	-- Medidas de la caja del local de ventas (la figura nunca baja al piso).
 	Reptar = {
 		-- Se mueve a ráfagas, como un bicho: repta (Velocidad), arremete (VelocidadArremetida) y se queda congelada un instante.
@@ -713,6 +738,8 @@ Config.Telefono = {
 	SonarSeg = 18, -- cuánto suena antes de cortarse solo
 	MensajeSeg = 9, -- duración en pantalla de cada mensaje
 	LecturaExtraSeg = 1, -- segundos que se suman a cada línea del mensaje para poder leerla completa
+	ClientesTrasLlamadaSeg = 3, -- los clientes empiezan a llegar recién cuando Don Ernesto terminó de hablar, tantos segundos después
+	EntreClientesTrasLlamadaSeg = 18, -- y los que se acumularon mientras hablaba entran de a uno, separados por esto
 	Sonido = { Id = "rbxassetid://94426589952590", Volumen = 0.9, DistanciaMax = 70 }, -- timbre del teléfono (Creator Store)
 }
 
