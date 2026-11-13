@@ -19,6 +19,9 @@
 	Junto a los pochoclos: se sacan las dos plantas (Ficus 6 y la planta chica), la máquina se corre 2,6 studs hacia los arcades (z = 23) y el
 	cartel 2x1 queda en el hueco que se forma entre la máquina y los estantes de la pared. También se saca el póster "Dos locos y un destino"
 	de la pared del fondo (el que queda pegado al matafuego con el cartel SOS).
+	En la pared del frente la guarda rosa (Decoracion/Paredes/Panel, y = 3,55) tapaba la ranura de la caja de devoluciones y la primera
+	instrucción de "EL TURNO" del cartel: la ranura baja a y = 2,95 (entre la caja y la guarda), el cartel de instrucciones se adelanta
+	para quedar por delante de la guarda, y la franja crema "DEVOLUCIONES" lleva el texto en negro de cara al salón.
 ]]
 
 local raiz = workspace:FindFirstChild("Videoclub")
@@ -163,6 +166,59 @@ local afiches = raiz:FindFirstChild("Afiches")
 local letrero = afiches and afiches:FindFirstChild("LetreroVideoclub")
 if letrero then
 	letrero.Position = Vector3.new(3.0, letrero.Position.Y, letrero.Position.Z)
+end
+
+-- ===== Pared del frente: caja de devoluciones e instrucciones =====
+local devoluciones = raiz:FindFirstChild("Devoluciones")
+if devoluciones then
+	local interior = devoluciones:FindFirstChild("RanuraInterior")
+	local exterior = devoluciones:FindFirstChild("RanuraExterior")
+	if interior then
+		-- más abajo (la guarda rosa pasa a y = 3,4 a 3,7) y por delante de la cara de la pared (z = 34) para que se vea
+		interior.Position = Vector3.new(interior.Position.X, 2.95, 33.92)
+	end
+	if exterior then
+		exterior.Position = Vector3.new(exterior.Position.X, 2.95, exterior.Position.Z)
+	end
+	local franja = devoluciones:FindFirstChild("CartelDevoluciones")
+	if franja then
+		-- el texto estaba solo en la cara de atrás (la que mira a la pared): se agrega el de la cara que mira al salón, en negro
+		local frente
+		for _, g in franja:GetChildren() do
+			if g:IsA("SurfaceGui") and g.Face == Enum.NormalId.Front then
+				frente = g
+			end
+		end
+		if not frente then
+			frente = Instance.new("SurfaceGui")
+			frente.Name = "TextoFrente"
+			frente.Face = Enum.NormalId.Front
+			frente.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+			frente.PixelsPerStud = 100
+			frente.LightInfluence = 0
+			frente.Parent = franja
+		end
+		local etiqueta = frente:FindFirstChildWhichIsA("TextLabel", true)
+		if not etiqueta then
+			etiqueta = Instance.new("TextLabel")
+			etiqueta.Name = "Texto"
+			etiqueta.Size = UDim2.fromScale(1, 1)
+			etiqueta.BackgroundTransparency = 1
+			etiqueta.Parent = frente
+		end
+		etiqueta.Text = "DEVOLUCIONES"
+		etiqueta.Font = Enum.Font.Arcade
+		etiqueta.TextScaled = true
+		etiqueta.TextColor3 = Color3.new(0, 0, 0)
+		table.insert(log, "DEVOLUCIONES (texto negro) en la cara del salón")
+	end
+end
+local cartelInstrucciones = raiz:FindFirstChild("Afiches") and raiz.Afiches:FindFirstChild("CartelInstrucciones")
+local marcoInstrucciones = raiz:FindFirstChild("Afiches") and raiz.Afiches:FindFirstChild("CartelInstruccionesMarco")
+if cartelInstrucciones and marcoInstrucciones then
+	-- por delante de la guarda rosa (su cara del salón está en z = 33,8)
+	cartelInstrucciones.Position = Vector3.new(cartelInstrucciones.Position.X, cartelInstrucciones.Position.Y, 33.70)
+	marcoInstrucciones.Position = Vector3.new(marcoInstrucciones.Position.X, marcoInstrucciones.Position.Y, 33.76)
 end
 
 print("[ajustes] " .. #log .. " cambios")

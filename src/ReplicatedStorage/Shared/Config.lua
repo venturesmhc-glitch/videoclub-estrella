@@ -139,8 +139,8 @@ Config.Casetes = {
 	-- (x -4.2), para que su botón "Tomar" no se superponga con "Atender" / "Rechazar cliente".
 	PosicionMostrador = Vector3.new(-7.8, 3.95, 16.2 + AV),
 	VidaMostradorSeg = 45, -- una cinta que nadie levanta del mostrador se retira sola pasado este tiempo
-	BuzonEntrada = Vector3.new(6, 3.5, 27.9 + EXT), -- afuera de la ranura
-	BuzonRanura = Vector3.new(6, 3.5, 25.9 + EXT), -- atravesando la ranura
+	BuzonEntrada = Vector3.new(6, 2.95, 27.9 + EXT), -- afuera de la ranura (que está debajo de la guarda rosa de la pared: build/ajustes.lua)
+	BuzonRanura = Vector3.new(6, 2.95, 25.9 + EXT), -- atravesando la ranura
 	BuzonCaida = Vector3.new(6, 2.75, 25.1 + EXT), -- sobre la caja de devoluciones
 	BuzonAnimSeg = 0.5,
 	ColorCarcasa = Color3.fromRGB(28, 28, 32), -- carcasa de todos los VHS (el género va en la franja de la carátula)
