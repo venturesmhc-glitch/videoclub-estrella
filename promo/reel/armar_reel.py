@@ -145,7 +145,7 @@ e_titulo = tarjeta("e_titulo", [("ASÍ SE VE", 330, 26, AMARILLO), ("EL VIDEOCLU
 fotos = [
     ("h4_salon.jpg", "Alfombras, afiches y neones"),
     ("h2_pochoclos.jpg", "Pochoclos y arcades"),
-    ("h1_puerta.jpg", "Abierto las 24 horas"),
+    ("h1_puerta.jpg", "Bienvenido a Star Videoclub"),
 ]
 for i, (foto, pie) in enumerate(fotos):
     e_pie = tarjeta(f"e_pie{i}", [(pie, 1470, 12, BLANCO)])
