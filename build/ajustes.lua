@@ -10,7 +10,12 @@
 	  - el ficus de la sala de espera (Ficus 2) atravesaba la pared y el sofá en una esquina ya llena: se elimina
 	  - un exhibidor giratorio entraba en el mostrador y una figura de cartón en los estantes de la pared izquierda
 	  - los arcades se hundían en la pared derecha y la mesa baja rozaba el exhibidor de ofertas
-	  - el cartel de neón "DEPÓSITO" quedaba debajo del letrero "STAR VIDEOCLUB" y le tapaba la S
+	  - el cartel de neón "DEPÓSITO" quedaba debajo del letrero "STAR VIDEOCLUB" y le tapaba la S: ahora "DEPÓSITO" está centrado sobre la
+	    puerta (x = -6) y el letrero grande corrido a la derecha (x = 3)
+	Y quita lo que estorbaba o no tenía sentido: las dos plantas de la entrada (tapaban la caja de devoluciones y las instrucciones), el
+	estante giratorio de estrenos entre los dos tramos de la góndola ACCIÓN, la figura de cartón del Socio N° 0000 frente al depósito, el
+	cartel SOS del matafuego izquierdo, los dos neones "SALIDA" (no dan a ninguna salida) y la caja junto a la puerta del baño.
+	La planta de la puerta de la cocina se corrió a lo largo de la pared, fuera del hueco, y la del baño quedó en la esquina.
 ]]
 
 local raiz = workspace:FindFirstChild("Videoclub")
@@ -45,18 +50,57 @@ if props then
 end
 if figuras then
 	ubicar(figuras:FindFirstChild("Ficus 6"), 19.68, 14.85)
-	ubicar(figuras:FindFirstChild("Ficus 5"), 20.96, -26.39)
-	ubicar(figuras:FindFirstChild("Ficus 4"), 3.67, 29.82)
+	ubicar(figuras:FindFirstChild("Ficus 5"), 22.0, -27.6) -- esquina del fondo derecho, junto a la puerta del baño
+	ubicar(figuras:FindFirstChild("Ficus 1"), -22.4, -5.5) -- puerta de la cocina: fuera del hueco (z de -11,5 a -8)
 	ubicar(figuras:FindFirstChild("ExhibidorGiratorio 2"), -13, 23)
 	ubicar(figuras:FindFirstChild("FiguraDeCarton 1"), -21.5, 17.5)
-	-- el ficus de la esquina de la sala de espera (el que está pegado al muro izquierdo, z ≈ 33) se saca
+	-- los ficus de la entrada (z > 28: dos junto a los pilares y uno en la esquina de la sala de espera) se sacan
 	for _, m in figuras:GetChildren() do
-		if m:IsA("Model") and string.sub(m.Name, 1, 5) == "Ficus" then
-			local p = m:GetPivot().Position
-			if p.X < -20 and p.Z > 28 then
+		if m:IsA("Model") and string.sub(m.Name, 1, 5) == "Ficus" and m:GetPivot().Position.Z > 28 then
+			table.insert(log, m.Name .. " eliminado")
+			m:Destroy()
+		end
+	end
+	-- estante giratorio de estrenos entre los tramos de la góndola ACCIÓN (z < 0) y figura de cartón frente al depósito (z < -20)
+	for _, m in figuras:GetChildren() do
+		if m:IsA("Model") then
+			local z = m:GetPivot().Position.Z
+			if (string.sub(m.Name, 1, 18) == "ExhibidorGiratorio" and z < 0) or (string.sub(m.Name, 1, 14) == "FiguraDeCarton" and z < -20) then
 				table.insert(log, m.Name .. " eliminado")
 				m:Destroy()
 			end
+		end
+	end
+end
+
+-- cartel SOS del matafuego izquierdo, neones SALIDA y caja junto al baño
+local varios = deco:FindFirstChild("Varios")
+if varios then
+	for _, m in varios:GetChildren() do
+		if m:IsA("Model") and string.sub(m.Name, 1, 9) == "Matafuego" and m:GetPivot().Position.X < -20 then
+			local cartel = m:FindFirstChild("MatafuegoCartel")
+			if cartel then
+				table.insert(log, "cartel SOS eliminado")
+				cartel:Destroy()
+			end
+		end
+	end
+end
+local neonesFolder = deco:FindFirstChild("Neones")
+if neonesFolder then
+	for _, p in neonesFolder:GetChildren() do
+		if p.Name == "Salida" then
+			table.insert(log, "neon SALIDA eliminado")
+			p:Destroy()
+		end
+	end
+end
+local desorden = deco:FindFirstChild("Desorden")
+if desorden then
+	for _, p in desorden:GetChildren() do
+		if p.Name == "CajaApilada" and p:IsA("BasePart") and p.Position.X > 19 and p.Position.Z < -25 then
+			table.insert(log, "caja junto al baño eliminada")
+			p:Destroy()
 		end
 	end
 end
@@ -80,12 +124,12 @@ end
 local neones = deco:FindFirstChild("Neones")
 local neon = neones and neones:FindFirstChild("SalidaDeposito")
 if neon then
-	neon.Position = Vector3.new(-7.3, neon.Position.Y, neon.Position.Z)
+	neon.Position = Vector3.new(-6.0, neon.Position.Y, neon.Position.Z)
 end
 local afiches = raiz:FindFirstChild("Afiches")
 local letrero = afiches and afiches:FindFirstChild("LetreroVideoclub")
 if letrero then
-	letrero.Position = Vector3.new(1.4, letrero.Position.Y, letrero.Position.Z)
+	letrero.Position = Vector3.new(3.0, letrero.Position.Y, letrero.Position.Z)
 end
 
 print("[ajustes] " .. #log .. " cambios")
