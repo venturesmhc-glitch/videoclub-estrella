@@ -10,6 +10,12 @@ local Net = require(ReplicatedStorage.Shared.Net)
 
 Net.crearTodos()
 
+-- Los jugadores no pueden activar el "Shift Lock" de Roblox (el bloqueo de mouse): el juego maneja el mouse solo (Client/Raton, tecla Ctrl).
+-- También está apagado en las propiedades de StarterPlayer del lugar; esto lo garantiza aunque ese valor cambie.
+pcall(function()
+	game:GetService("StarterPlayer").EnableMouseLockOption = false
+end)
+
 local ORDEN = {
 	"Persistencia",
 	"Jugadores",
