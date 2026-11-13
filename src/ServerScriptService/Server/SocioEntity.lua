@@ -13,6 +13,10 @@
 	el jugador vuelve al mostrador aturdido y el Socio retrocede. A la segunda captura (Config.Socio.CapturasPorJugador) ese jugador queda fuera de la noche y aparece como fantasma en
 	el motel (Fantasmas); cuando caen todos, la noche fracasa.
 
+	Rework (IA de caza): cada aparición pasa por fases. ACECHO (te sigue desde lejos, se queda quieto si lo mirás y reaparece más cerca cuando
+	mirás para otro lado), CAZA (ruge, corre con embestidas; solo la linterna lo frena) y BUSQUEDA (si te pierde, va al último lugar donde te
+	vio u oyó: correr sin necesidad te delata). Valores en Config.Socio.
+
 	El peligro (0..1) por jugador se manda por el remote Danger y deforma el tracking del filtro VHS.
 
 	API para los demás sistemas:
@@ -69,6 +73,22 @@ local miradas = {} -- Player -> { cf, t }
 local ignorados = {} -- Player -> true
 local ultimoPeligro = {} -- Player -> { valor, t }
 local ultimoObservado = false
+local fase = "acecho" -- "acecho" | "caza" | "busqueda"
+local faseDesde = 0
+local faseHasta = 0
+local aparicionDesde = 0
+local ultimaVista: Vector3? = nil -- dónde sintió (vio u oyó) por última vez a un jugador
+local sinSentirDesde = 0
+local proximaReposicion = 0
+local proximaEmbestida = 0
+local embestida = nil -- { fase = "aviso" | "carga", hasta }
+local miradoDesde: number? = nil -- desde cuándo lo está mirando alguien (acecho)
+local visitasBusqueda = 0
+local pausaBusquedaHasta = 0
+local ultimoSentido = 0
+local destinoBusqueda: Vector3? = nil
+local huboMirada = false
+local proximaRutaIA = 0
 
 local ALTURA_CENTRO = 4.2 -- altura del torso respecto del piso
 
@@ -163,7 +183,8 @@ local function construirGrafo()
 	for i = 1, #nodos do
 		for j = i + 1, #nodos do
 			local a, b = nodos[i], nodos[j]
-			if (a.pos - b.pos).Magnitude <= 13 and not workspace:Raycast(a.pos, b.pos - a.pos, params) then
+			-- Se conectan si un cuerpo de ~2,6 de ancho pasa de uno al otro (una esfera, no un rayo fino que se cuela entre las góndolas).
+			if (a.pos - b.pos).Magnitude <= 9.5 and not workspace:Spherecast(a.pos, 1.3, b.pos - a.pos, params) then
 				table.insert(a.vecinos, j)
 				table.insert(b.vecinos, i)
 			end
@@ -317,8 +338,172 @@ local function nodoMasLejanoDeTodos(): Vector3
 	return Vector3.new(mejor.X, 0, mejor.Z)
 end
 
+local function presion(): number
+	return math.clamp(progreso / cfg.ProgresoMax, 0, 1)
+end
+
 local function velocidad(): number
-	return cfg.VelocidadBase + cfg.VelocidadPorProgreso * math.clamp(progreso, 0, cfg.ProgresoMax) / cfg.ProgresoMax
+	local caza = cfg.VelocidadBase + cfg.VelocidadPorProgreso * presion()
+	if fase == "acecho" then
+		return caza * cfg.AcechoVelocidad
+	elseif fase == "busqueda" then
+		return caza * 0.6
+	end
+	return caza
+end
+
+-- ===== IA: sentidos, emboscadas y fases =====
+
+local function raicesVivas(): { BasePart }
+	local lista = {}
+	for _, j in Players:GetPlayers() do
+		local r = raizDe(j)
+		if r then
+			table.insert(lista, r)
+		end
+	end
+	return lista
+end
+
+local function paramsVista(): RaycastParams
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = personajes()
+	return params
+end
+
+-- ¿Algún jugador vivo tendría línea de visión hasta ese punto (sin importar hacia dónde mire)?
+local function aVistaDeAlguien(punto: Vector3, params: RaycastParams): boolean
+	local alto = Vector3.new(punto.X, 4, punto.Z)
+	for _, raiz in raicesVivas() do
+		local ojos = raiz.Position + Vector3.new(0, 1.5, 0)
+		if (ojos - alto).Magnitude < 75 and not workspace:Raycast(ojos, alto - ojos, params) then
+			return true
+		end
+	end
+	return false
+end
+
+-- Jugador vivo más cercano (en el plano).
+local function masCercano(): (Player?, BasePart?, number)
+	local mejor, mejorRaiz, d = nil, nil, math.huge
+	for _, j in Players:GetPlayers() do
+		local r = raizDe(j)
+		if r then
+			local dj = distanciaPlana(r.Position, posicion)
+			if dj < d then
+				mejor, mejorRaiz, d = j, r, dj
+			end
+		end
+	end
+	return mejor, mejorRaiz, d
+end
+
+-- Un lugar donde aparecer: fuera de la vista de todos, a una distancia razonable del jugador de referencia (o de todos), y de
+-- preferencia a la espalda de quien está mirando. Sin candidatos, relaja las condiciones y al final cae en el punto más lejano.
+local function puntoEmboscada(referencia: BasePart?, desde: number?, hasta: number?): Vector3
+	local lo, hi = desde or cfg.EmboscadaDist[1], hasta or cfg.EmboscadaDist[2]
+	local params = paramsVista()
+	local raices = raicesVivas()
+	for intento = 1, 3 do
+		local candidatos = {}
+		for _, n in nodos do
+			local p = Vector3.new(n.pos.X, 0, n.pos.Z)
+			local dmin = math.huge
+			if referencia then
+				dmin = distanciaPlana(p, referencia.Position)
+			else
+				for _, r in raices do
+					dmin = math.min(dmin, distanciaPlana(p, r.Position))
+				end
+			end
+			local rango = intento == 1 and 1 or (intento == 2 and 0.6 or 0.3)
+			if dmin ~= math.huge and dmin >= lo * rango and dmin <= hi / rango then
+				if not aVistaDeAlguien(p, params) then
+					local puntaje = rng:NextNumber()
+					for jugador, info in miradas do
+						local raiz = raizDe(jugador)
+						if raiz and os.clock() - info.t < 2 then
+							local hacia = Vector3.new(p.X - raiz.Position.X, 0, p.Z - raiz.Position.Z)
+							local mira = Vector3.new(info.cf.LookVector.X, 0, info.cf.LookVector.Z)
+							if hacia.Magnitude > 0.1 and mira.Magnitude > 0.1 and hacia.Unit:Dot(mira.Unit) < -0.2 then
+								puntaje += 0.6 -- a la espalda
+							end
+						end
+					end
+					table.insert(candidatos, { p = p, puntaje = puntaje })
+				end
+			end
+		end
+		if #candidatos > 0 then
+			table.sort(candidatos, function(a, b)
+				return a.puntaje > b.puntaje
+			end)
+			return candidatos[math.min(#candidatos, rng:NextInteger(1, 3))].p
+		end
+	end
+	return nodoMasLejanoDeTodos()
+end
+
+-- Lo que siente del jugador más cercano: lo ve (línea de visión a menos de VisionSocio) o lo oye (pasos, más lejos si corre).
+local function sentir(): (Player?, Vector3?, boolean)
+	local params = paramsVista()
+	local origen = Vector3.new(posicion.X, 6, posicion.Z)
+	local mejor, mejorPos, mejorVe, mejorD = nil, nil, false, math.huge
+	for _, j in Players:GetPlayers() do
+		local r = raizDe(j)
+		if r then
+			local d = distanciaPlana(r.Position, posicion)
+			local v = r.AssemblyLinearVelocity
+			local rapido = Vector3.new(v.X, 0, v.Z).Magnitude > 15
+			local ve = d <= cfg.VisionSocio and not workspace:Raycast(origen, (r.Position + Vector3.new(0, 1, 0)) - origen, params)
+			local oye = d <= (rapido and cfg.OidoCorriendo or cfg.OidoCaminando)
+			if (ve or oye) and d < mejorD then
+				mejor, mejorPos, mejorVe, mejorD = j, r.Position, ve, d
+			end
+		end
+	end
+	return mejor, mejorPos, mejorVe
+end
+
+local function entrarFase(nueva: string, suave: boolean?)
+	local ahora = os.clock()
+	fase = nueva
+	faseDesde = ahora
+	embestida = nil
+	local p = presion()
+	if nueva == "acecho" then
+		faseHasta = ahora + rng:NextNumber(cfg.AcechoSeg[1], cfg.AcechoSeg[2]) * (1 - (1 - cfg.TensionAcecho) * p)
+		proximaReposicion = ahora + rng:NextNumber(cfg.AcechoReposicionSeg[1], cfg.AcechoReposicionSeg[2])
+		miradoDesde = nil
+	elseif nueva == "caza" then
+		faseHasta = ahora + rng:NextNumber(cfg.CazaSeg[1], cfg.CazaSeg[2]) * (1 + (cfg.TensionCaza - 1) * p)
+		proximaEmbestida = ahora + rng:NextNumber(3, 5)
+		ultimoSentido = ahora
+		sinCapturaHasta = math.max(sinCapturaHasta, ahora + 0.8)
+		Net.obtener("SocioEvento"):FireAllClients(suave and "hallazgo" or "rugido")
+	elseif nueva == "busqueda" then
+		faseHasta = ahora + cfg.BusquedaSeg
+		visitasBusqueda = 0
+		pausaBusquedaHasta = 0
+		destinoBusqueda = ultimaVista
+		ruta = {}
+	end
+	if modelo then
+		modelo:SetAttribute("SocioFase", fase)
+	end
+end
+
+-- Camino hacia un punto: recto si se ve, por los waypoints si no.
+local function rutaHacia(destino: Vector3)
+	local d = distanciaPlana(destino, posicion)
+	local de = Vector3.new(posicion.X, 3, posicion.Z)
+	local a = Vector3.new(destino.X, 3, destino.Z)
+	if d < 9 and not workspace:Raycast(de, a - de, paramsVista()) then
+		ruta = { Vector3.new(destino.X, 0, destino.Z) }
+	else
+		ruta = calcularRuta(posicion, destino)
+	end
 end
 
 -- ===== API =====
@@ -349,11 +534,15 @@ end
 
 function SocioEntity.activar(donde: Vector3?)
 	construirModelo()
-	posicion = donde and Vector3.new(donde.X, 0, donde.Z) or nodoMasLejanoDeTodos()
+	posicion = donde and Vector3.new(donde.X, 0, donde.Z) or puntoEmboscada()
 	ruta = {}
 	local yaEstaba = activo
 	activo = true
 	activoDesde = os.clock()
+	aparicionDesde = activoDesde
+	ultimaVista = nil
+	huboMirada = false
+	entrarFase("acecho")
 	sinCapturaHasta = math.max(sinCapturaHasta, os.clock() + cfg.GraciaAparicionSeg)
 	ciclo = true -- desde ahora, durante la noche, va y viene: 30 s presente y un rato afuera
 	reaparecerEn = nil
@@ -368,6 +557,7 @@ function SocioEntity.desactivar()
 	local estaba = activo
 	activo = false
 	ciclo = false
+	fase = "acecho"
 	reaparecerEn = nil
 	ruta = {}
 	objetivo = nil
@@ -399,6 +589,14 @@ function SocioEntity.presentarseEn(donde: Vector3)
 	end)
 end
 
+-- Después de agarrar a alguien se esfuma: reaparece pasado un rato (PostCapturaSeg), lejos y fuera de la vista (nunca pegado al que acaba de volver).
+local function irseTrasCaptura()
+	SocioEntity.desactivar()
+	ciclo = true
+	sinCapturaHasta = os.clock() + cfg.GraciaCapturaSeg
+	reaparecerEn = os.clock() + rng:NextNumber(cfg.PostCapturaSeg[1], cfg.PostCapturaSeg[2])
+end
+
 local function capturar(jugador: Player)
 	if amuletos[jugador] then
 		-- El amuleto se rompe y se lleva la captura: no cuenta, el Socio retrocede y el jugador sigue donde estaba.
@@ -406,9 +604,7 @@ local function capturar(jugador: Player)
 		jugador:SetAttribute("Amuleto", nil)
 		Net.avisoATodos(string.format("El amuleto de %s se rompió.", jugador.DisplayName))
 		SocioEntity.agregarProgreso(cfg.PorCaptura)
-		posicion = nodoMasLejanoDeTodos()
-		ruta = {}
-		colocar(true)
+		irseTrasCaptura()
 		return
 	end
 	capturas += 1
@@ -456,9 +652,7 @@ local function capturar(jugador: Player)
 
 	-- El Socio retrocede lejos y baja un poco la presión.
 	SocioEntity.agregarProgreso(cfg.PorCaptura)
-	posicion = nodoMasLejanoDeTodos()
-	ruta = {}
-	colocar(true)
+	irseTrasCaptura()
 
 	-- Si ya no queda nadie en pie, la noche fracasa.
 	for _, otro in Players:GetPlayers() do
@@ -501,27 +695,151 @@ end
 
 -- ===== Bucle =====
 
-local function actualizarRuta()
-	local mejor, distancia = nil, math.huge
-	for _, jugador in Players:GetPlayers() do
-		local raiz = raizDe(jugador)
-		if raiz then
-			local d = distanciaPlana(raiz.Position, posicion)
-			if d < distancia then
-				mejor, distancia = jugador, d
+-- Gira hacia un punto (cuando está quieto te mira de frente).
+local function encarar(punto: Vector3)
+	local d = Vector3.new(punto.X - posicion.X, 0, punto.Z - posicion.Z)
+	if d.Magnitude > 0.1 then
+		rotacion = math.atan2(-d.X, -d.Z)
+	end
+end
+
+-- Un "pensamiento" de la IA (cada TickSeg). Devuelve el factor de movimiento (0 = se queda parado) y si la aparición terminó.
+local function pensar(observado: boolean, alumbrado: boolean): (number, boolean)
+	local ahora = os.clock()
+	local jugadorSentido, posSentida, ve = sentir()
+	if posSentida then
+		ultimaVista = posSentida
+		ultimoSentido = ahora
+	end
+	local _, raizCercana, distancia = masCercano()
+	if not raizCercana then
+		ruta = {}
+		return 0, false
+	end
+
+	if fase == "acecho" then
+		-- Mirarlo lo deja clavado en el lugar (y te mira). Cuando dejás de mirarlo, pronto reaparece más cerca.
+		local mirado = alguienLoMira()
+		if mirado then
+			huboMirada = true
+			miradoDesde = miradoDesde or ahora
+			ruta = {}
+		else
+			if huboMirada then
+				huboMirada = false
+				proximaReposicion = math.min(proximaReposicion, ahora + rng:NextNumber(0.9, 2.4))
+			end
+			miradoDesde = nil
+		end
+		if ahora >= faseHasta or (not mirado and distancia <= cfg.AcechoPasaACazaDist) then
+			entrarFase("caza")
+			return 0, false
+		end
+		if mirado then
+			encarar(raizCercana.Position)
+			return 0, false
+		end
+		if ahora >= proximaReposicion and distancia > cfg.AcechoPasaACazaDist + 3 then
+			proximaReposicion = ahora + rng:NextNumber(cfg.AcechoReposicionSeg[1], cfg.AcechoReposicionSeg[2])
+			posicion = puntoEmboscada(raizCercana, math.max(cfg.AcechoPasaACazaDist + 1.5, distancia - 12), distancia - 4)
+			ruta = {}
+			colocar(true)
+			return 0, false
+		end
+		if ahora >= proximaRutaIA then
+			proximaRutaIA = ahora + cfg.RecalcularRutaSeg
+			rutaHacia(raizCercana.Position)
+		end
+		if distancia > cfg.AcechoDistancia[2] then
+			return 1, false
+		elseif distancia > cfg.AcechoDistancia[1] then
+			return 0.5, false
+		end
+		encarar(raizCercana.Position)
+		return 0.2, false
+
+	elseif fase == "caza" then
+		if ahora - ultimoSentido > cfg.PerdidaSeg and ultimaVista then
+			entrarFase("busqueda")
+			return 0, false
+		end
+		if ahora >= proximaRutaIA then
+			proximaRutaIA = ahora + 0.6
+			if jugadorSentido and posSentida then
+				rutaHacia(posSentida)
+			elseif ultimaVista then
+				rutaHacia(ultimaVista)
 			end
 		end
-	end
-	objetivo = mejor
-	if not mejor then
-		ruta = {}
-		return
-	end
-	local destino = raizDe(mejor).Position
-	if distancia < 9 then
-		ruta = { Vector3.new(destino.X, 0, destino.Z) }
-	else
-		ruta = calcularRuta(posicion, destino)
+		-- Embestida: se queda quieto un instante (aviso: la cabeza salta hacia vos) y se lanza.
+		local factor = 1
+		if embestida then
+			if ahora >= embestida.hasta then
+				if embestida.fase == "aviso" then
+					embestida = { fase = "carga", hasta = ahora + cfg.EmbestidaSeg }
+					Net.obtener("SocioEvento"):FireAllClients("embiste")
+				else
+					embestida = nil
+					proximaEmbestida = ahora + rng:NextNumber(cfg.EmbestidaCada[1], cfg.EmbestidaCada[2])
+				end
+			end
+			if embestida then
+				factor = embestida.fase == "aviso" and 0 or cfg.EmbestidaFactor
+				if embestida.fase == "aviso" then
+					encarar(raizCercana.Position)
+				end
+				if embestida.fase == "carga" and ve and posSentida then
+					rutaHacia(posSentida)
+				end
+			end
+		elseif ahora >= proximaEmbestida and ve and distancia >= cfg.EmbestidaDist[1] and distancia <= cfg.EmbestidaDist[2] and not alumbrado then
+			embestida = { fase = "aviso", hasta = ahora + cfg.EmbestidaAvisoSeg }
+			Net.obtener("SocioEvento"):FireAllClients("aviso")
+		end
+		-- Fin de la caza: se va, salvo que alguien siga muy cerca (entonces sigue un rato más).
+		if ahora >= faseHasta then
+			if distancia <= cfg.CazaExtiendeDist and ahora < faseHasta + 12 then
+				return factor, false
+			end
+			return factor, true
+		end
+		return factor, false
+
+	else -- busqueda
+		if jugadorSentido then
+			entrarFase("caza", true)
+			return 0, false
+		end
+		if ahora >= faseHasta then
+			entrarFase("acecho")
+			return 0, false
+		end
+		if ahora < pausaBusquedaHasta then
+			ruta = {}
+			return 0, false
+		end
+		if destinoBusqueda and distanciaPlana(destinoBusqueda, posicion) < 3 then
+			-- Llegó: olfatea un rato y elige otro lugar cerca de donde te sintió por última vez.
+			pausaBusquedaHasta = ahora + rng:NextNumber(1.4, 2.6)
+			visitasBusqueda += 1
+			local origen = ultimaVista or posicion
+			local candidatos = {}
+			for _, n in nodos do
+				local p = Vector3.new(n.pos.X, 0, n.pos.Z)
+				if distanciaPlana(p, origen) < 26 and distanciaPlana(p, posicion) > 6 then
+					table.insert(candidatos, p)
+				end
+			end
+			destinoBusqueda = #candidatos > 0 and candidatos[rng:NextInteger(1, #candidatos)] or origen
+			ruta = {}
+			proximaRutaIA = 0
+			return 0, false
+		end
+		if ahora >= proximaRutaIA and destinoBusqueda then
+			proximaRutaIA = ahora + 1
+			rutaHacia(destinoBusqueda)
+		end
+		return 1, false
 	end
 end
 
@@ -556,6 +874,9 @@ local function enviarPeligro(observado: boolean)
 			if not observado and d < 25 then
 				valor = math.min(1, valor + 0.15)
 			end
+			if fase == "caza" then
+				valor = math.min(1, valor + 0.2) -- en plena caza el cuerpo ya lo sabe
+			end
 		end
 		local previo = ultimoPeligro[jugador]
 		if not previo or math.abs(previo.valor - valor) > 0.02 or ahora - previo.t > 1 then
@@ -567,8 +888,8 @@ end
 
 function SocioEntity.estadoTexto(): string
 	return string.format(
-		"socio activo=%s pos=(%.1f, %.1f) progreso=%.2f capturas=%d velocidad=%.2f observado=%s ruta=%d",
-		tostring(activo), posicion.X, posicion.Z, progreso, capturas, velocidad(), tostring(ultimoObservado), #ruta
+		"socio activo=%s fase=%s pos=(%.1f, %.1f) progreso=%.2f capturas=%d velocidad=%.2f observado=%s ruta=%d",
+		tostring(activo), fase, posicion.X, posicion.Z, progreso, capturas, velocidad(), tostring(ultimoObservado), #ruta
 	)
 end
 
@@ -632,11 +953,16 @@ function SocioEntity.init()
 		while true do
 			task.wait(cfg.TickSeg)
 			local enTurno = NightManager.obtenerEstado().fase == "turno"
-			-- Cada aparición dura PersecucionSeg; después se va y vuelve a aparecer pasado un rato.
-			if enTurno and activo and os.clock() - activoDesde >= cfg.PersecucionSeg then
+			-- Cada aparición pasa por fases (acecho, caza, búsqueda); al terminar se va y vuelve a aparecer pasado un rato, más corto con la presión.
+			local terminar = false
+			local factorFase = 0
+			if enTurno and activo then
+				factorFase, terminar = pensar(false, false)
+			end
+			if enTurno and activo and (terminar or os.clock() - aparicionDesde >= cfg.AparicionMaxSeg) then
 				SocioEntity.desactivar()
 				ciclo = true
-				reaparecerEn = os.clock() + rng:NextNumber(cfg.EntreApariciones[1], cfg.EntreApariciones[2])
+				reaparecerEn = os.clock() + rng:NextNumber(cfg.EntreApariciones[1], cfg.EntreApariciones[2]) * (1 - (1 - cfg.TensionEntreMin) * presion())
 			elseif enTurno and not activo and ciclo and reaparecerEn and os.clock() >= reaparecerEn then
 				SocioEntity.activar()
 			end
@@ -650,19 +976,20 @@ function SocioEntity.init()
 			end
 
 			if enTurno and activo then
-				if os.clock() >= proximaRuta then
-					proximaRuta = os.clock() + cfg.RecalcularRutaSeg
-					actualizarRuta()
+				-- La pausa de cinta de la tienda lo congela por completo (no se mueve ni captura).
+				local pausado = os.clock() < pausadoHasta
+				if pausado then
+					factorFase = 0
 				end
 				-- Avanza a tirones: acumula el tiempo y da un paso de golpe, no se desliza.
 				pasoAcumulado += cfg.TickSeg
 				if pasoAcumulado >= cfg.PasoSeg then
-					mover(pasoAcumulado * factor)
+					mover(pasoAcumulado * factor * factorFase)
 					pasoAcumulado = 0
 				end
 				for _, jugador in Players:GetPlayers() do
 					local raiz = raizDe(jugador)
-					if raiz and os.clock() >= sinCapturaHasta and distanciaPlana(raiz.Position, posicion) < cfg.DistanciaCaptura then
+					if raiz and not pausado and os.clock() >= sinCapturaHasta and distanciaPlana(raiz.Position, posicion) < cfg.DistanciaCaptura then
 						capturar(jugador)
 						break
 					end

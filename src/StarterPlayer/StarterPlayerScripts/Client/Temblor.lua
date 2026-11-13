@@ -37,6 +37,11 @@ function Temblor.fijarLocal(valor: number)
 	local_ = math.clamp(valor, 0, 1)
 end
 
+--- Una sacudida brusca (0..1+) que decae sola, como la de la aparición del Socio.
+function Temblor.sobresaltar(fuerza: number?)
+	sobresalto = math.max(sobresalto, fuerza or 1)
+end
+
 function Temblor.init()
 	Net.obtener("Danger").OnClientEvent:Connect(function(valor)
 		if typeof(valor) == "number" then

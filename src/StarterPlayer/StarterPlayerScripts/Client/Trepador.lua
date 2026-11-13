@@ -298,10 +298,11 @@ function Trepador.crear()
 	}
 	local NOMBRES_GESTOS = { "giro", "olfateo", "tambor", "temblor", "mano" }
 
-	local function elegirGesto()
-		local nombre = NOMBRES_GESTOS[rng:NextInteger(1, #NOMBRES_GESTOS)]
+	local gestosAlAzar = true -- false: solo hace los gestos que se piden con objeto.gesto (cinemáticas)
+
+	local function iniciarGesto(nombre: string, lado: number?, duracion: number?)
 		local def = GESTOS[nombre]
-		local k = { lado = if rng:NextNumber() < 0.5 then 1 else -1 }
+		local k = { lado = lado or (if rng:NextNumber() < 0.5 then 1 else -1) }
 		if nombre == "mano" then
 			for _, m in miembros do
 				if m.id == (if k.lado > 0 then "AL" else "AR") then
@@ -309,7 +310,26 @@ function Trepador.crear()
 				end
 			end
 		end
-		gesto = { def = def, t0 = reloj, dur = rng:NextNumber(def.dur[1], def.dur[2]), k = k }
+		gesto = { def = def, t0 = reloj, dur = duracion or rng:NextNumber(def.dur[1], def.dur[2]), k = k }
+	end
+
+	local function elegirGesto()
+		iniciarGesto(NOMBRES_GESTOS[rng:NextInteger(1, #NOMBRES_GESTOS)])
+	end
+
+	--- Dispara un gesto por nombre (cinemáticas): giro (la cabeza da la vuelta entera), olfateo, tambor, temblor, mano.
+	--- lado: 1 o -1 (nil = al azar). Solo se ve con la criatura parada y sin atacar.
+	function objeto.gesto(nombre: string, lado: number?, duracion: number?): boolean
+		if not GESTOS[nombre] then
+			return false
+		end
+		iniciarGesto(nombre, lado, duracion)
+		return true
+	end
+
+	--- true (por defecto): hace gestos al azar cuando está parada. false: solo los pedidos con objeto.gesto.
+	function objeto.gestosAlAzar(valor: boolean)
+		gestosAlAzar = valor
 	end
 
 	function objeto.ataque(activo: boolean)
@@ -353,7 +373,7 @@ function Trepador.crear()
 				else
 					gesto.def.f(a, gesto.k, p)
 				end
-			elseif movimiento < 0.15 and reloj >= proxGesto then
+			elseif gestosAlAzar and movimiento < 0.15 and reloj >= proxGesto then
 				elegirGesto()
 			end
 		end

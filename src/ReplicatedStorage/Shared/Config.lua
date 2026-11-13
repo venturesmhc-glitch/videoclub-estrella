@@ -13,9 +13,27 @@ local EXT = 8
 -- Con ese espacio nuevo, el mostrador (y todo lo que va con él: cola de clientes, cinta devuelta, tareas de atrás) se
 -- adelantó estos studs hacia la puerta: atrás queda más lugar para trabajar y los clientes hacen cola delante.
 local AV = 3
+-- El salón también creció hacia el fondo: los pasillos de góndolas son largos (para que haya persecuciones). El depósito y el baño
+-- se corrieron lo mismo; la cocina y el patio siguen donde estaban (se entra por las puertas de los costados, a mitad del local).
+local PROF = 18
 Config.Local = {
 	ExtensionFrente = EXT,
+	ExtensionFondo = PROF,
 	MostradorAvance = AV,
+	-- Imágenes hechas en Blender (blender/alfombras.py y blender/afiches.py) y subidas a Roblox (build/videoclub.lua las usa).
+	Texturas = {
+		Confeti = "rbxassetid://114462248255919",
+		Accion = "rbxassetid://138670862544641",
+		Terror = "rbxassetid://119818609426339",
+		Comedia = "rbxassetid://96610397430105",
+		Drama = "rbxassetid://83765500478914",
+		Infantil = "rbxassetid://113932692809351",
+		-- 8 afiches de 512x768 (de blender/afiches.py): 0 terror, 1 acción, 2 comedia, 3 drama, 4 infantil, 5 el video maldito, 6 estreno, 7 Socio N° 0000
+		Afiches = {
+			"rbxassetid://124354245757289", "rbxassetid://137595185150849", "rbxassetid://126202812733774", "rbxassetid://73833205085810",
+			"rbxassetid://140386777768533", "rbxassetid://108820004060482", "rbxassetid://108642964313856", "rbxassetid://122699609671741",
+		},
+	},
 	ZFrente = 26.5 + EXT, -- eje de la pared del frente (la cara interior queda 0.5 antes)
 }
 
@@ -321,14 +339,50 @@ Config.Socio = {
 	PasoSeg = 0.15, -- la lógica avanza cada tanto un paso corto; el cuerpo se desliza hasta ahí (SuavizadoMovimiento), así que se ve continuo con arrancadas leves
 	SuavizadoMovimiento = 7, -- qué tan rápido el cuerpo alcanza su posición lógica (1/s; más alto = más a tirones)
 	SuavizadoGiro = 8, -- y qué tan rápido gira hacia donde camina (1/s)
-	VelocidadBase = 4.6, -- studs/seg con progreso 0
-	VelocidadPorProgreso = 7.6, -- se suma con progreso 1 (los jugadores caminan a 12: casi los alcanza; solo la linterna lo frena)
-	PersecucionSeg = 30, -- cada aparición dura 30 s: después se va
-	EntreApariciones = { 55, 90 }, -- una vez que la noche lo activó, vuelve a aparecer pasado este rango (s) desde que se fue
+	VelocidadBase = 9.5, -- studs/seg en CAZA con progreso 0 (los jugadores caminan a 12 y corren a 19, pero solo ~3,5 s)
+	VelocidadPorProgreso = 8.5, -- se suma con progreso máximo: en las últimas noches corre casi como un jugador que sprinta
+	PersecucionSeg = 30, -- (en desuso: ahora cada aparición tiene fases, ver AcechoSeg / CazaSeg)
+	EntreApariciones = { 38, 62 }, -- una vez que la noche lo activó, vuelve a aparecer pasado este rango (s); con la presión alta se acorta (ver TensionEntreMin)
+	-- ===== Rework: cada aparición tiene fases =====
+	-- ACECHO: te sigue desde lejos; si lo mirás se queda quieto y te mira; cuando mirás para otro lado reaparece más cerca.
+	-- CAZA: ruge, se apagan las luces y corre hacia vos (con embestidas). BUSQUEDA: si te pierde, va al último lugar donde te sintió.
+	AcechoSeg = { 16, 28 }, -- duración del acecho (se acorta con la presión)
+	CazaSeg = { 26, 38 }, -- duración de la caza (se alarga con la presión; si hay alguien a menos de CazaExtiendeDist sigue un rato más)
+	CazaExtiendeDist = 22,
+	AcechoVelocidad = 0.55, -- fracción de la velocidad de caza mientras acecha
+	AcechoDistancia = { 12, 26 }, -- por debajo del mínimo se queda parado mirando; por encima del máximo acelera para alcanzarte
+	AcechoReposicionSeg = { 5, 9 }, -- cada tanto, si nadie lo mira, reaparece más cerca (en un pasillo que no se ve)
+	AcechoPasaACazaDist = 8.5, -- si llega a esta distancia sin que lo miren, empieza la caza
+	PerdidaSeg = 3.5, -- en la caza: tiempo sin verte ni oírte hasta que pasa a BUSQUEDA
+	BusquedaSeg = 15, -- tiempo máximo rastreando; si no te encuentra vuelve a acechar
+	AparicionMaxSeg = 130, -- tope de una aparición completa (después se va)
+	VisionSocio = 60, -- studs a los que te ve (con línea de visión)
+	OidoCaminando = 15, -- studs a los que te oye caminar (aunque no te vea)
+	OidoCorriendo = 40, -- y corriendo (por eso correr sin necesidad te delata)
+	EmbestidaCada = { 6, 10 }, -- cada tanto, en la caza, se detiene un instante (aviso) y se lanza
+	EmbestidaAvisoSeg = 0.5,
+	EmbestidaSeg = 0.9,
+	EmbestidaFactor = 1.75,
+	EmbestidaDist = { 7, 24 },
+	GraciaCapturaSeg = 7, -- después de agarrar a alguien no puede capturar durante este tiempo
+	PostCapturaSeg = { 20, 34 }, -- y se esfuma: reaparece pasado este rato (s), lejos y fuera de la vista
+	TensionEntreMin = 0.5, -- con presión máxima el descanso entre apariciones se reduce a esta fracción
+	TensionAcecho = 0.55, -- con presión máxima el acecho dura esta fracción
+	TensionCaza = 1.35, -- y la caza esta otra
+	-- Lo que se oye y se siente (Client/SocioSentidos).
+	Sentidos = {
+		Pasos = { Id = "rbxasset://sounds/action_footsteps_plastic.mp3", Volumen = 1.1, Velocidad = 0.5, Alcance = 90, Zancada = 5.2 },
+		Eventos = {
+			rugido = { Volumen = 1.15, Velocidad = 0.55, Distorsion = 0.55, Sacudida = 1, Destello = 0.9 },
+			hallazgo = { Volumen = 0.8, Velocidad = 0.7, Distorsion = 0.5, Sacudida = 0.7, Destello = 0.6 },
+			aviso = { Volumen = 0.5, Velocidad = 1.5, Distorsion = 0.3, Sacudida = 0.35, Destello = 0.25 },
+			embiste = { Volumen = 0.9, Velocidad = 0.5, Distorsion = 0.7, Sacudida = 0.8, Destello = 0.5 },
+		},
+	},
 	VelocidadMirado = 0.4, -- mientras alguien lo mira Y lo alumbra con la linterna prendida se frena (pero sigue viniendo): avanza a esta fracción de su velocidad. Mirarlo sin luz no lo frena
 	LinternaAngulo = 22, -- grados: qué tan centrado tiene que estar en la luz para que cuente como alumbrado (la luz abre 29)
 	LinternaAlcance = 50, -- studs: a más distancia la luz no lo frena (la luz llega a 55)
-	DistanciaCaptura = 3.4,
+	DistanciaCaptura = 4.2,
 	BocaDistancia = 7, -- studs (unos 2 m): a menos de esto de un jugador la cara se parte en dos y se abre hacia los lados (SocioHuesos)
 	BocaAngulo = 75, -- grados que gira cada mitad de la cara cuando se abre del todo
 	DistanciaPeligro = 45, -- a esta distancia el peligro empieza a subir
@@ -341,7 +395,7 @@ Config.Socio = {
 	PeligroEnvioSeg = 0.2,
 	CapturasPorJugador = 2, -- a la segunda captura el jugador queda fuera de la noche (pasa a ser espectador); si caen todos, la noche fracasa
 	AturdimientoSeg = 3.5,
-	GraciaAparicionSeg = 8, -- al aparecer, no puede capturar durante este tiempo (da lugar a reaccionar)
+	GraciaAparicionSeg = 4, -- al aparecer, no puede capturar durante este tiempo (da lugar a reaccionar)
 	GraciaCintaSeg = 90, -- desde que llega la cinta sin etiqueta no puede capturar: tiempo para agarrarla y verla con calma
 	ProgresoMax = 1.5,
 	-- Progreso (0 a ProgresoMax): sube la velocidad del Socio. Se reinicia cada noche con PorNoche[noche].
@@ -354,6 +408,7 @@ Config.Socio = {
 	PorAnomaliaNoDetectada = 0.03,
 	PorAnomaliaDetectada = -0.04,
 	PorCaptura = -0.12,
+	EmboscadaDist = { 24, 58 }, -- al aparecer: a qué distancia de los jugadores (y fuera de su vista, de preferencia a la espalda)
 	DistanciaAparicion = 14, -- "presentarse" en un pasillo: a cuántos studs del fondo aparece
 	AlturaModelo = 7,
 }
@@ -595,7 +650,7 @@ Config.Anomalias = {
 		PausaSeg = { 0.15, 0.5 }, -- y de cada instante quieta
 		Techo = 11.95, -- altura del techo (cara de abajo en y = 12)
 		X = 23.9, -- paredes izquierda y derecha (x = -24 / 24)
-		ZFondo = -11.9, -- pared del fondo (z = -12)
+		ZFondo = -11.9 - PROF, -- pared del fondo (z = -12, más la ampliación hacia el fondo)
 		ZFrente = 25.9 + EXT, -- pared del frente (z = 26 más la ampliación del salón)
 		ProbPared = 0.6, -- cada sorteo de superficie: probabilidad de andar por una pared (si no, por el techo)
 		CambioSuperficieSeg = { 4, 9 }, -- cada cuánto vuelve a sortear por dónde anda (techo o una de las cuatro paredes)
@@ -672,6 +727,30 @@ Config.Final = {
 Config.Debug = {
 	LogSistemas = true,
 	Comandos = true, -- crea ServerStorage.Depurar (BindableFunction) para probar desde la consola de Studio
+	ModoGrabacion = true, -- true: carga Client/Cinematica (clips para TikTok/Reels/Shorts, ver Config.Cinematicas y Shared/Cinematicas). Con false no se carga nada.
+}
+
+-- Cinemáticas para grabar con OBS (solo existen con Config.Debug.ModoGrabacion = true). Los clips son datos: Shared/Cinematicas.lua.
+-- Se lanza con:  node dbg.js cine NOMBRE   (también: node dbg.js cine lista | node dbg.js cine parar)
+Config.Cinematicas = {
+	InicioSeg = 3, -- espera entre el comando y el primer cuadro del clip (tiempo para apretar REC en OBS)
+	FinSeg = 2, -- negro que queda al terminar el clip antes de devolver la cámara
+	-- Formato REEL (9:16): se graba en 16:9 y se recorta el centro (promo/vertical.cmd). Con true el plano se compone para ese recorte.
+	Vertical = true,
+	Encuadre = {
+		Relacion = 9 / 16, -- ancho / alto del cuadro final
+		MargenSuperior = 0.10, -- sin texto (lo usan TikTok/Reels para su barra y la descripción)
+		MargenInferior = 0.15, -- sin texto (botones y descripción de la app)
+		MargenLateral = 0.012, -- aire entre el texto y el borde del recorte (fracción del ancho de pantalla)
+		FovFactor = 1.14, -- el campo vertical se abre esto: el recorte angosto ve poco de costado y el plano necesita aire
+		FovMax = 88,
+		Retroceso = 1.4, -- studs que se echa atrás la cámara a lo largo de su mirada para ganar profundidad en vertical
+	},
+	GuiaVertical = false, -- true: dibuja el recorte 9:16 y las zonas libres de texto sobre el cuadro 16:9 (para encuadrar; apagarla al grabar)
+	-- Cámara en mano (ruido suave sobre la cámara guiada). Cada clip puede escalarlo con mano = 0..2.
+	Mano = { Posicion = 0.05, Giro = 0.35, Frecuencia = 0.5 },
+	-- Interfaces del juego que se ocultan en modo grabación (se deja el filtro VHS y el OSD).
+	OcultarGui = { "Ficha", "SprintUI", "Menu", "Dialogos", "LinternaBateria", "LinternaUI", "ReportarUI", "Tienda", "TiendaHUD", "Raton", "Espectador", "CintaUI" },
 }
 
 return Config

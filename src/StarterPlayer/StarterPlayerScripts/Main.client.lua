@@ -14,6 +14,7 @@ local ORDEN = {
 	"Temblor",
 	"Parpadeo",
 	"SocioAnimacion",
+	"SocioSentidos",
 	"OSD",
 	"AudioManager",
 	"Rendimiento",
@@ -30,6 +31,7 @@ local ORDEN = {
 	"RulesUI",
 	"PhoneUI",
 	"Calle",
+	"VidaLocal",
 	"Sustos",
 	"Screamers",
 	"Espectador",
@@ -47,5 +49,15 @@ for _, nombre in ORDEN do
 		warn(string.format("[Cliente] Falló el sistema %s: %s", nombre, tostring(err)))
 	elseif Config.Debug.LogSistemas then
 		print("[Cliente] Sistema iniciado: " .. nombre)
+	end
+end
+
+-- Modo grabación (clips para TikTok/Reels/Shorts): con Config.Debug.ModoGrabacion en false esto ni se carga.
+if Config.Debug.ModoGrabacion then
+	local ok, err = pcall(function()
+		(require(carpeta:WaitForChild("Cinematica") :: ModuleScript) :: any).init()
+	end)
+	if not ok then
+		warn("[Cliente] Falló Cinematica: " .. tostring(err))
 	end
 end

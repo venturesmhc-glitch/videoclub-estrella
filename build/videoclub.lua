@@ -4,7 +4,7 @@
 	Ejecutar con:  node mcp-call.js execute_luau @build/videoclub.lua
 
 	Medidas en studs. El piso interior tiene su cara superior en y = 0.
-	Local de ventas: x -24..24, z -12..(26 + Config.Local.ExtensionFrente) (entrada por la pared del frente; el salón ganó ese espacio libre delante del mostrador para circular, correr y escapar).
+	Local de ventas: x -24..24, z (-12 - Config.Local.ExtensionFondo)..(26 + Config.Local.ExtensionFrente) (entrada por la pared del frente; el salón ganó ese espacio libre delante del mostrador para circular, correr y escapar).
 	Fondo: depósito (x -24..6.5) y baño (x 7.5..24), z -20..-12.
 	Cocina (x -52..-25) y patio (x 25..52), z -21..-1: se entra por puertas en las paredes laterales (z -11.5..-8).
 ]]
@@ -29,6 +29,8 @@ local GROSOR = 1
 local EXT = ConfigJuego.Local.ExtensionFrente -- el salón se agrandó hacia la calle (Config.Local)
 local AV = ConfigJuego.Local.MostradorAvance -- el mostrador se adelantó hacia la puerta (Config.Local)
 local Z_FRENTE = ConfigJuego.Local.ZFrente -- eje de la pared del frente (la cara interior queda 0.5 antes)
+local PROF = ConfigJuego.Local.ExtensionFondo -- el salón ganó este largo hacia el fondo (pasillos largos); el depósito y el baño se corrieron lo mismo
+local TEX = ConfigJuego.Local.Texturas -- imágenes hechas en Blender (blender/alfombras.py y blender/afiches.py)
 
 -- ===== Utilidades =====
 
@@ -179,7 +181,7 @@ local function tubo(nombre, x, z, encendida, defectuoso, padre)
 		luz.Range = 18
 		luz.Brightness = 1.7
 		luz.Color = C3(225, 255, 235)
-		luz.Shadows = true -- las góndolas y el mostrador proyectan sombra
+		luz.Shadows = z > -10 -- las góndolas y el mostrador proyectan sombra (en el fondo largo no: cuesta demasiado)
 		luz.Parent = t
 	end
 	return t
@@ -209,33 +211,33 @@ local pisos = carpeta("Piso", estructura)
 -- Calle oscura que rodea el local (se ve por las ventanas).
 parte("Calle", V3(400, 1, 400), V3(0, -1.05, 0), C3(24, 26, 28), Enum.Material.Asphalt, estructura)
 
--- Piso: baldosas de 4x4 en damero.
-for ix = 0, 11 do
-	for iz = 0, 10 do
-		local x = -24 + ix * 4 + 2
-		local z = -20 + iz * 4 + 2
-		local fondo = z < -12
-		local claro = (ix + iz) % 2 == 0
-		local color
-		if fondo then
-			color = claro and C3(150, 152, 146) or C3(120, 122, 116)
-		else
-			color = claro and C3(160, 178, 164) or C3(116, 134, 122)
-		end
-		parte("Baldosa", V3(4, 1, 4), V3(x, -0.5, z), color, Enum.Material.CeramicTiles, pisos, { MaterialVariant = "SueloBaldosas" })
-	end
-	-- Desde z = 24 hasta la pared del frente (incluye la ampliación): filas de 4 de profundidad y una última más chica.
-	local z0, fila = 24, 0
-	while z0 < Z_FRENTE - 0.5 - 0.01 do
-		local prof = math.min(4, Z_FRENTE - 0.5 - z0)
-		local claro = (ix + 11 + fila) % 2 == 0
-		parte("Baldosa", V3(4, 1, prof), V3(-24 + ix * 4 + 2, -0.5, z0 + prof / 2), claro and C3(160, 178, 164) or C3(116, 134, 122), Enum.Material.CeramicTiles, pisos, { MaterialVariant = "SueloBaldosas" })
-		z0 += prof
-		fila += 1
-	end
+-- Piso: alfombra estampada (texturas hechas en Blender, blender/alfombras.py). El salón es de confeti noventoso y cada pasillo
+-- de góndolas tiene la alfombra de su género; el fondo (depósito y baño) conserva las baldosas grises.
+local Z_ATRAS = -12 - PROF -- cara interior de la pared divisoria
+local Z_ADELANTE = Z_FRENTE - 0.5
+local function alfombra(nombre, id, x0, x1, z0, z1, alto)
+	local p = parte(nombre, V3(x1 - x0, 1, z1 - z0), V3((x0 + x1) / 2, alto - 0.5, (z0 + z1) / 2), C3(120, 110, 130), Enum.Material.Fabric, pisos)
+	local tx = Instance.new("Texture")
+	tx.Texture = id
+	tx.Face = Enum.NormalId.Top
+	tx.StudsPerTileU = 10
+	tx.StudsPerTileV = 10
+	tx.Parent = p
+	return p
 end
+alfombra("AlfombraSalon", TEX.Confeti, -24.5, 24.5, Z_ATRAS, Z_ADELANTE, 0)
+for _, a in {
+	{ "AlfombraAccion", TEX.Accion, -24, -14 },
+	{ "AlfombraTerror", TEX.Terror, -14, -7 },
+	{ "AlfombraComedia", TEX.Comedia, -7, 0 },
+	{ "AlfombraDrama", TEX.Drama, 0, 7 },
+	{ "AlfombraInfantil", TEX.Infantil, 7, 14 },
+} do
+	alfombra(a[1], a[2], a[3], a[4], Z_ATRAS, 5.5, 0.03)
+end
+parte("PisoFondo", V3(49, 1, 8.5), V3(0, -0.5, -16.25 - PROF), C3(150, 152, 146), Enum.Material.CeramicTiles, pisos, { MaterialVariant = "SueloBaldosas" })
 
-parte("Techo", V3(50, 1, 48 + EXT), V3(0, ALTURA + 0.5, 3 + EXT / 2), C3(196, 192, 180), Enum.Material.SmoothPlastic, estructura)
+parte("Techo", V3(50, 1, 48 + EXT + PROF), V3(0, ALTURA + 0.5, 3 + EXT / 2 - PROF / 2), C3(196, 192, 180), Enum.Material.SmoothPlastic, estructura)
 
 local muros = carpeta("Muros", estructura)
 local VIDRIOS = carpeta("Vidrios", estructura)
@@ -262,42 +264,42 @@ parte("BarreraDerecha", V3(0.5, 10, 6), V3(4.75, 5, Z_FRENTE + 3.25), C3(255, 25
 parte("BarreraFrente", V3(10, 10, 0.5), V3(0, 5, Z_FRENTE + 6.25), C3(255, 255, 255), nil, barreras, INVISIBLE)
 
 -- Laterales.
-muro("MuroIzquierdo", "Z", -24.5, -20.5, Z_FRENTE, { { -11.5, -8, 0, 8.5 } }, COL_PARED, muros) -- puerta a la cocina
-muro("MuroDerecho", "Z", 24.5, -20.5, Z_FRENTE, { { -11.5, -8, 0, 8.5 } }, COL_PARED, muros) -- puerta al patio
+muro("MuroIzquierdo", "Z", -24.5, -20.5 - PROF, Z_FRENTE, { { -11.5, -8, 0, 8.5 } }, COL_PARED, muros) -- puerta a la cocina
+muro("MuroDerecho", "Z", 24.5, -20.5 - PROF, Z_FRENTE, { { -11.5, -8, 0, 8.5 } }, COL_PARED, muros) -- puerta al patio
 
 -- Fondo (z = -20.5) y pared divisoria entre local y fondo (z = -12.5), con puertas al depósito y al baño.
 -- El fondo del depósito es un tramo aparte: en la noche 4 se oculta y el depósito se alarga.
-muro("MuroFondoDeposito", "X", -20.5, -24.5, 7, {}, COL_PARED_FONDO, muros)
-muro("MuroFondoBano", "X", -20.5, 7, 24.5, {}, COL_PARED_FONDO, muros)
+muro("MuroFondoDeposito", "X", -20.5 - PROF, -24.5, 7, {}, COL_PARED_FONDO, muros)
+muro("MuroFondoBano", "X", -20.5 - PROF, 7, 24.5, {}, COL_PARED_FONDO, muros)
 for _, p in muros:GetChildren() do
 	if p.Name == "MuroFondoDeposito" then
 		CollectionService:AddTag(p, "MuroFondoDeposito")
 	end
 end
-muro("MuroDivisorio", "X", -12.5, -24.5, 24.5, {
+muro("MuroDivisorio", "X", -12.5 - PROF, -24.5, 24.5, {
 	{ -8, -4, 0, 8.5 }, -- puerta al depósito
 	{ 14, 18, 0, 8.5 }, -- puerta al baño
 }, COL_PARED, muros)
 -- Pared entre depósito y baño.
-muro("MuroDepositoBano", "Z", 7, -20.5, -12.5, {}, COL_PARED_FONDO, muros)
+muro("MuroDepositoBano", "Z", 7, -20.5 - PROF, -12.5 - PROF, {}, COL_PARED_FONDO, muros)
 
 -- ===== Iluminación del local =====
 
 local luces = carpeta("Luces", estructura)
 local ix = 0
-local defectuosos = { ["-12,-7"] = true, ["20,7"] = true, ["-4,15"] = true }
+local defectuosos = { ["-12,-7"] = true, ["20,7"] = true, ["-4,15"] = true, ["4,-21"] = true, ["-20,-28"] = true, ["12,-14"] = true }
 for _, x in { -20, -12, -4, 4, 12, 20 } do
 	local iz = 0
-	for _, z in { -7, 0, 7, 15, 22, 29 } do
+	for _, z in { -28, -21, -14, -7, 0, 7, 15, 22, 29 } do
 		local encendida = (ix + iz) % 2 == 0
 		tubo("Tubo", x, z, encendida, defectuosos[x .. "," .. z] == true, luces)
 		iz += 1
 	end
 	ix += 1
 end
-tubo("Tubo", -14, -16, true, false, luces) -- depósito
-tubo("Tubo", -2, -16, true, false, luces) -- depósito
-tubo("Tubo", 15, -16, true, true, luces) -- baño
+tubo("Tubo", -14, -16 - PROF, true, false, luces) -- depósito
+tubo("Tubo", -2, -16 - PROF, true, false, luces) -- depósito
+tubo("Tubo", 15, -16 - PROF, true, true, luces) -- baño
 
 -- ===== Mostrador =====
 -- Largo (x -18..7.5): a la izquierda la tele y la videocasetera (bien separadas), en el medio el lugar de
@@ -431,6 +433,9 @@ local GENEROS = {
 -- Las góndolas terminan en z = -6 (antes -9): entre ellas y la pared divisoria (cara interior en z = -12) queda un pasillo
 -- de 6 studs para ir a la cocina, el patio, el depósito y el baño, en vez de 3.
 local Z_DESDE, Z_HASTA = -6, 3
+-- Bloque del fondo (pasillos largos): 12 studs de góndola más hacia atrás, dejando entre ambos bloques el cruce de las puertas de
+-- la cocina y el patio (z -14..-6) y, contra la pared divisoria, un pasillo de 4 studs para llegar al depósito y al baño.
+local Z2_DESDE, Z2_HASTA = Z_ATRAS + 4, -14
 local LARGO = Z_HASTA - Z_DESDE
 local FILAS = 4
 local PASO_FILA = 1.35
@@ -457,7 +462,8 @@ end
 -- del lado del cliente (título cambiado, carátula alterada). El id es estable para que cliente y
 -- servidor generen las mismas anomalías a partir de la misma semilla.
 local Catalogo = require(game.ReplicatedStorage.Shared.Catalogo)
-local function portada(padre, g, lado, y, z, fila, col)
+local function portada(padre, g, lado, y, z, fila, col, filaBase)
+	fila += filaBase or 0
 	local p = parte("Portada", V3(0.3, 1.1, 0.8), V3(g.x + lado * 0.85, y, z), aleatorio(COL_VHS), Enum.Material.SmoothPlastic, padre, {
 		CanCollide = false, CanTouch = false,
 	})
@@ -491,8 +497,9 @@ local function portada(padre, g, lado, y, z, fila, col)
 	t.Parent = papel
 end
 
-for _, g in GENEROS do
-	local pasillo = carpeta("Pasillo_" .. g.clave, gondolas)
+local function gondola(g, Z_DESDE, Z_HASTA, esFondo)
+	local LARGO = Z_HASTA - Z_DESDE
+	local pasillo = carpeta((esFondo and "PasilloFondo_" or "Pasillo_") .. g.clave, gondolas)
 	pasillo:SetAttribute("Genero", g.clave)
 	local zc = (Z_DESDE + Z_HASTA) / 2
 	parte("Cuerpo", V3(1.4, 6.3, LARGO), V3(g.x, 3.15, zc), COL_MADERA, Enum.Material.Wood, pasillo)
@@ -504,8 +511,8 @@ for _, g in GENEROS do
 			local z = Z_DESDE + col + 0.5
 			local esPortada = (fila == 2 or fila == 3) and (col == 1 or col == 4 or col == 7 or col == 10)
 			if esPortada then
-				portada(pasillo, g, -1, y, z, fila, col)
-				portada(pasillo, g, 1, y, z, fila, col)
+				portada(pasillo, g, -1, y, z, fila, col, esFondo and 10 or 0)
+				portada(pasillo, g, 1, y, z, fila, col, esFondo and 10 or 0)
 			else
 				cajaCasete(pasillo, g.x - 0.85, y, z, PALETAS[g.clave], g.clave, -1)
 				cajaCasete(pasillo, g.x + 0.85, y, z, PALETAS[g.clave], g.clave, 1)
@@ -517,16 +524,24 @@ for _, g in GENEROS do
 	local cartelG = parte("Cartel_" .. g.clave, V3(6, 1.4, 0.2), V3(g.x, 9.6, Z_HASTA + 0.6), C3(30, 28, 26), Enum.Material.SmoothPlastic, pasillo)
 	texto(cartelG, Enum.NormalId.Back, g.nombre, Enum.Font.Arcade, C3(240, 220, 120))
 	texto(cartelG, Enum.NormalId.Front, g.nombre, Enum.Font.Arcade, C3(240, 220, 120))
-	-- Punto invisible de la góndola: el prompt "Usar góndola" lo crea TaskSystem.
-	local puntoGondola = parte("PuntoGondola", V3(1.2, 1.2, 1.2), V3(g.x, 3.4, Z_HASTA + 0.9), C3(255, 255, 255), nil, pasillo, {
-		Transparency = 1, CanCollide = false, CanTouch = false, CanQuery = false,
-	})
-	puntoGondola:SetAttribute("Genero", g.clave)
-	CollectionService:AddTag(puntoGondola, "PuntoGondola")
+	if not esFondo then
+		-- Punto invisible de la góndola: el prompt "Usar góndola" lo crea TaskSystem.
+		local puntoGondola = parte("PuntoGondola", V3(1.2, 1.2, 1.2), V3(g.x, 3.4, Z_HASTA + 0.9), C3(255, 255, 255), nil, pasillo, {
+			Transparency = 1, CanCollide = false, CanTouch = false, CanQuery = false,
+		})
+		puntoGondola:SetAttribute("Genero", g.clave)
+		CollectionService:AddTag(puntoGondola, "PuntoGondola")
+	end
 
 	for _, dx in { -2.5, 2.5 } do
 		parte("Varilla", V3(0.1, ALTURA - 10.3, 0.1), V3(g.x + dx, (ALTURA + 10.3) / 2, Z_HASTA + 0.6), C3(40, 40, 40), Enum.Material.Metal, pasillo, DECO)
 	end
+end
+
+for _, g in GENEROS do
+	gondola(g, Z_DESDE, Z_HASTA, false)
+	-- Bloque del fondo: los mismos pasillos siguen hacia atrás, con el cruce de la cocina y el patio en el medio.
+	gondola(g, Z2_DESDE, Z2_HASTA, true)
 end
 
 -- Estantes de pared (cajas de estrenos en los laterales).
@@ -535,14 +550,16 @@ local PALETA_PARED = { C3(160, 40, 36), C3(30, 30, 34), C3(220, 190, 50), C3(60,
 for _, lado in { -1, 1 } do
 	local xCuerpo = lado * 23.4
 	-- Empiezan en z = -3 (antes -6): las puertas de la cocina y el patio (z -11.5..-8) quedan a 5 studs del estante.
-	local PARED_Z0, PARED_COLS = -3, 20
-	local paredZc = PARED_Z0 + PARED_COLS / 2
-	parte("EstantePared", V3(1.2, 6.3, PARED_COLS), V3(xCuerpo, 3.15, paredZc), COL_MADERA, Enum.Material.Wood, paredes)
-	for fila = 1, FILAS do
-		local y = 1.35 + (fila - 1) * PASO_FILA
-		parte("RepisaPared", V3(0.5, 0.12, PARED_COLS), V3(lado * 22.95, y - 0.6, paredZc), COL_MADERA_OSC, Enum.Material.Wood, paredes, DECO)
-		for col = 0, PARED_COLS - 1 do
-			cajaCasete(paredes, lado * 22.65, y, PARED_Z0 + col + 0.5, PALETA_PARED, "PARED", -lado)
+		for _, tramo in { { -3, 20 }, { Z2_DESDE, Z2_HASTA - Z2_DESDE } } do
+		local PARED_Z0, PARED_COLS = tramo[1], tramo[2]
+		local paredZc = PARED_Z0 + PARED_COLS / 2
+		parte("EstantePared", V3(1.2, 6.3, PARED_COLS), V3(xCuerpo, 3.15, paredZc), COL_MADERA, Enum.Material.Wood, paredes)
+		for fila = 1, FILAS do
+			local y = 1.35 + (fila - 1) * PASO_FILA
+			parte("RepisaPared", V3(0.5, 0.12, PARED_COLS), V3(lado * 22.95, y - 0.6, paredZc), COL_MADERA_OSC, Enum.Material.Wood, paredes, DECO)
+			for col = 0, PARED_COLS - 1 do
+				cajaCasete(paredes, lado * 22.65, y, PARED_Z0 + col + 0.5, PALETA_PARED, "PARED", -lado)
+			end
 		end
 	end
 end
@@ -590,7 +607,7 @@ afiche("AficheIzq2", V3(-23.9, 9, 8), Enum.NormalId.Right, "HAGASE SOCIO", C3(40
 afiche("AficheDer1", V3(23.9, 9, -2), Enum.NormalId.Left, "2x1 LOS MARTES", C3(30, 100, 70), "X")
 afiche("AficheDer2", V3(23.9, 9, 8), Enum.NormalId.Left, "REBOBINE ANTES DE DEVOLVER", C3(110, 80, 30), "X")
 
-local letrero = parte("LetreroVideoclub", V3(14, 2.4, 0.2), V3(0, 10, -11.9), C3(30, 28, 26), Enum.Material.SmoothPlastic, afiches, DECO)
+local letrero = parte("LetreroVideoclub", V3(14, 2.4, 0.2), V3(0, 10, -11.9 - PROF), C3(30, 28, 26), Enum.Material.SmoothPlastic, afiches, DECO)
 texto(letrero, Enum.NormalId.Back, "STAR VIDEOCLUB", Enum.Font.Arcade, C3(255, 220, 90))
 
 -- Cartel de instrucciones: en la pared del frente, a la izquierda de la puerta (se ve desde el mostrador y al
@@ -970,6 +987,15 @@ do
 	contorno.Parent = escoba
 end
 
+-- El depósito y el baño se construyeron con las medidas de siempre: se corren hacia el fondo lo que creció el salón.
+for _, grupo in { deposito, bano } do
+	for _, d in grupo:GetDescendants() do
+		if d:IsA("BasePart") then
+			d.CFrame = d.CFrame + V3(0, 0, -PROF)
+		end
+	end
+end
+
 -- ===== Objetos movibles (AnomalySystem los desplaza del lado del cliente) =====
 -- Cada movible es UNA parte (el cliente le cambia el CFrame); los detalles que lo acompañan son decoración fija.
 
@@ -1280,16 +1306,16 @@ end
 -- Dónde aparece una bolsa de basura.
 spot("BasuraLocal", "BasuraSpot", "LOCAL", -20, 21)
 spot("BasuraMostrador", "BasuraSpot", "MOSTRADOR", -8, 5.2 + AV)
-spot("BasuraBano", "BasuraSpot", "BANO", 23.1, -16.9)
+spot("BasuraBano", "BasuraSpot", "BANO", 23.1, -16.9 - PROF)
 spot("BasuraCocina", "BasuraSpot", "COCINA", -44.5, -5.5)
-spot("BasuraDeposito", "BasuraSpot", "DEPOSITO", -19, -17)
+spot("BasuraDeposito", "BasuraSpot", "DEPOSITO", -19, -17 - PROF)
 -- Dónde aparece una mancha para limpiar.
 spot("DerrameLocal", "DerrameSpot", "LOCAL", 11, 21.5)
 spot("DerrameMostrador", "DerrameSpot", "MOSTRADOR", -8.5, 7.8 + AV)
-spot("DerrameBano", "DerrameSpot", "BANO", 15.8, -16.2)
+spot("DerrameBano", "DerrameSpot", "BANO", 15.8, -16.2 - PROF)
 spot("DerrameCocina", "DerrameSpot", "COCINA", -33, -12.5)
 spot("DerramePatio", "DerrameSpot", "PATIO", 38, -12)
-spot("DerrameDeposito", "DerrameSpot", "DEPOSITO", -9.5, -16.6)
+spot("DerrameDeposito", "DerrameSpot", "DEPOSITO", -9.5, -16.6 - PROF)
 
 -- ===== Puntos donde puede aparecer una figura (anomalía y predicción de la cinta) =====
 
@@ -1315,8 +1341,12 @@ end
 for _, x in { -20, -12, -4, 4, 12, 20 } do
 	puntoFigura(x, -10.7, ZONAS[x])
 end
-puntoFigura(-6, -15, "en la puerta del depósito")
-puntoFigura(16, -15, "en la puerta del baño")
+puntoFigura(-6, -15 - PROF, "en la puerta del depósito")
+puntoFigura(16, -15 - PROF, "en la puerta del baño")
+puntoFigura(-10.5, Z2_DESDE + 1.5, "al fondo del pasillo de TERROR")
+puntoFigura(3.5, Z2_DESDE + 1.5, "al fondo del pasillo de DRAMA")
+puntoFigura(-18.9, -20, "en el pasillo de la izquierda, al fondo")
+puntoFigura(18.9, -20, "en el pasillo de la derecha, al fondo")
 puntoFigura(-18, 21.5, "cerca de la entrada")
 
 -- ===== Lugares para las notas de Darío (RulesUI las dibuja del lado del cliente) =====
@@ -1334,31 +1364,13 @@ end
 notaSlot(1, V3(-5.5, 6, Z_FRENTE - 0.53), "Front") -- pared del frente, entre la ventana y la puerta
 notaSlot(2, V3(-23.95, 8.8, 14.5), "Right") -- pared izquierda, sobre el estante
 notaSlot(3, V3(23.95, 8.8, 14.5), "Left") -- pared derecha, sobre el estante
-notaSlot(4, V3(1, 5, -11.95), "Back") -- pared del fondo, hacia el local
-notaSlot(5, V3(-20, 5, -12.97), "Front") -- adentro del depósito
+notaSlot(4, V3(1, 5, -11.95 - PROF), "Back") -- pared del fondo, hacia el local
+notaSlot(5, V3(-20, 5, -12.97 - PROF), "Front") -- adentro del depósito
 notaSlot(6, V3(LATERAL_X + 1.03, 2.6, 10), "Right") -- lateral del mostrador, del lado del empleado
 
 -- ===== Waypoints (el Socio se mueve entre ellos; el servidor los conecta con raycasts) =====
 
-local waypoints = carpeta("Waypoints")
-local function waypoint(x, z)
-	local p = parte("Waypoint", V3(0.6, 0.6, 0.6), V3(x, 3, z), C3(255, 255, 255), nil, waypoints, {
-		Transparency = 1, CanCollide = false, CanTouch = false, CanQuery = false,
-	})
-	CollectionService:AddTag(p, "Waypoint")
-end
-for _, x in { -20, -12, -4, 4, 12, 20 } do
-	-- 6 y 11: lado de los empleados; 20: lado de los clientes (el mostrador está en z 16).
-	for _, z in { -10.5, -3, 6, 11, 17, 27, 33 } do
-		waypoint(x, z)
-	end
-end
-for _, w in { { -44, -16 }, { -34, -16 }, { -44, -6 }, { -34, -6 }, { -28, -9.75 }, { -22, -9.75 }, { 22, -9.75 }, { 28, -9.75 }, { 34, -16 }, { 44, -12 }, { 34, -5 }, { 44, -5 }, { 40, -9 } } do
-	waypoint(w[1], w[2])
-end
-for _, w in { { -6, -10.5 }, { 16, -10.5 }, { -6, -13 }, { 16, -13 }, { -6, -16 }, { -14, -16 }, { 0, -16 }, { 16, -16 } } do
-	waypoint(w[1], w[2])
-end
+local waypoints = carpeta("Waypoints") -- se llena al final (generarWaypoints), cuando todo el local ya está en el Workspace
 
 -- ===== Depósito largo (noche 4): se guarda en ServerStorage y el servidor lo activa =====
 
@@ -1388,6 +1400,11 @@ Deposito.cajasTiradas(largo, {
 for _, zz in { -27, -34, -41 } do
 	tubo("Tubo", -14, zz, true, zz == -34, largo)
 	tubo("Tubo", -2, zz, zz ~= -41, false, largo)
+end
+for _, d in largo:GetDescendants() do
+	if d:IsA("BasePart") then
+		d.CFrame = d.CFrame + V3(0, 0, -PROF)
+	end
 end
 largo.Parent = game.ServerStorage
 
@@ -1758,6 +1775,61 @@ end
 
 raiz.Parent = workspace
 
+-- ===== Waypoints (el Socio se mueve entre ellos; el servidor los conecta con raycasts) =====
+-- Rejilla de puntos libres (cabe un cuerpo de 3 studs de ancho por 5 de alto) en el salón, el fondo, la cocina y el patio.
+local function generarWaypoints()
+	local params = OverlapParams.new()
+	params.FilterType = Enum.RaycastFilterType.Include
+	params.FilterDescendantsInstances = { raiz }
+	local function libre(x, z)
+		for _, p in workspace:GetPartBoundsInBox(CFrame.new(x, 3.6, z), V3(3.4, 5.2, 3.4), params) do
+			if p.CanCollide and p.Name ~= "Techo" then
+				return false
+			end
+		end
+		return true
+	end
+	local n = 0
+	local function punto(x, z)
+		local w = Instance.new("Part")
+		w.Name = "Waypoint"
+		w.Size = V3(0.6, 0.6, 0.6)
+		w.Anchored = true
+		w.Transparency = 1
+		w.CanCollide, w.CanTouch, w.CanQuery = false, false, false
+		w.Position = V3(x, 3, z)
+		w.Parent = waypoints
+		CollectionService:AddTag(w, "Waypoint")
+		n += 1
+	end
+	local PASO = 4.5
+	for _, r in {
+		{ -22.5, 22.5, Z_ATRAS + 2, Z_ADELANTE - 1.5 }, -- salón completo (pasillos largos incluidos)
+		{ -22.5, 5, -20.5 - PROF + 1.5, -13 - PROF }, -- depósito
+		{ 9, 22.5, -20.5 - PROF + 1.5, -13 - PROF }, -- baño
+		{ -50.5, -26, -19.5, -2.5 }, -- cocina
+		{ 26.5, 50.5, -19.5, -2.5 }, -- patio
+	} do
+		local x = r[1]
+		while x <= r[2] do
+			local z = r[3]
+			while z <= r[4] do
+				if libre(x, z) then
+					punto(x, z)
+				end
+				z += PASO
+			end
+			x += PASO
+		end
+	end
+	-- Las puertas (cocina, patio, depósito y baño): un punto a cada lado para que el recorrido las cruce.
+	for _, w in { { -22.5, -9.75 }, { -26.5, -9.75 }, { 22.5, -9.75 }, { 26.5, -9.75 }, { -6, -13 - PROF }, { -6, -17 - PROF }, { 16, -13 - PROF }, { 16, -17 - PROF } } do
+		punto(w[1], w[2])
+	end
+	return n
+end
+local nWaypoints = generarWaypoints()
+
 -- ===== Lo que venía en la plantilla se guarda en ServerStorage/Plantilla (no se borra) =====
 
 local plantilla = game.ServerStorage:FindFirstChild("Plantilla")
@@ -1826,4 +1898,4 @@ for _, d in raiz:GetDescendants() do
 		partes += 1
 	end
 end
-return "Videoclub construido: " .. partes .. " partes"
+return "Videoclub construido: " .. partes .. " partes, " .. nWaypoints .. " waypoints"

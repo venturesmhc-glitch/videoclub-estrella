@@ -32,6 +32,8 @@ local cortadoBase = false -- el corte de luz "de verdad"
 local cortado = false -- lo que se está mostrando ahora (el parpadeo fuerte lo altera un instante)
 local ambienteNormal
 local proximoApagon = 0
+local patronToken = 0 -- parpadeo a medida en curso (LuzFluorescente.patron)
+local patronAmbiente -- ambiente a restaurar al terminar el parpadeo a medida
 
 local function aplicar(tubo, datos, encendido)
 	datos.encendido = encendido
@@ -78,6 +80,47 @@ function LuzFluorescente.cortarTodo(valor: boolean)
 	Lighting.Ambient = valor and Color3.fromRGB(7, 8, 8) or ambienteNormal.Ambient
 	Lighting.OutdoorAmbient = valor and Color3.fromRGB(5, 6, 6) or ambienteNormal.OutdoorAmbient
 	Linterna.habilitar(valor)
+end
+
+--- Parpadeo a medida (cinemáticas): secuencia = { oscuro, luz, oscuro, luz, ... } en segundos, empezando por un tramo a oscuras.
+--- Mientras dura un tramo oscuro también baja el ambiente. Al terminar la luz vuelve a como estaba (un número impar de tramos
+--- deja el último a oscuras y después vuelve la luz).
+function LuzFluorescente.patron(secuencia: { number })
+	patronToken += 1
+	local token = patronToken
+	-- Ambiente "de antes": el que había al empezar el parpadeo (no el de init, que el juego cambia después).
+	if not patronAmbiente then
+		patronAmbiente = { Ambient = Lighting.Ambient, OutdoorAmbient = Lighting.OutdoorAmbient }
+	end
+	local previo = patronAmbiente
+	local function poner(oscuro: boolean)
+		local apagado = oscuro or cortadoBase
+		mostrarCorte(apagado)
+		Lighting.Ambient = apagado and Color3.fromRGB(7, 8, 8) or previo.Ambient
+		Lighting.OutdoorAmbient = apagado and Color3.fromRGB(5, 6, 6) or previo.OutdoorAmbient
+		if Config.Debug.LogSistemas then
+			local encendidos = 0
+			for tubo in tubos do
+				if tubo.Material == Enum.Material.Neon then
+					encendidos += 1
+				end
+			end
+			print(string.format("[Luz] patron: %s (%d tubos encendidos)", apagado and "OSCURO" or "luz", encendidos))
+		end
+	end
+	task.spawn(function()
+		for i, duracion in secuencia do
+			if patronToken ~= token then
+				return
+			end
+			poner(i % 2 == 1)
+			task.wait(duracion)
+		end
+		if patronToken == token then
+			poner(false)
+			patronAmbiente = nil
+		end
+	end)
 end
 
 function LuzFluorescente.parpadeoFuerte()

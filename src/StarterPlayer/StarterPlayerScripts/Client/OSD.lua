@@ -32,6 +32,7 @@ local TEXTOS_ESTADO = {
 
 local estado = { modo = "PLAY", noche = 1, minuto = 0, demo = true, contadorSeg = 0 }
 local etiquetas = {}
+local encuadreActual -- rect de OSD.encuadre (nil = pantalla completa)
 
 local function formatearHora(minuto)
 	local total = (Config.Noche.InicioHora * 60 + math.floor(minuto)) % 1440
@@ -100,6 +101,37 @@ end
 
 function OSD.setEstado(modo: string)
 	estado.modo = modo
+end
+
+--- Pone el contador de cinta (segundos). Lo usan las cinemáticas para que cada clip arranque en CTR 0:00:00.
+function OSD.setContador(segundos: number)
+	estado.contadorSeg = segundos
+end
+
+--- Encuadra el OSD dentro de un rectángulo (fracciones de la pantalla: x0, x1, y0, y1), por ejemplo la franja central
+--- que sobrevive al recorte vertical 9:16. nil = posiciones de siempre. Solo lo llama Client/Cinematica.
+function OSD.encuadre(rect)
+	encuadreActual = rect
+	if not etiquetas.estado then
+		return
+	end
+	local xDer, xIzq, ySup, yInf
+	local ancho = 0.4
+	if rect then
+		local m = rect.margenX or cfg.MargenLateral
+		xDer, xIzq = rect.x1 - m, rect.x0 + m
+		ySup, yInf = rect.y0 + cfg.MargenSuperior, rect.y1 - cfg.MargenInferior
+		ancho = math.max(0.05, rect.x1 - rect.x0 - 2 * m)
+	else
+		xDer, xIzq = 1 - cfg.MargenLateral, cfg.MargenLateral
+		ySup, yInf = cfg.MargenSuperior, 1 - cfg.MargenInferior
+	end
+	etiquetas.estado.Position = UDim2.fromScale(xDer, ySup)
+	etiquetas.contador.Position = UDim2.fromScale(xDer, ySup + cfg.SeparacionLineas)
+	etiquetas.fecha.Position = UDim2.fromScale(xIzq, yInf)
+	for _, e in etiquetas do
+		e.Size = UDim2.fromScale(ancho, 0.06)
+	end
 end
 
 function OSD.setHora(noche: number, minuto: number, fase: string?, escala: number?)

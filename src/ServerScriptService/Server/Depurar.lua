@@ -336,6 +336,34 @@ function comandos.mover(x, z)
 	return comandos.pos()
 end
 
+--- Cinemáticas (solo con Config.Debug.ModoGrabacion): cine NOMBRE lanza el clip (arranca a los Config.Cinematicas.InicioSeg),
+--- cine lista muestra los que hay, cine parar corta el que esté andando. El cliente (Client/Cinematica) lo recibe por atributos.
+function comandos.cine(nombre, desde, foto)
+	if not Config.Debug.ModoGrabacion then
+		return "ModoGrabacion está apagado: poné Config.Debug.ModoGrabacion = true, node push.js y reiniciá el Play"
+	end
+	local Cinematicas = require(ReplicatedStorage.Shared.Cinematicas)
+	if nombre == nil or nombre == "lista" then
+		local lineas = {}
+		for _, id in Cinematicas.orden do
+			local clip = Cinematicas.Clips[id]
+			table.insert(lineas, string.format("  %s  (%ds)  %s", id, clip.duracion, clip.titulo))
+		end
+		return "clips:\n" .. table.concat(lineas, "\n")
+	end
+	if nombre ~= "parar" and not Cinematicas.Clips[nombre] then
+		return "no existe el clip '" .. tostring(nombre) .. "' (node dbg.js cine lista)"
+	end
+	ReplicatedStorage:SetAttribute("CineDesde", tonumber(desde) or 0) -- segundo por el que empezar (para revisar un plano)
+	ReplicatedStorage:SetAttribute("CineFoto", foto == "foto" or foto == true) -- congela el clip en ese segundo
+	ReplicatedStorage:SetAttribute("CineClip", nombre == "parar" and "" or nombre)
+	ReplicatedStorage:SetAttribute("CineId", (ReplicatedStorage:GetAttribute("CineId") or 0) + 1)
+	if nombre == "parar" then
+		return "cinemática detenida"
+	end
+	return string.format("clip '%s' arranca en %d s: apretá REC en OBS", nombre, Config.Cinematicas.InicioSeg)
+end
+
 function Depurar.init()
 	if not Config.Debug.Comandos then
 		return

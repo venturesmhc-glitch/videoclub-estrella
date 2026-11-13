@@ -423,6 +423,7 @@ function SocioHuesos.nuevo(modelo: Model, opciones)
 	local proxGesto = 0
 	local ultimoGesto = ""
 	local GESTO_ESPERA = { 1.2, 3.5 } -- segundos entre un gesto y el siguiente
+	local gestosAlAzar = true -- false: solo hace los gestos que se piden con ctl.gesto (cinemáticas)
 
 	local function elegirGesto(distancia: number?)
 		local total = 0
@@ -751,7 +752,7 @@ function SocioHuesos.nuevo(modelo: Model, opciones)
 				proxDedos = t + rng:NextNumber(0.15, 0.5)
 				dedosAlAzar()
 			end
-			if t >= proxGesto then
+			if gestosAlAzar and t >= proxGesto then
 				local nombre = elegirGesto(distancia)
 				ultimoGesto = nombre
 				local def = GESTOS[nombre]
@@ -761,6 +762,28 @@ function SocioHuesos.nuevo(modelo: Model, opciones)
 
 		piernas(dioPaso, t)
 		ctl.sincronizarOjos()
+	end
+
+	--- Dispara un gesto por nombre (cinemáticas): crujido, miradaAtras, olfateo, arco, rugido, zarpazo, temblor, dedos,
+	--- espantapajaros, picoteo, balanceo, colgar. lado: 1 o -1 (nil = al azar). Solo se ve si el Socio no está "observado".
+	function ctl.gesto(nombre: string, lado: number?, duracion: number?): boolean
+		local def = GESTOS[nombre]
+		if not def then
+			return false
+		end
+		ultimoGesto = nombre
+		gestoActual = {
+			def = def,
+			inicio = os.clock(),
+			dur = duracion or (def.dur[1] + def.dur[2]) / 2,
+			k = { s = lado or (rng:NextNumber() < 0.5 and 1 or -1) },
+		}
+		return true
+	end
+
+	--- true (por defecto): hace gestos al azar cada tanto. false: solo los pedidos con ctl.gesto.
+	function ctl.gestosAlAzar(valor: boolean)
+		gestosAlAzar = valor
 	end
 
 	-- Para pruebas y vistas previas: los gestos por nombre (f(a, {s = lado})) y la pose de ataque.
