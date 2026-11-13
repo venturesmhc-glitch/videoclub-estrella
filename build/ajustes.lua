@@ -16,6 +16,9 @@
 	estante giratorio de estrenos entre los dos tramos de la góndola ACCIÓN, la figura de cartón del Socio N° 0000 frente al depósito, el
 	cartel SOS del matafuego izquierdo, los dos neones "SALIDA" (no dan a ninguna salida) y la caja junto a la puerta del baño.
 	La planta de la puerta de la cocina se corrió a lo largo de la pared, fuera del hueco, y la del baño quedó en la esquina.
+	Junto a los pochoclos: se sacan las dos plantas (Ficus 6 y la planta chica), la máquina se corre 2,6 studs hacia los arcades (z = 23) y el
+	cartel 2x1 queda en el hueco que se forma entre la máquina y los estantes de la pared. También se saca el póster "Dos locos y un destino"
+	de la pared del fondo (el que queda pegado al matafuego con el cartel SOS).
 ]]
 
 local raiz = workspace:FindFirstChild("Videoclub")
@@ -45,11 +48,38 @@ local espera = deco:FindFirstChild("SalaDeEspera")
 
 -- Cartel 2x1, planta chica y ficus
 if props then
-	ubicar(props:FindFirstChild("CartelDeOferta"), 18.7, 19.5)
-	ubicar(props:FindFirstChild("PlantaDeOfertas"), 18.5, 23.5)
+	ubicar(props:FindFirstChild("CartelDeOferta"), 22.2, 19.2) -- entre los estantes de la pared (z < 17) y la máquina de pochoclos (z 21,7 a 24,3)
+	local planta = props:FindFirstChild("PlantaDeOfertas")
+	if planta then
+		table.insert(log, "PlantaDeOfertas eliminada")
+		planta:Destroy()
+	end
+end
+-- máquina de pochoclos (con su letrero) más a la derecha, contra los arcades
+local pochoclos = deco:FindFirstChild("Pochoclos")
+if pochoclos then
+	ubicar(pochoclos:FindFirstChild("MaquinaDePochoclos"), 22.6, 23.0)
+	local letreroMaquina = pochoclos:FindFirstChild("CartelPochoclos")
+	if letreroMaquina then
+		letreroMaquina.Position = Vector3.new(letreroMaquina.Position.X, letreroMaquina.Position.Y, 23.0)
+	end
+end
+-- póster "Dos locos y un destino" (pared del fondo, x = 7,5) con su marco
+local afichesDeco = deco:FindFirstChild("Afiches")
+if afichesDeco then
+	for _, a in afichesDeco:GetChildren() do
+		if a:IsA("BasePart") and (a.Name == "Afiche" or a.Name == "AficheMarco") and math.abs(a.Position.X - 7.5) < 0.2 and a.Position.Z < -28 then
+			table.insert(log, "póster de la pared del fondo eliminado")
+			a:Destroy()
+		end
+	end
 end
 if figuras then
-	ubicar(figuras:FindFirstChild("Ficus 6"), 19.68, 14.85)
+	local ficus6 = figuras:FindFirstChild("Ficus 6") -- junto a los pochoclos
+	if ficus6 then
+		table.insert(log, "Ficus 6 eliminado")
+		ficus6:Destroy()
+	end
 	ubicar(figuras:FindFirstChild("Ficus 5"), 22.0, -27.6) -- esquina del fondo derecho, junto a la puerta del baño
 	ubicar(figuras:FindFirstChild("Ficus 1"), -22.4, -5.5) -- puerta de la cocina: fuera del hueco (z de -11,5 a -8)
 	ubicar(figuras:FindFirstChild("ExhibidorGiratorio 2"), -13, 23)
