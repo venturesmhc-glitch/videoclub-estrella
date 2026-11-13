@@ -22,6 +22,7 @@
 	En la pared del frente la guarda rosa (Decoracion/Paredes/Panel, y = 3,55) tapaba la ranura de la caja de devoluciones y la primera
 	instrucción de "EL TURNO" del cartel: la ranura baja a y = 2,95 (entre la caja y la guarda), el cartel de instrucciones se adelanta
 	para quedar por delante de la guarda, y la franja crema "DEVOLUCIONES" lleva el texto en negro de cara al salón.
+	El cartel de neón "ABIERTO 24 HS" (antes grande, en la ventana derecha) es más chico y cuelga de la puerta de entrada, de cara a los dos lados.
 ]]
 
 local raiz = workspace:FindFirstChild("Videoclub")
@@ -219,6 +220,14 @@ if cartelInstrucciones and marcoInstrucciones then
 	-- por delante de la guarda rosa (su cara del salón está en z = 33,8)
 	cartelInstrucciones.Position = Vector3.new(cartelInstrucciones.Position.X, cartelInstrucciones.Position.Y, 33.70)
 	marcoInstrucciones.Position = Vector3.new(marcoInstrucciones.Position.X, marcoInstrucciones.Position.Y, 33.76)
+end
+
+-- ===== Cartel "ABIERTO 24 HS": más chico y colgado de la puerta de entrada (vidrio en z = 34,5, cara del salón en z = 34,4) =====
+local cartelAbierto = neones and neones:FindFirstChild("CartelAbierto")
+if cartelAbierto then
+	cartelAbierto.Size = Vector3.new(3.0, 0.75, 0.14) -- era 6 x 1,5 x 0,3
+	cartelAbierto.Position = Vector3.new(0, 7.3, 34.31)
+	table.insert(log, "CartelAbierto -> puerta de entrada")
 end
 
 print("[ajustes] " .. #log .. " cambios")
