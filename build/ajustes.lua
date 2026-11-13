@@ -65,7 +65,10 @@ if figuras then
 	for _, m in figuras:GetChildren() do
 		if m:IsA("Model") then
 			local z = m:GetPivot().Position.Z
-			if (string.sub(m.Name, 1, 18) == "ExhibidorGiratorio" and z < 0) or (string.sub(m.Name, 1, 14) == "FiguraDeCarton" and z < -20) then
+			local x = m:GetPivot().Position.X
+			-- figuras de cartón: la del depósito (z < -20) y las dos de la entrada que miran a las ventanas (z > 20, a los costados)
+			local cartonSobra = string.sub(m.Name, 1, 14) == "FiguraDeCarton" and (z < -20 or (z > 20 and math.abs(x) > 8))
+			if (string.sub(m.Name, 1, 18) == "ExhibidorGiratorio" and z < 0) or cartonSobra then
 				table.insert(log, m.Name .. " eliminado")
 				m:Destroy()
 			end
