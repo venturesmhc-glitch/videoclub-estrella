@@ -6,7 +6,7 @@ Reemplazá `[LINK]` por el link del juego (en Instagram el link va en la bio: en
 ```
 Actualización en Star Videoclub.
 
-El Socio N° 0000 no duerme. Algo camina por el techo. Sin fin con ranking global y desafío diario. Y un videoclub renovado.
+El Socio N° 0000 te busca. Algo camina por el techo. Sin fin con ranking global y desafío diario. Y un videoclub renovado.
 
 ¿Cuántas noches aguantás? Link en la bio.
 ```

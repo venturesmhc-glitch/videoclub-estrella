@@ -101,7 +101,7 @@ ff(*fondo_estatica(D_INTRO), "-loop", "1", "-t", D_INTRO, "-i", a_titulo, "-loop
 segmentos.append(("seg_a.mp4", D_INTRO))
 
 # ---------------------------------------------------------------- B. el Socio
-b_arriba = tarjeta("b_arriba", [("EL SOCIO N° 0000", 330, 24, AMARILLO), ("NO DUERME", 480, 30, ROJO)])
+b_arriba = tarjeta("b_arriba", [("EL SOCIO N° 0000", 330, 24, AMARILLO), ("TE BUSCA", 480, 30, ROJO)])
 b_abajo = tarjeta("b_abajo", [("No lo pierdas de vista.", 1450, 13, BLANCO), ("Si te toca, te graba.", 1540, 13, BLANCO)])
 flash = f"drawbox=x=0:y=0:w=iw:h=ih:color=white@0.85:t=fill:enable='between(t,{0.72 * D_SOCIO:.2f},{0.72 * D_SOCIO + 0.1:.2f})'"
 fc, et = con_texto(f"[0:v]{flash}", [(1, 0.25, D_SOCIO, False), (2, 0.9, D_SOCIO, False)])
