@@ -508,14 +508,14 @@ Config.Espectador = {
 -- Compras con Robux (Tienda.lua). Los ids son de los "Developer Products" de la experiencia (Centro de creación > Monetización).
 -- Con 0 el producto no está creado: en Studio la compra se simula sin gastar nada y en el juego publicado no está disponible.
 Config.Tienda = {
-	-- Los de id 0 todavía no están creados en Roblox: hay que crear un Developer Product por cada uno (con el precio de
-	-- Precios) y pegar su id acá.
+	-- Un Developer Product de la experiencia por cada artículo (creados en Roblox con el precio de Precios y un ícono de assets/tienda/).
+	-- Si se agrega un artículo nuevo hay que crear su producto y pegar acá su id (con 0 la compra no está disponible).
 	Productos = {
 		Asustar = 3726792104, Revivir = 3726792548,
-		Companero = 0, Amuleto = 0, Pausa = 0,
-		PropinaChica = 0, PropinaMedia = 0, PropinaGrande = 0,
-		FiltroBN = 0, Filtro8mm = 0, FiltroSepia = 0,
-		PaseRadio = 0,
+		Companero = 3731090589, Amuleto = 3731090537, Pausa = 3731090580,
+		PropinaChica = 3731090595, PropinaMedia = 3731090651, PropinaGrande = 3731090657,
+		FiltroBN = 3731090664, Filtro8mm = 3731090754, FiltroSepia = 3731090763,
+		PaseRadio = 3731090772,
 	},
 	Precios = { -- solo para mostrarlos en los botones (el precio real es el del producto)
 		Asustar = 10, Revivir = 15, Companero = 20, Amuleto = 25, Pausa = 25,
