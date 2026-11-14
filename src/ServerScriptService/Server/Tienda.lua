@@ -9,7 +9,7 @@
 	    companero  un espectador (a elección) vuelve a jugar al instante
 	    revivir    un espectador (uno mismo) vuelve a jugar al instante
 	    asustar    un screamer a todos los demás que siguen en la noche (también con la máscara del depósito)
-	  Aspecto (permanentes, quedan en el perfil): gorra, chaleco, camiseta (Cosmeticos.lua) y filtros de cinta (Client/Filtro)
+	  Aspecto (permanentes, quedan en el perfil): filtros de cinta (Client/Filtro). La ropa se sacó: no se puede vender sin Premium.
 	  Radio: paseradio desbloquea las estaciones premium (Radio.lua)
 	  Propinas: no hacen nada en el juego, solo agradecen.
 
@@ -42,7 +42,7 @@ local ultimaPausa = -math.huge
 local procesados = {} -- PurchaseId -> true (Roblox puede repetir un recibo si el servidor no confirmó a tiempo)
 local pendientes = {} -- UserId -> { clave, objetivo } (a quién va el "revivir a un compañero" que se está pagando)
 local porClave = {} -- clave -> artículo del catálogo
-local RANURAS = { cabeza = true, torso = true, filtro = true }
+local RANURAS = { filtro = true }
 
 for _, articulo in cfg.Catalogo do
 	porClave[articulo.clave] = articulo
@@ -128,7 +128,7 @@ EFECTOS.propinachica = propina
 EFECTOS.propinamedia = propina
 EFECTOS.propinagrande = propina
 
--- Lo permanente se anota en el perfil; la ropa y los filtros además se ponen al comprarlos.
+-- Lo permanente se anota en el perfil; los filtros además se ponen al comprarlos.
 local function permanente(jugador: Player, articulo)
 	Persistencia.marcarCompra(jugador, articulo.clave)
 	if articulo.ranura then

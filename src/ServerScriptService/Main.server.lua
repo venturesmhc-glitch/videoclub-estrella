@@ -35,7 +35,6 @@ local ORDEN = {
 	"Criatura",
 	"Screamers",
 	"Tienda",
-	"Cosmeticos",
 	"Insignias",
 	"Pistas",
 	"CursedTapeSystem",

@@ -58,7 +58,7 @@ local function avisarSinAlmacen(motivo)
 	end
 end
 
-local observadores = {} -- funciones que quieren enterarse cuando cambia el perfil de alguien (Cosmeticos)
+local observadores = {} -- funciones que quieren enterarse cuando cambia el perfil de alguien (Persistencia.suscribirPerfil)
 
 local function avisarCambio(jugador: Player)
 	for _, f in observadores do

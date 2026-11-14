@@ -28,7 +28,7 @@ local DEFINICIONES: { [string]: string } = {
 	Presion = "UnreliableRemoteEvent", -- s>c: progreso del Socio 0..1 (oscurece y enrojece los bordes de la pantalla)
 	SocioEvento = "RemoteEvent", -- s>c: "rugido" | "hallazgo" | "aviso" | "embiste" (la IA de caza del Socio: rugido al empezar la caza, etc.)
 	SocioPresencia ="RemoteEvent", -- s>c: true cuando el Socio aparece, false cuando se va (distorsiona la música)
-	Equipar = "RemoteEvent", -- c>s: { ranura = "cabeza" | "torso" | "filtro", clave = string? } equipa (o saca, con clave nil) algo comprado
+	Equipar = "RemoteEvent", -- c>s: { ranura = "filtro", clave = string? } equipa (o saca, con clave nil) algo comprado
 	Notice = "RemoteEvent", -- s>c: aviso corto en pantalla (texto)
 	CustomerDialog = "RemoteEvent", -- s>c: diálogo de cliente { speaker, texto }
 	CustomerChoice = "RemoteEvent", -- c>s: respuesta del jugador

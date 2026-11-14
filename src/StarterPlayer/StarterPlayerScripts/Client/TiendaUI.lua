@@ -1,7 +1,7 @@
 --!nonstrict
 --[[
 	TiendaUI (cliente): la tienda del Videoclub. B la abre y la cierra (también el botón TIENDA del menú inicial).
-	Pestañas: AYUDA (amuleto, baterías, pausa, revivir), ASPECTO (gorra, chaleco, camiseta y filtros de cinta), RADIO
+	Pestañas: AYUDA (amuleto, baterías, pausa, revivir), ASPECTO (filtros de cinta), RADIO
 	(Pase de Radio y estaciones) y PROPINA. Lo que se vende está en Config.Tienda.Catalogo.
 	  - Lo que se paga cada vez ("consumible") manda Comprar { producto, objetivo? } al servidor, que valida y abre la compra.
 	  - Lo permanente ("permanente") se compra una vez; después el botón pasa a EQUIPAR / QUITAR (Equipar { ranura, clave }).
@@ -209,12 +209,6 @@ local function reconstruir()
 			end
 		end
 	elseif pestana == "aspecto" then
-		encabezado("ROPA")
-		for _, articulo in cfg.Catalogo do
-			if articulo.categoria == "aspecto" then
-				filaDeArticulo(articulo)
-			end
-		end
 		encabezado("FILTROS DE CINTA")
 		for _, articulo in cfg.Catalogo do
 			if articulo.categoria == "filtro" then
